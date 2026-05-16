@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx --version)",
+      "Skill(claude-mem:make-plan)",
+      "WebSearch",
+      "Skill(claude-mem:do)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --yes)"
+    ]
+  }
+}
