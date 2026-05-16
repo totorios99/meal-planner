@@ -23,17 +23,21 @@ export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
     day.meals.find(m => m.slotIndex === i)
   )
   const lastFilled = slots.reduce((last, s, i) => s ? i : last, -1)
-  const visibleSlots = Math.min(MAX_SLOTS, Math.max(2, lastFilled + 2))
+  const visibleSlots = Math.min(MAX_SLOTS, Math.max(1, lastFilled + 2))
 
-  const showWatermark = day.isDismissed || day.meals.length === 0
+  const showWatermark = day.isDismissed
 
   async function toggleDismiss() {
+    const undismissing = day.isDismissed
+    const body: Record<string, unknown> = { isDismissed: !day.isDismissed }
+    if (undismissing) body.justification = ''
     const res = await fetch(`/api/plans/${planId}/days/${day.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isDismissed: !day.isDismissed })
+      body: JSON.stringify(body)
     })
     const updated = await res.json()
+    if (undismissing) setJustificationDraft('')
     onDayUpdate(updated)
   }
 
@@ -92,37 +96,35 @@ export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
         </button>
       </div>
 
-      {/* Slots area */}
-      <div className="flex flex-col gap-2 relative">
-        {slots.slice(0, visibleSlots).map((slot, i) => (
-          <MealSlot
-            key={i}
-            slot={slot}
-            slotIndex={i}
-            planId={planId}
-            dayId={day.id}
-            onAdd={handleAdd}
-            onRemove={handleRemove}
-            onMultiplierChange={handleMultiplierChange}
+      {/* Slots area or dismissed state */}
+      {day.isDismissed ? (
+        <div className="flex flex-col items-center gap-2 py-4 px-2 bg-orange-50 rounded-xl border border-dashed border-orange-200">
+          <span className="text-xl opacity-30">🚫</span>
+          <textarea
+            value={justificationDraft}
+            onChange={e => setJustificationDraft(e.target.value)}
+            onBlur={saveJustification}
+            placeholder="What happened today?"
+            rows={3}
+            className="w-full text-xs text-center text-gray-600 bg-transparent border border-dashed border-orange-200 rounded-lg p-2 resize-none focus:outline-none focus:border-orange-400 placeholder:text-gray-400"
           />
-        ))}
-
-        {/* Watermark overlay — only for dismissed or fully empty days */}
-        {showWatermark && (
-          <div className="absolute inset-0 bg-white/85 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center p-3 z-10">
-            <div className="text-2xl mb-2 opacity-25">
-              {day.isDismissed ? '🚫' : '📝'}
-            </div>
-            <textarea
-              value={justificationDraft}
-              onChange={e => setJustificationDraft(e.target.value)}
-              onBlur={saveJustification}
-              placeholder={day.isDismissed ? 'What happened today?' : 'Add a note…'}
-              className="w-full text-xs text-center text-gray-600 bg-transparent border border-dashed border-gray-300 rounded-lg p-2 resize-none h-14 focus:outline-none focus:border-gray-400 placeholder:text-gray-400"
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {slots.slice(0, visibleSlots).map((slot, i) => (
+            <MealSlot
+              key={i}
+              slot={slot}
+              slotIndex={i}
+              planId={planId}
+              dayId={day.id}
+              onAdd={handleAdd}
+              onRemove={handleRemove}
+              onMultiplierChange={handleMultiplierChange}
             />
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Analytics — only when meals present */}
       {day.meals.length > 0 && !day.isDismissed && (

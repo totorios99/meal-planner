@@ -34,7 +34,8 @@
       "Bash(curl -s -X POST http://localhost:3000/api/plans/1/clone)",
       "Bash(python3 *)",
       "Bash(DATABASE_URL=\"file:./db/meal-planner.db\" node *)",
-      "Bash(sqlite3 *)"
+      "Bash(sqlite3 *)",
+      "Bash(pkill -f \"next dev\")"
     ]
   }
 }
