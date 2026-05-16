@@ -1,0 +1,19 @@
+services:
+  meal-planner:
+    build: .
+    container_name: meal-planner
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/db
+    environment:
+      - DATABASE_URL=file:/app/db/meal-planner.db
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/meals"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

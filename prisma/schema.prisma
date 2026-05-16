@@ -1,0 +1,60 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Meal {
+  id          Int    @id @default(autoincrement())
+  title       String
+  description String @default("")
+  calories    Float
+  protein     Float
+  carbs       Float
+  fats        Float
+  imageUrl    String @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  weeklyPlanMeals WeeklyPlanMeal[]
+}
+
+model WeeklyPlan {
+  id         Int       @id @default(autoincrement())
+  weekStart  DateTime
+  isActive   Boolean   @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  days WeeklyPlanDay[]
+}
+
+model WeeklyPlanDay {
+  id            Int        @id @default(autoincrement())
+  weeklyPlanId  Int
+  weeklyPlan    WeeklyPlan @relation(fields: [weeklyPlanId], references: [id], onDelete: Cascade)
+  dayIndex      Int
+  isDismissed   Boolean    @default(false)
+  justification String     @default("")
+
+  meals WeeklyPlanMeal[]
+
+  @@unique([weeklyPlanId, dayIndex])
+}
+
+model WeeklyPlanMeal {
+  id                Int           @id @default(autoincrement())
+  weeklyPlanDayId   Int
+  weeklyPlanDay     WeeklyPlanDay @relation(fields: [weeklyPlanDayId], references: [id], onDelete: Cascade)
+  mealId            Int
+  meal              Meal          @relation(fields: [mealId], references: [id])
+  slotIndex         Int
+  portionMultiplier Float         @default(1.0)
+
+  @@unique([weeklyPlanDayId, slotIndex])
+}

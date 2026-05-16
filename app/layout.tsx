@@ -27,7 +27,19 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <nav className="border-b border-gray-200 bg-white">
+          <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+            <span className="font-bold text-gray-900">Meal Planner</span>
+            <div className="flex gap-4">
+              <a href="/meals" className="text-sm text-gray-600 hover:text-gray-900">Cookbook</a>
+              <a href="/planner" className="text-sm text-gray-600 hover:text-gray-900">Planner</a>
+              <a href="/print" className="text-sm text-gray-600 hover:text-gray-900 print:hidden">Print</a>
+            </div>
+          </div>
+        </nav>
+        {children}
+      </body>
     </html>
   );
 }
