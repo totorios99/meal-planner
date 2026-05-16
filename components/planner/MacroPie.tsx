@@ -12,7 +12,7 @@ export function MacroPie({ protein, carbs, fats }: Props) {
 
   if (total === 0) {
     return (
-      <svg viewBox="0 0 36 36" className="w-10 h-10">
+      <svg viewBox="0 0 36 36" className="w-10 h-10 shrink-0">
         <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e5e7eb" strokeWidth="3.5" />
       </svg>
     )
@@ -31,27 +31,20 @@ export function MacroPie({ protein, carbs, fats }: Props) {
   ]
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <svg viewBox="0 0 36 36" className="w-10 h-10 -rotate-90">
-        {segs.map((seg, i) => (
-          <circle
-            key={i}
-            cx="18"
-            cy="18"
-            r="15.9155"
-            fill="none"
-            stroke={seg.color}
-            strokeWidth="3.5"
-            strokeDasharray={`${seg.pct} ${100 - seg.pct}`}
-            strokeDashoffset={25 - seg.start}
-          />
-        ))}
-      </svg>
-      <div className="flex gap-2 text-xs">
-        <span className="text-blue-500">P {Math.round(pPct)}%</span>
-        <span className="text-emerald-500">C {Math.round(cPct)}%</span>
-        <span className="text-amber-500">F {Math.round(fPct)}%</span>
-      </div>
-    </div>
+    <svg viewBox="0 0 36 36" className="w-10 h-10 shrink-0 -rotate-90">
+      {segs.map((seg, i) => (
+        <circle
+          key={i}
+          cx="18"
+          cy="18"
+          r="15.9155"
+          fill="none"
+          stroke={seg.color}
+          strokeWidth="3.5"
+          strokeDasharray={`${seg.pct} ${100 - seg.pct}`}
+          strokeDashoffset={25 - seg.start}
+        />
+      ))}
+    </svg>
   )
 }

@@ -11,6 +11,7 @@ export default async function PrintPage() {
         orderBy: { dayIndex: 'asc' },
         include: {
           meals: {
+            orderBy: { slotIndex: 'asc' },
             include: { meal: true },
           },
         },
@@ -32,145 +33,106 @@ export default async function PrintPage() {
   const formatDate = (d: Date) =>
     d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
-  const days = plan.days.map((day) => {
-    const totals = day.meals.reduce(
-      (acc, wpm) => ({
-        calories: acc.calories + wpm.meal.calories * wpm.portionMultiplier,
-        protein: acc.protein + wpm.meal.protein * wpm.portionMultiplier,
-        carbs: acc.carbs + wpm.meal.carbs * wpm.portionMultiplier,
-        fats: acc.fats + wpm.meal.fats * wpm.portionMultiplier,
-      }),
-      { calories: 0, protein: 0, carbs: 0, fats: 0 }
-    )
-    return { day, totals }
-  })
-
   return (
     <>
-      {/* Screen-only print button */}
-      <div
-        style={{ padding: '1rem', display: 'flex', justifyContent: 'flex-end' }}
-        className="print:hidden"
-      >
+      <div style={{ padding: '1rem', display: 'flex', justifyContent: 'flex-end' }} className="print:hidden">
         <PrintButton />
       </div>
 
-      <div
-        style={{
-          maxWidth: '800px',
-          margin: '0 auto',
-          padding: '2rem',
-          fontFamily: 'Georgia, serif',
-        }}
-      >
-        <h1
-          style={{
-            fontSize: '1.5rem',
-            fontWeight: 'bold',
-            marginBottom: '0.25rem',
-            color: '#111',
-          }}
-        >
-          Weekly Nutrition Summary
+      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem', fontFamily: 'Georgia, serif' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.25rem', color: '#111' }}>
+          Weekly Meal Reference
         </h1>
-        <p style={{ fontSize: '0.875rem', color: '#555', marginBottom: '2rem' }}>
-          {formatDate(weekStart)} &mdash; {formatDate(weekEnd)}
+        <p style={{ fontSize: '0.875rem', color: '#555', marginBottom: '2.5rem' }}>
+          {formatDate(weekStart)} — {formatDate(weekEnd)}
         </p>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #111' }}>
-              {['Day', 'Calories', 'Protein (g)', 'Carbs (g)', 'Fats (g)', 'Notes'].map((h) => (
-                <th
-                  key={h}
-                  style={{
-                    textAlign: 'left',
-                    padding: '0.5rem 0.75rem',
-                    fontWeight: 'bold',
-                    color: '#111',
-                  }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {days.map(({ day, totals }, i) => {
-              const isEmpty = day.meals.length === 0
-              const notes = day.isDismissed
-                ? `Dismissed${day.justification ? ` — ${day.justification}` : ''}`
-                : day.justification || (isEmpty ? '(no meals logged)' : '')
+        {plan.days.map((day) => {
+          const totals = day.meals.reduce(
+            (acc, wpm) => ({
+              calories: acc.calories + wpm.meal.calories * wpm.portionMultiplier,
+              protein: acc.protein + wpm.meal.protein * wpm.portionMultiplier,
+              carbs: acc.carbs + wpm.meal.carbs * wpm.portionMultiplier,
+              fats: acc.fats + wpm.meal.fats * wpm.portionMultiplier,
+            }),
+            { calories: 0, protein: 0, carbs: 0, fats: 0 }
+          )
 
-              return (
-                <tr
-                  key={day.id}
-                  style={{
-                    borderBottom: '1px solid #ddd',
-                    background: i % 2 === 0 ? '#fff' : '#f9f9f9',
-                  }}
-                >
-                  <td style={{ padding: '0.5rem 0.75rem', fontWeight: '600', color: '#111' }}>
-                    {DAY_NAMES[day.dayIndex]}
-                  </td>
-                  <td style={{ padding: '0.5rem 0.75rem', color: isEmpty ? '#aaa' : '#111' }}>
-                    {isEmpty ? '—' : Math.round(totals.calories)}
-                  </td>
-                  <td style={{ padding: '0.5rem 0.75rem', color: isEmpty ? '#aaa' : '#111' }}>
-                    {isEmpty ? '—' : Math.round(totals.protein)}
-                  </td>
-                  <td style={{ padding: '0.5rem 0.75rem', color: isEmpty ? '#aaa' : '#111' }}>
-                    {isEmpty ? '—' : Math.round(totals.carbs)}
-                  </td>
-                  <td style={{ padding: '0.5rem 0.75rem', color: isEmpty ? '#aaa' : '#111' }}>
-                    {isEmpty ? '—' : Math.round(totals.fats)}
-                  </td>
-                  <td
-                    style={{
-                      padding: '0.5rem 0.75rem',
-                      color: '#555',
-                      fontStyle: notes ? 'italic' : 'normal',
-                    }}
-                  >
-                    {notes}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-          <tfoot>
-            <tr style={{ borderTop: '2px solid #111' }}>
-              <td style={{ padding: '0.5rem 0.75rem', fontWeight: 'bold', color: '#111' }}>
-                TOTAL
-              </td>
-              {(['calories', 'protein', 'carbs', 'fats'] as const).map((key) => {
-                const sum = days.reduce(
-                  (s, { day, totals }) =>
-                    s + (day.isDismissed || day.meals.length === 0 ? 0 : totals[key]),
-                  0
-                )
-                return (
-                  <td
-                    key={key}
-                    style={{ padding: '0.5rem 0.75rem', fontWeight: 'bold', color: '#111' }}
-                  >
-                    {Math.round(sum)}
-                  </td>
-                )
-              })}
-              <td style={{ padding: '0.5rem 0.75rem' }} />
-            </tr>
-          </tfoot>
-        </table>
+          const isEmpty = day.meals.length === 0
 
-        <p style={{ marginTop: '3rem', fontSize: '0.75rem', color: '#888' }}>
-          Generated{' '}
-          {new Date().toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          })}
+          return (
+            <div key={day.id} style={{ marginBottom: '2rem', pageBreakInside: 'avoid' }}>
+              {/* Day header */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', borderBottom: '2px solid #111', paddingBottom: '0.25rem', marginBottom: '0.5rem' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#111', margin: 0 }}>
+                  {DAY_NAMES[day.dayIndex]}
+                </h2>
+                {day.isDismissed && (
+                  <span style={{ fontSize: '0.75rem', color: '#888', fontStyle: 'italic' }}>Dismissed</span>
+                )}
+              </div>
+
+              {day.isDismissed || isEmpty ? (
+                <p style={{ fontSize: '0.8rem', color: '#999', fontStyle: 'italic', margin: '0.25rem 0 0' }}>
+                  {day.justification || (day.isDismissed ? 'Day dismissed' : 'No meals planned')}
+                </p>
+              ) : (
+                <>
+                  {/* Meal rows */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
+                    <thead>
+                      <tr style={{ color: '#888' }}>
+                        <th style={{ textAlign: 'left', padding: '0.2rem 0.5rem 0.2rem 0', fontWeight: 'normal', width: '40%' }}>Meal</th>
+                        <th style={{ textAlign: 'right', padding: '0.2rem 0.5rem', fontWeight: 'normal' }}>Cal</th>
+                        <th style={{ textAlign: 'right', padding: '0.2rem 0.5rem', fontWeight: 'normal' }}>P&nbsp;(g)</th>
+                        <th style={{ textAlign: 'right', padding: '0.2rem 0.5rem', fontWeight: 'normal' }}>C&nbsp;(g)</th>
+                        <th style={{ textAlign: 'right', padding: '0.2rem 0.5rem', fontWeight: 'normal' }}>F&nbsp;(g)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {day.meals.map((wpm) => {
+                        const mult = wpm.portionMultiplier
+                        return (
+                          <tr key={wpm.id} style={{ borderBottom: '1px solid #eee' }}>
+                            <td style={{ padding: '0.3rem 0.5rem 0.3rem 0', color: '#111' }}>
+                              {wpm.meal.title}
+                              {mult !== 1 && (
+                                <span style={{ color: '#888', fontSize: '0.7rem', marginLeft: '0.3rem' }}>×{mult}</span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '0.3rem 0.5rem', color: '#333' }}>{Math.round(wpm.meal.calories * mult)}</td>
+                            <td style={{ textAlign: 'right', padding: '0.3rem 0.5rem', color: '#333' }}>{Math.round(wpm.meal.protein * mult)}</td>
+                            <td style={{ textAlign: 'right', padding: '0.3rem 0.5rem', color: '#333' }}>{Math.round(wpm.meal.carbs * mult)}</td>
+                            <td style={{ textAlign: 'right', padding: '0.3rem 0.5rem', color: '#333' }}>{Math.round(wpm.meal.fats * mult)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop: '1.5px solid #333' }}>
+                        <td style={{ padding: '0.3rem 0.5rem 0 0', fontWeight: 'bold', color: '#111', fontSize: '0.8rem' }}>Day total</td>
+                        <td style={{ textAlign: 'right', padding: '0.3rem 0.5rem 0', fontWeight: 'bold', color: '#111' }}>{Math.round(totals.calories)}</td>
+                        <td style={{ textAlign: 'right', padding: '0.3rem 0.5rem 0', fontWeight: 'bold', color: '#111' }}>{Math.round(totals.protein)}</td>
+                        <td style={{ textAlign: 'right', padding: '0.3rem 0.5rem 0', fontWeight: 'bold', color: '#111' }}>{Math.round(totals.carbs)}</td>
+                        <td style={{ textAlign: 'right', padding: '0.3rem 0.5rem 0', fontWeight: 'bold', color: '#111' }}>{Math.round(totals.fats)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+
+                  {/* Day notes */}
+                  {day.justification && (
+                    <p style={{ fontSize: '0.75rem', color: '#666', fontStyle: 'italic', margin: '0.25rem 0 0' }}>
+                      Note: {day.justification}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
+
+        <p style={{ marginTop: '2rem', fontSize: '0.7rem', color: '#aaa' }}>
+          Printed {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
       </div>
 

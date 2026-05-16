@@ -16,7 +16,25 @@
       "Bash(node *)",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(echo \"DEV_PID=$!\")",
+      "Bash(curl -s http://localhost:3000/api/meals)",
+      "Bash(curl -s -X POST http://localhost:3000/api/meals -H 'Content-Type: application/json' -d '{\"title\":\"Chicken & Rice\",\"description\":\"High protein post-workout\",\"calories\":520,\"protein\":45,\"carbs\":55,\"fats\":8,\"imageUrl\":\"\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -X POST http://localhost:3000/api/meals -H 'Content-Type: application/json' -d '{\"title\":\"Greek Yogurt & Berries\",\"description\":\"Morning snack\",\"calories\":180,\"protein\":15,\"carbs\":22,\"fats\":3,\"imageUrl\":\"\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/meals -H 'Content-Type: application/json' -d '{\"title\":\"Salmon & Veggies\",\"description\":\"Omega-3 dinner\",\"calories\":450,\"protein\":40,\"carbs\":15,\"fats\":20,\"imageUrl\":\"\"}')",
+      "Bash(curl -s http://localhost:3000/api/plans/active)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -X POST http://localhost:3000/api/plans/1/days/1/meals -H 'Content-Type: application/json' -d '{\"mealId\":1,\"slotIndex\":0,\"portionMultiplier\":1.0}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/plans/1/days/1/meals -H 'Content-Type: application/json' -d '{\"mealId\":2,\"slotIndex\":1}')",
+      "Bash(curl -s -X PUT http://localhost:3000/api/plans/1/days/1/meals/1 -H 'Content-Type: application/json' -d '{\"portionMultiplier\":1.5}')",
+      "Bash(curl -s -X PATCH http://localhost:3000/api/plans/1/days/3 -H 'Content-Type: application/json' -d '{\"isDismissed\":true,\"justification\":\"Trip to LA\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/plans/archive-now)",
+      "Bash(curl -s http://localhost:3000/api/plans/history)",
+      "Bash(curl -s -X POST http://localhost:3000/api/plans/1/clone)",
+      "Bash(python3 *)",
+      "Bash(DATABASE_URL=\"file:./db/meal-planner.db\" node *)",
+      "Bash(sqlite3 *)"
     ]
   }
 }

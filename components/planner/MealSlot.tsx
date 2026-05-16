@@ -48,18 +48,16 @@ export function MealSlot({ slot, slotIndex, planId, dayId, onAdd, onRemove, onMu
 
   return (
     <>
-      <div className="border border-gray-200 rounded-xl p-3 bg-white">
-        <div className="flex items-start justify-between gap-2">
-          <button
-            onClick={() => setPicking(true)}
-            className="text-left flex-1 min-w-0"
-          >
-            <div className="text-sm font-medium text-gray-900 truncate">{slot.meal.title}</div>
-            <div className="text-xs text-gray-400 mt-0.5">
-              {Math.round(slot.meal.calories * slot.portionMultiplier)} kcal
-            </div>
-          </button>
+      <div className="border border-gray-200 rounded-xl p-2.5 bg-white">
+        <button onClick={() => setPicking(true)} className="text-left w-full">
+          <div className="text-sm font-medium text-gray-900 leading-tight line-clamp-2">{slot.meal.title}</div>
+        </button>
+        <div className="flex items-center justify-between mt-1.5 gap-1">
+          <span className="text-xs text-gray-400 shrink-0">
+            {Math.round(slot.meal.calories * slot.portionMultiplier)} kcal
+          </span>
           <div className="flex items-center gap-1 shrink-0">
+            <span className="text-xs text-gray-300">×</span>
             <PortionInput
               value={slot.portionMultiplier}
               entryId={slot.id}
@@ -67,10 +65,9 @@ export function MealSlot({ slot, slotIndex, planId, dayId, onAdd, onRemove, onMu
               dayId={dayId}
               onChange={onMultiplierChange}
             />
-            <span className="text-xs text-gray-400">×</span>
             <button
               onClick={() => onRemove(slot.id)}
-              className="text-gray-300 hover:text-red-500 text-lg leading-none ml-1"
+              className="text-gray-300 hover:text-red-500 text-base leading-none w-5 text-center"
             >
               &times;
             </button>

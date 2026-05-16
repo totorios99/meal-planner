@@ -17,6 +17,7 @@ interface Props {
 
 export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
   const [justificationDraft, setJustificationDraft] = useState(day.justification)
+  const [showNotes, setShowNotes] = useState(false)
 
   const slots: (WeeklyPlanMeal | undefined)[] = Array.from({ length: MAX_SLOTS }, (_, i) =>
     day.meals.find(m => m.slotIndex === i)
@@ -44,7 +45,7 @@ export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
       body: JSON.stringify({ justification: justificationDraft })
     })
     const updated = await res.json()
-    onDayUpdate(updated)
+    onDayUpdate({ ...updated, meals: day.meals })
   }
 
   function handleAdd(slotIndex: number, entry: WeeklyPlanMeal) {
@@ -72,13 +73,16 @@ export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
     fats: acc.fats + wpm.meal.fats * wpm.portionMultiplier,
   }), { calories: 0, protein: 0, carbs: 0, fats: 0 })
 
+  const hasNotes = day.justification.trim().length > 0
+
   return (
-    <div className="bg-gray-50 rounded-2xl p-3 flex flex-col gap-2 min-w-0 relative">
-      <div className="flex items-center justify-between">
-        <div className="font-semibold text-gray-900 text-sm">{DAY_NAMES[day.dayIndex]}</div>
+    <div className="bg-gray-50 rounded-2xl p-3 flex flex-col gap-2 min-w-0 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-1">
+        <div className="font-semibold text-gray-900 text-sm truncate">{DAY_NAMES[day.dayIndex]}</div>
         <button
           onClick={toggleDismiss}
-          className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+          className={`text-xs px-2 py-0.5 rounded-full border shrink-0 transition-colors ${
             day.isDismissed
               ? 'bg-orange-100 border-orange-300 text-orange-700'
               : 'border-gray-200 text-gray-400 hover:border-orange-300 hover:text-orange-600'
@@ -88,6 +92,7 @@ export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
         </button>
       </div>
 
+      {/* Slots area */}
       <div className="flex flex-col gap-2 relative">
         {slots.slice(0, visibleSlots).map((slot, i) => (
           <MealSlot
@@ -102,26 +107,50 @@ export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
           />
         ))}
 
-        {/* Watermark overlay */}
+        {/* Watermark overlay — only for dismissed or fully empty days */}
         {showWatermark && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center p-3 z-10">
-            <div className="text-3xl mb-2 opacity-30">
+          <div className="absolute inset-0 bg-white/85 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center p-3 z-10">
+            <div className="text-2xl mb-2 opacity-25">
               {day.isDismissed ? '🚫' : '📝'}
             </div>
             <textarea
               value={justificationDraft}
               onChange={e => setJustificationDraft(e.target.value)}
               onBlur={saveJustification}
-              placeholder={day.isDismissed ? 'What happened today?' : 'Add a note for this day…'}
-              className="w-full text-xs text-center text-gray-600 bg-transparent border border-dashed border-gray-300 rounded-lg p-2 resize-none h-16 focus:outline-none focus:border-gray-400 placeholder:text-gray-400"
+              placeholder={day.isDismissed ? 'What happened today?' : 'Add a note…'}
+              className="w-full text-xs text-center text-gray-600 bg-transparent border border-dashed border-gray-300 rounded-lg p-2 resize-none h-14 focus:outline-none focus:border-gray-400 placeholder:text-gray-400"
             />
           </div>
         )}
       </div>
 
-      {/* Totals */}
-      {day.meals.length > 0 && !showWatermark && (
+      {/* Analytics — only when meals present */}
+      {day.meals.length > 0 && !day.isDismissed && (
         <DayAnalytics totals={totals} targets={targets} />
+      )}
+
+      {/* Notes — always accessible when day has meals */}
+      {day.meals.length > 0 && !day.isDismissed && (
+        <div className="border-t border-gray-200 pt-2">
+          {!showNotes && !hasNotes ? (
+            <button
+              onClick={() => setShowNotes(true)}
+              className="text-xs text-gray-400 hover:text-gray-600 w-full text-left"
+            >
+              + Add note
+            </button>
+          ) : (
+            <textarea
+              autoFocus={showNotes && !hasNotes}
+              value={justificationDraft}
+              onChange={e => setJustificationDraft(e.target.value)}
+              onBlur={saveJustification}
+              placeholder="Add a note for this day…"
+              rows={2}
+              className="w-full text-xs text-gray-600 bg-white border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:border-blue-300 placeholder:text-gray-400"
+            />
+          )}
+        </div>
       )}
     </div>
   )
