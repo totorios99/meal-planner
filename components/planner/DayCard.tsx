@@ -80,16 +80,16 @@ export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
   const hasNotes = day.justification.trim().length > 0
 
   return (
-    <div className="bg-gray-50 rounded-2xl p-3 flex flex-col gap-2 min-w-0 overflow-hidden">
+    <div className="bg-gray-50 dark:bg-zinc-800 rounded-2xl p-3 flex flex-col gap-2 min-w-0 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between gap-1">
-        <div className="font-semibold text-gray-900 text-sm truncate">{DAY_NAMES[day.dayIndex]}</div>
+        <div className="font-semibold text-gray-900 dark:text-zinc-100 text-sm truncate">{DAY_NAMES[day.dayIndex]}</div>
         <button
           onClick={toggleDismiss}
           className={`text-xs px-2 py-0.5 rounded-full border shrink-0 transition-colors ${
             day.isDismissed
-              ? 'bg-orange-100 border-orange-300 text-orange-700'
-              : 'border-gray-200 text-gray-400 hover:border-orange-300 hover:text-orange-600'
+              ? 'bg-orange-100 dark:bg-orange-900/40 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400'
+              : 'border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500 hover:border-orange-300 dark:hover:border-orange-700 hover:text-orange-600 dark:hover:text-orange-400'
           }`}
         >
           {day.isDismissed ? 'Dismissed' : 'Dismiss'}
@@ -98,7 +98,7 @@ export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
 
       {/* Slots area or dismissed state */}
       {day.isDismissed ? (
-        <div className="flex flex-col items-center gap-2 py-4 px-2 bg-orange-50 rounded-xl border border-dashed border-orange-200">
+        <div className="flex flex-col items-center gap-2 py-4 px-2 bg-orange-50 dark:bg-orange-950/40 rounded-xl border border-dashed border-orange-200 dark:border-orange-800">
           <span className="text-xl opacity-30">🚫</span>
           <textarea
             value={justificationDraft}
@@ -106,7 +106,7 @@ export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
             onBlur={saveJustification}
             placeholder="What happened today?"
             rows={3}
-            className="w-full text-xs text-center text-gray-600 bg-transparent border border-dashed border-orange-200 rounded-lg p-2 resize-none focus:outline-none focus:border-orange-400 placeholder:text-gray-400"
+            className="w-full text-xs text-center text-gray-600 dark:text-zinc-300 bg-transparent border border-dashed border-orange-200 dark:border-orange-800 rounded-lg p-2 resize-none focus:outline-none focus:border-orange-400 dark:focus:border-orange-600 placeholder:text-gray-400 dark:placeholder:text-zinc-600"
           />
         </div>
       ) : (
@@ -133,11 +133,11 @@ export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
 
       {/* Notes — always accessible when day has meals */}
       {day.meals.length > 0 && !day.isDismissed && (
-        <div className="border-t border-gray-200 pt-2">
+        <div className="border-t border-gray-200 dark:border-zinc-700 pt-2">
           {!showNotes && !hasNotes ? (
             <button
               onClick={() => setShowNotes(true)}
-              className="text-xs text-gray-400 hover:text-gray-600 w-full text-left"
+              className="text-xs text-gray-400 dark:text-zinc-600 hover:text-gray-600 dark:hover:text-zinc-400 w-full text-left"
             >
               + Add note
             </button>
@@ -149,7 +149,7 @@ export function DayCard({ day, planId, targets, onDayUpdate }: Props) {
               onBlur={saveJustification}
               placeholder="Add a note for this day…"
               rows={2}
-              className="w-full text-xs text-gray-600 bg-white border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:border-blue-300 placeholder:text-gray-400"
+              className="w-full text-xs text-gray-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg p-2 resize-none focus:outline-none focus:border-blue-300 dark:focus:border-blue-600 placeholder:text-gray-400 dark:placeholder:text-zinc-600"
             />
           )}
         </div>

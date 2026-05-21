@@ -249,6 +249,22 @@ export default async function PrintPage() {
 
         .footer { margin-top: 0.75rem; font-size: 0.65rem; color: #bbb; font-family: sans-serif; }
 
+        /* ── Dark mode: force print-wrapper to light appearance ── */
+        :where(.dark) .print-wrapper { background: #fff; }
+        :where(.dark) .week-grid { border-color: #111; }
+        :where(.dark) .cell { border-right-color: #bbb; border-bottom-color: #ddd; }
+        :where(.dark) .cell.heading { color: #111; border-bottom-color: #111; }
+        :where(.dark) .cell.totals  { border-top-color: #111; }
+        :where(.dark) .cell.notes   { color: #888; border-top-color: #ddd; }
+        :where(.dark) .page-header h1 { color: #111; }
+        :where(.dark) .page-header p  { color: #666; }
+        :where(.dark) .meal-name    { color: #111; }
+        :where(.dark) .meal-macros  { color: #888; }
+        :where(.dark) .meal-item    { border-bottom-color: #e5e5e5; }
+        :where(.dark) .totals-row   { color: #111; }
+        :where(.dark) .totals-macros { color: #555; }
+        :where(.dark) .footer       { color: #bbb; }
+
         /* ── Print ── */
         @media print {
           .print\\:hidden { display: none !important; }

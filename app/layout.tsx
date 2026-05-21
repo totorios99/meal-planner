@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,14 +28,18 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.classList.add('dark')})()` }} />
+      </head>
       <body className="min-h-full flex flex-col">
-        <nav className="border-b border-gray-200 bg-white">
+        <nav className="border-b border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 print:hidden">
           <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-            <span className="font-bold text-gray-900">Meal Planner</span>
-            <div className="flex gap-4">
-              <a href="/meals" className="text-sm text-gray-600 hover:text-gray-900">Cookbook</a>
-              <a href="/planner" className="text-sm text-gray-600 hover:text-gray-900">Planner</a>
-              <a href="/print" className="text-sm text-gray-600 hover:text-gray-900 print:hidden">Print</a>
+            <span className="font-bold text-gray-900 dark:text-zinc-100">Meal Planner</span>
+            <div className="flex items-center gap-4">
+              <a href="/meals" className="text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100">Cookbook</a>
+              <a href="/planner" className="text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100">Planner</a>
+              <a href="/print" className="text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 print:hidden">Print</a>
+              <ThemeToggle />
             </div>
           </div>
         </nav>

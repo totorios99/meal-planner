@@ -37,7 +37,7 @@ export function MealSlot({ slot, slotIndex, planId, dayId, onAdd, onRemove, onMu
       <>
         <button
           onClick={() => setPicking(true)}
-          className="w-full border border-dashed border-gray-300 rounded-xl p-3 text-sm text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+          className="w-full border border-dashed border-gray-300 dark:border-zinc-600 rounded-xl p-3 text-sm text-gray-400 dark:text-zinc-500 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors"
         >
           + Add Meal
         </button>
@@ -48,16 +48,16 @@ export function MealSlot({ slot, slotIndex, planId, dayId, onAdd, onRemove, onMu
 
   return (
     <>
-      <div className="border border-gray-200 rounded-xl p-2.5 bg-white">
+      <div className="border border-gray-200 dark:border-zinc-700 rounded-xl p-2.5 bg-white dark:bg-zinc-900">
         <button onClick={() => setPicking(true)} className="text-left w-full">
-          <div className="text-sm font-medium text-gray-900 leading-tight line-clamp-2">{slot.meal.title}</div>
+          <div className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-tight line-clamp-2">{slot.meal.title}</div>
         </button>
         <div className="flex items-center justify-between mt-1.5 gap-1">
-          <span className="text-xs text-gray-400 shrink-0">
+          <span className="text-xs text-gray-400 dark:text-zinc-500 shrink-0">
             {Math.round(slot.meal.calories * slot.portionMultiplier)} kcal
           </span>
           <div className="flex items-center gap-1 shrink-0">
-            <span className="text-xs text-gray-300">×</span>
+            <span className="text-xs text-gray-300 dark:text-zinc-600">×</span>
             <PortionInput
               value={slot.portionMultiplier}
               entryId={slot.id}
@@ -67,7 +67,7 @@ export function MealSlot({ slot, slotIndex, planId, dayId, onAdd, onRemove, onMu
             />
             <button
               onClick={() => onRemove(slot.id)}
-              className="text-gray-300 hover:text-red-500 text-base leading-none w-5 text-center"
+              className="text-gray-300 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 text-base leading-none w-5 text-center"
             >
               &times;
             </button>

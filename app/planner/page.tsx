@@ -21,7 +21,7 @@ export default function PlannerPage() {
 
   useEffect(() => { fetchPlan() }, [fetchPlan])
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-gray-400">Loading planner…</div>
+  if (loading) return <div className="flex items-center justify-center h-64 text-gray-400 dark:text-zinc-500">Loading planner…</div>
   if (!plan) return null
 
   const weekStart = new Date(plan.weekStart)
@@ -32,15 +32,15 @@ export default function PlannerPage() {
     <div className="max-w-screen-xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Weekly Planner</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-zinc-100">Weekly Planner</h1>
+          <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
             {weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} –{' '}
             {weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
         <button
           onClick={() => setShowTargets(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-zinc-700 text-sm text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
         >
           ⚙ Targets
         </button>

@@ -17,9 +17,9 @@ export default function MealsPage() {
   useEffect(() => { fetchMeals() }, [fetchMeals])
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-8 w-full">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Meal Cookbook</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-zinc-100">Meal Cookbook</h1>
         <button
           onClick={() => setShowCreate(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700"

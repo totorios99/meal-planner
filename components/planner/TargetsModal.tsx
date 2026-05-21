@@ -28,12 +28,12 @@ export function TargetsModal({ targets, onSave, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6">
-        <h2 className="text-lg font-semibold mb-4">Daily Macro Targets</h2>
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-sm p-6">
+        <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-zinc-100">Daily Macro Targets</h2>
         <div className="space-y-3">
           {(['calories', 'protein', 'carbs', 'fats'] as const).map(key => (
             <div key={key}>
-              <label className="text-xs text-gray-500 mb-1 block capitalize">
+              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block capitalize">
                 {key}{key !== 'calories' ? ' (g)' : ' (kcal)'}
               </label>
               <input
@@ -41,13 +41,13 @@ export function TargetsModal({ targets, onSave, onClose }: Props) {
                 min="0"
                 value={form[key]}
                 onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
               />
             </div>
           ))}
         </div>
         <div className="flex gap-3 mt-5">
-          <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-gray-300 text-sm text-gray-700">Cancel</button>
+          <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 text-sm text-gray-700 dark:text-zinc-300">Cancel</button>
           <button onClick={handleSave} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium">Save</button>
         </div>
       </div>

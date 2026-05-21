@@ -16,7 +16,7 @@ interface Props {
 
 export function DayAnalytics({ totals, targets }: Props) {
   return (
-    <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
+    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-zinc-700 space-y-2">
       <div className="flex items-center gap-3">
         <div className="flex-1 space-y-1.5">
           <MacroBar label="Cal" value={totals.calories} target={targets.calories} color="bg-purple-500" unit=" kcal" />

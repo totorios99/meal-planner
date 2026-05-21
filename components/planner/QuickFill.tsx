@@ -26,12 +26,12 @@ export function QuickFill({ onCloned }: Props) {
   if (history.length === 0) return null
 
   return (
-    <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-6">
-      <span className="text-sm text-blue-700 font-medium shrink-0">Quick-Fill from past week:</span>
+    <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 mb-6">
+      <span className="text-sm text-blue-700 dark:text-blue-400 font-medium shrink-0">Quick-Fill from past week:</span>
       <select
         value={selected}
         onChange={e => setSelected(e.target.value)}
-        className="flex-1 text-sm border border-blue-200 rounded-lg px-2 py-1.5 bg-white text-gray-700"
+        className="flex-1 text-sm border border-blue-200 dark:border-blue-800 rounded-lg px-2 py-1.5 bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-200"
       >
         <option value="">— pick a week —</option>
         {history.map(plan => {

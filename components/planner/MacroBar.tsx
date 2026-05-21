@@ -14,13 +14,13 @@ export function MacroBar({ label, value, target, color, unit = 'g' }: Props) {
 
   return (
     <div className="space-y-0.5">
-      <div className="flex justify-between text-xs text-gray-500">
+      <div className="flex justify-between text-xs text-gray-500 dark:text-zinc-400">
         <span>{label}</span>
         <span className={rawPct >= 100 ? 'text-red-500 font-medium' : rawPct >= 70 ? 'text-yellow-600' : ''}>
           {pctLabel}
         </span>
       </div>
-      <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-gray-200 dark:bg-zinc-700 overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-300 ${barColor}`}
           style={{ width: `${clampedPct}%` }}

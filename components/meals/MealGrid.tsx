@@ -31,7 +31,7 @@ export function MealGrid({ meals, onRefresh }: Props) {
           />
         ))}
         {meals.length === 0 && (
-          <div className="col-span-full text-center text-gray-400 py-16">No meals yet. Add your first meal!</div>
+          <div className="col-span-full text-center text-gray-400 dark:text-zinc-500 py-16">No meals yet. Add your first meal!</div>
         )}
       </div>
       {showModal && (

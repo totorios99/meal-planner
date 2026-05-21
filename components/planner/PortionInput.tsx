@@ -31,7 +31,7 @@ export function PortionInput({ value, entryId, planId, dayId, onChange }: Props)
       value={local}
       onChange={e => setLocal(e.target.value)}
       onBlur={handleBlur}
-      className="w-16 text-xs text-center border border-gray-200 rounded px-1 py-0.5 text-gray-600"
+      className="w-16 text-xs text-center border border-gray-200 dark:border-zinc-700 rounded px-1 py-0.5 text-gray-600 dark:text-zinc-300 bg-white dark:bg-zinc-800"
       title="Portion multiplier"
     />
   )
