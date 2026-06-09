@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Meal } from '@/types'
+import { Icon } from '@/components/Icon'
 
 interface Props {
   onSelect: (meal: Meal) => void
@@ -16,42 +18,54 @@ export function MealPicker({ onSelect, onClose }: Props) {
   }, [])
 
   const filtered = meals.filter(m =>
-    m.title.toLowerCase().includes(search.toLowerCase())
+    `${m.title} ${m.tag}`.toLowerCase().includes(search.toLowerCase())
   )
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col">
-        <div className="p-4 border-b border-gray-100 dark:border-zinc-800">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-900 dark:text-zinc-100">Pick a Meal</h3>
-            <button onClick={onClose} className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 text-xl leading-none">&times;</button>
-          </div>
-          <input
-            autoFocus
-            placeholder="Search meals…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500"
-          />
+  return createPortal(
+    <div className="sheet-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="sheet" style={{ maxWidth: 440 }}>
+        <div className="sheet-head">
+          <h3 className="sheet-title">Add meal</h3>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={16} /></button>
         </div>
-        <div className="overflow-y-auto flex-1">
-          {filtered.map(meal => (
+        <div style={{ padding: '0 16px 10px' }}>
+          <div className="search" style={{ maxWidth: '100%' }}>
+            <Icon name="search" size={15} className="search-icon" />
+            <input
+              autoFocus
+              placeholder="Search meals…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="sheet-body" style={{ padding: '0 8px 12px' }}>
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ink-4)', fontSize: 13 }}>
+              No meals found
+            </div>
+          ) : filtered.map(meal => (
             <button
               key={meal.id}
+              className="sheet-meal-row"
               onClick={() => { onSelect(meal); onClose() }}
-              className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-800 border-b border-gray-50 dark:border-zinc-800"
+              style={{ width: '100%', border: 'none', textAlign: 'left', background: 'none' }}
             >
-              <div className="font-medium text-sm text-gray-900 dark:text-zinc-100">{meal.title}</div>
-              {meal.description && <div className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">{meal.description}</div>}
-              <div className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">{meal.calories} kcal · P {meal.protein}g · C {meal.carbs}g · F {meal.fats}g</div>
+              <div className="sheet-meal-thumb">
+                {meal.imageUrl && <img src={meal.imageUrl} alt={meal.title} />}
+              </div>
+              <div className="sheet-meal-info">
+                <div className="sheet-meal-name">{meal.title}</div>
+                <div className="sheet-meal-meta">
+                  {meal.calories} kcal · P {meal.protein}g · C {meal.carbs}g · F {meal.fats}g
+                </div>
+              </div>
+              <span style={{ color: 'var(--accent)', flexShrink: 0, display: 'flex' }}><Icon name="plus" size={16} /></span>
             </button>
           ))}
-          {filtered.length === 0 && (
-            <div className="text-center text-gray-400 dark:text-zinc-500 py-8 text-sm">No meals found</div>
-          )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

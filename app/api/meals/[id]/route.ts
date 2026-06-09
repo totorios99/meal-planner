@@ -16,6 +16,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     data: {
       title: body.title,
       description: body.description ?? '',
+      tag: body.tag ?? '',
       calories: Number(body.calories),
       protein: Number(body.protein),
       carbs: Number(body.carbs),

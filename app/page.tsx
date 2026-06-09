@@ -1,65 +1,347 @@
-import Image from "next/image";
+'use client'
+import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
+import { WeeklyPlan, Meal } from '@/types'
+import { useMacroTargets } from '@/lib/useMacroTargets'
+import { MealCard } from '@/components/meals/MealCard'
+import { MealModal } from '@/components/meals/MealModal'
+import { TargetsModal } from '@/components/planner/TargetsModal'
+import { Icon } from '@/components/Icon'
 
-export default function Home() {
+const DAY_ABBR = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function todayDayIndex() {
+  return (new Date().getDay() + 6) % 7
+}
+
+function greeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  if (h < 21) return 'Good evening'
+  return 'Good night'
+}
+
+function dayDate(weekStart: Date, idx: number) {
+  const d = new Date(weekStart)
+  d.setDate(d.getDate() + idx)
+  return d
+}
+
+function MacroRing({ protein, carbs, fats, kcal, targets }: {
+  protein: number; carbs: number; fats: number; kcal: number
+  targets: { calories: number; protein: number; carbs: number; fats: number }
+}) {
+  const size = 120, thickness = 11
+  const r = (size - thickness) / 2
+  const c = 2 * Math.PI * r
+  const cx = size / 2, cy = size / 2
+  const kcalPct = targets.calories > 0 ? Math.min(1, kcal / targets.calories) : 0
+  const segs = [
+    { val: protein, tgt: targets.protein, color: 'var(--protein)' },
+    { val: carbs,   tgt: targets.carbs,   color: 'var(--carbs)'   },
+    { val: fats,    tgt: targets.fats,    color: 'var(--fats)'    },
+  ]
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      <circle cx={cx} cy={cy} r={r} stroke="var(--bg-sunken)" strokeWidth={thickness} fill="none" />
+      {segs.map((s, i) => {
+        const pct = s.tgt > 0 ? Math.min(1, s.val / s.tgt) : 0
+        const fillLen = (c / 3) * pct
+        return (
+          <circle key={i} cx={cx} cy={cy} r={r}
+            stroke={s.color} strokeWidth={thickness} fill="none"
+            strokeDasharray={`${fillLen} ${c - fillLen}`}
+            strokeDashoffset={-(c * i / 3)}
+            transform={`rotate(-90 ${cx} ${cy})`}
+          />
+        )
+      })}
+      <text x={cx} y={cy - 6} textAnchor="middle" dominantBaseline="central"
+        fontFamily="var(--serif)" fontSize={size * 0.25} fontWeight="500" fill="var(--ink)">
+        {Math.round(kcalPct * 100)}%
+      </text>
+      <text x={cx} y={cy + size * 0.17} textAnchor="middle" dominantBaseline="central"
+        fontFamily="var(--sans)" fontSize={size * 0.095} fill="var(--ink-3)" letterSpacing="2">
+        KCAL
+      </text>
+    </svg>
+  )
+}
+
+function MacroRows({ protein, carbs, fats, targets }: {
+  protein: number; carbs: number; fats: number
+  targets: { protein: number; carbs: number; fats: number }
+}) {
+  const rows = [
+    { label: 'Protein', val: protein, tgt: targets.protein, color: '#3F4FB2' },
+    { label: 'Carbs',   val: carbs,   tgt: targets.carbs,   color: '#C28A2C' },
+    { label: 'Fats',    val: fats,    tgt: targets.fats,    color: '#8C4A8A' },
+  ]
+  return (
+    <div className="macros-rows">
+      {rows.map(r => {
+        const pct = r.tgt > 0 ? Math.min(100, (r.val / r.tgt) * 100) : 0
+        const over = r.val > r.tgt
+        return (
+          <div key={r.label} className="macro-row-item">
+            <div className="macro-row-label">
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: r.color, display: 'inline-block', flexShrink: 0 }} />
+              {r.label}
+            </div>
+            <div className="macro-row-bar">
+              <div className="macro-row-bar-fill" style={{ width: `${pct}%`, background: over ? 'var(--warn)' : r.color }} />
+            </div>
+            <div className="macro-row-val" style={{ color: over ? 'var(--warn)' : undefined }}>
+              {Math.round(r.val)}/{r.tgt}g
+            </div>
+          </div>
+        )
+      })}
     </div>
-  );
+  )
+}
+
+export default function HomePage() {
+  const [plan, setPlan] = useState<WeeklyPlan | null>(null)
+  const [meals, setMeals] = useState<Meal[]>([])
+  const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
+  const [showNewMeal, setShowNewMeal] = useState(false)
+  const [showTargets, setShowTargets] = useState(false)
+  const { targets, updateTargets } = useMacroTargets()
+
+  const fetchAll = useCallback(async () => {
+    try {
+      const [planRes, mealsRes] = await Promise.all([
+        fetch('/api/plans/active'),
+        fetch('/api/meals'),
+      ])
+      if (planRes.ok) setPlan(await planRes.json())
+      if (mealsRes.ok) setMeals(await mealsRes.json())
+    } catch { /* silently degrade */ }
+  }, [])
+
+  useEffect(() => { fetchAll() }, [fetchAll])
+
+  const today = plan?.days.find(d => d.dayIndex === todayDayIndex())
+  const todayMeals = today?.meals ?? []
+  const weekStart = plan ? new Date(plan.weekStart) : null
+
+  const todayTotals = todayMeals.reduce((acc, wpm) => ({
+    calories: acc.calories + wpm.meal.calories * wpm.portionMultiplier,
+    protein:  acc.protein  + wpm.meal.protein  * wpm.portionMultiplier,
+    carbs:    acc.carbs    + wpm.meal.carbs    * wpm.portionMultiplier,
+    fats:     acc.fats     + wpm.meal.fats     * wpm.portionMultiplier,
+  }), { calories: 0, protein: 0, carbs: 0, fats: 0 })
+
+  const now = new Date()
+  const eyebrow = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+
+  async function handleDelete(id: number) {
+    await fetch(`/api/meals/${id}`, { method: 'DELETE' })
+    fetchAll()
+  }
+
+  return (
+    <div className="page">
+      {/* Header */}
+      <div className="page-header" style={{ marginBottom: 32 }}>
+        <div className="page-header-text">
+          <div className="page-eyebrow" suppressHydrationWarning>{eyebrow}</div>
+          <h1 className="page-title" suppressHydrationWarning>{greeting()}, <em>Antonio.</em></h1>
+          <p className="page-sub">Here&apos;s your week at a glance.</p>
+        </div>
+      </div>
+
+      {/* Two-col: Today's meals + Macros */}
+      <div className="home-grid">
+        {/* Today's meals */}
+        <div className="today-card">
+          <div className="today-head">
+            <h2>Today&apos;s meals</h2>
+            <span className="today-date">
+              {todayMeals.length} meal{todayMeals.length !== 1 ? 's' : ''} · {Math.round(todayTotals.calories)} kcal
+            </span>
+          </div>
+
+          {today?.isDismissed ? (
+            <div style={{ color: 'var(--off)', fontStyle: 'italic', fontSize: 14, textAlign: 'center', padding: '24px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+              <Icon name="trip" size={24} />
+              {today.justification || 'Off day'}
+            </div>
+          ) : todayMeals.length === 0 ? (
+            <div style={{ color: 'var(--ink-4)', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>
+              No meals planned yet.{' '}
+              <Link href="/planner" style={{ color: 'var(--accent)' }}>Open planner →</Link>
+            </div>
+          ) : (
+            <div className="today-meals">
+              {todayMeals.map(wpm => (
+                <div key={wpm.id} className="today-meal">
+                  <div className="today-meal-thumb">
+                    {wpm.meal.imageUrl && <img src={wpm.meal.imageUrl} alt={wpm.meal.title} />}
+                  </div>
+                  <div className="today-meal-info">
+                    <div className="today-meal-name">{wpm.meal.title}</div>
+                    <div className="today-meal-meta">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3F4FB2', display: 'inline-block' }} />
+                        {Math.round(wpm.meal.protein * wpm.portionMultiplier)}g
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C28A2C', display: 'inline-block' }} />
+                        {Math.round(wpm.meal.carbs * wpm.portionMultiplier)}g
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#8C4A8A', display: 'inline-block' }} />
+                        {Math.round(wpm.meal.fats * wpm.portionMultiplier)}g
+                      </span>
+                    </div>
+                  </div>
+                  <div className="today-meal-kcal">{Math.round(wpm.meal.calories * wpm.portionMultiplier)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 4 }}>
+            <Link href="/planner" className="btn btn-ghost btn-sm">
+              <Icon name="calendar" size={13} /> Open planner
+            </Link>
+            <Link href="/meals" className="btn btn-quiet btn-sm">
+              <Icon name="book" size={13} /> Browse meals
+            </Link>
+          </div>
+        </div>
+
+        {/* Macros */}
+        <div className="macros-block">
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <h2>Today&apos;s macros</h2>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowTargets(true)}>
+              <Icon name="settings" size={13} /> Targets
+            </button>
+          </div>
+          <div className="macros-ring-wrap">
+            <MacroRing
+              protein={todayTotals.protein}
+              carbs={todayTotals.carbs}
+              fats={todayTotals.fats}
+              kcal={todayTotals.calories}
+              targets={targets}
+            />
+            <MacroRows
+              protein={todayTotals.protein}
+              carbs={todayTotals.carbs}
+              fats={todayTotals.fats}
+              targets={targets}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Week strip */}
+      {plan && weekStart && (
+        <div className="week-strip">
+          <div className="week-strip-head">
+            <h2>This week</h2>
+            <Link href="/planner" className="section-link">
+              Open planner <Icon name="arrow-right" size={13} />
+            </Link>
+          </div>
+          <div className="week-strip-days">
+            {plan.days.map(day => {
+              const date = dayDate(weekStart, day.dayIndex)
+              const isToday = day.dayIndex === todayDayIndex()
+              const kcal = day.isDismissed ? 0 : day.meals.reduce((s, m) => s + m.meal.calories * m.portionMultiplier, 0)
+              return (
+                <Link
+                  key={day.id}
+                  href="/planner"
+                  className={`week-day${day.isDismissed ? ' off' : ''}`}
+                  style={{ textDecoration: 'none' }}
+                >
+                  <div className="week-day-name">{DAY_ABBR[day.dayIndex]}</div>
+                  <div className="week-day-date">{date.getDate()}</div>
+                  {day.isDismissed ? (
+                    <div className="week-day-off-label">{day.justification || 'Off day'}</div>
+                  ) : (
+                    <>
+                      <div className="week-day-meals">
+                        {day.meals.slice(0, 3).map(m => (
+                          <div key={m.id} className="week-day-meal">{m.meal.title}</div>
+                        ))}
+                      </div>
+                      {kcal > 0 && <div className="week-day-kcal">{Math.round(kcal)} kcal</div>}
+                    </>
+                  )}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Quick actions */}
+      <div className="quick-actions">
+        {[
+          { icon: 'calendar', title: 'Plan the weekend', sub: 'Fill in Saturday & Sunday', href: '/planner' },
+          { icon: 'plus',     title: 'Add a new meal',   sub: 'Expand your cookbook',      action: () => setShowNewMeal(true) },
+          { icon: 'printer',  title: 'Print this week',  sub: 'Fridge-ready reference',    href: '/print' },
+        ].map(qa => (
+          qa.href ? (
+            <Link key={qa.title} href={qa.href} className="qa-card" style={{ textDecoration: 'none' }}>
+              <div className="qa-icon"><Icon name={qa.icon} size={20} /></div>
+              <div className="qa-text">
+                <div className="qa-title">{qa.title}</div>
+                <div className="qa-sub">{qa.sub}</div>
+              </div>
+            </Link>
+          ) : (
+            <button key={qa.title} className="qa-card" onClick={qa.action}>
+              <div className="qa-icon"><Icon name={qa.icon} size={20} /></div>
+              <div className="qa-text">
+                <div className="qa-title">{qa.title}</div>
+                <div className="qa-sub">{qa.sub}</div>
+              </div>
+            </button>
+          )
+        ))}
+      </div>
+
+      {/* Recently added */}
+      {meals.length > 0 && (
+        <div>
+          <div className="section-head">
+            <h2 className="section-title">Recently added</h2>
+            <Link href="/meals" className="section-link">
+              View cookbook <Icon name="arrow-right" size={13} />
+            </Link>
+          </div>
+          <div className="meal-grid">
+            {meals.slice(0, 3).map(meal => (
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                onEdit={m => setEditingMeal(m)}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      {(showNewMeal || editingMeal) && (
+        <MealModal
+          meal={editingMeal}
+          onClose={() => { setShowNewMeal(false); setEditingMeal(null) }}
+          onSaved={fetchAll}
+        />
+      )}
+      {showTargets && (
+        <TargetsModal targets={targets} onSave={updateTargets} onClose={() => setShowTargets(false)} />
+      )}
+    </div>
+  )
 }

@@ -11,21 +11,18 @@ interface Props {
 
 export function WeekBoard({ plan, targets, onPlanUpdate }: Props) {
   function handleDayUpdate(updatedDay: WeeklyPlanDay) {
-    const updated = {
-      ...plan,
-      days: plan.days.map(d => d.id === updatedDay.id ? updatedDay : d)
-    }
-    onPlanUpdate(updated)
+    onPlanUpdate({ ...plan, days: plan.days.map(d => d.id === updatedDay.id ? updatedDay : d) })
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+    <div className="planner-grid">
       {plan.days.map(day => (
         <DayCard
           key={day.id}
           day={day}
           planId={plan.id}
           targets={targets}
+          weekStart={plan.weekStart}
           onDayUpdate={handleDayUpdate}
         />
       ))}

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { Icon } from '@/components/Icon'
 
 interface Props {
   value: number
@@ -10,29 +10,23 @@ interface Props {
 }
 
 export function PortionInput({ value, entryId, planId, dayId, onChange }: Props) {
-  const [local, setLocal] = useState(String(value))
-
-  async function handleBlur() {
-    const num = parseFloat(local)
-    if (isNaN(num) || num <= 0) { setLocal(String(value)); return }
+  async function update(next: number) {
+    if (next < 0.5) return
     await fetch(`/api/plans/${planId}/days/${dayId}/meals/${entryId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ portionMultiplier: num })
+      body: JSON.stringify({ portionMultiplier: next })
     })
-    onChange(entryId, num)
+    onChange(entryId, next)
   }
 
+  const display = value === Math.round(value) ? String(Math.round(value)) : value.toFixed(1)
+
   return (
-    <input
-      type="number"
-      min="0.1"
-      step="0.1"
-      value={local}
-      onChange={e => setLocal(e.target.value)}
-      onBlur={handleBlur}
-      className="w-16 text-xs text-center border border-gray-200 dark:border-zinc-700 rounded px-1 py-0.5 text-gray-600 dark:text-zinc-300 bg-white dark:bg-zinc-800"
-      title="Portion multiplier"
-    />
+    <div className="qty-stepper">
+      <button onClick={() => update(value - 0.5)} title="Less"><Icon name="minus" size={9} /></button>
+      <span className="qty-val">{display}×</span>
+      <button onClick={() => update(value + 0.5)} title="More"><Icon name="plus" size={9} /></button>
+    </div>
   )
 }

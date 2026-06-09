@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { WeeklyPlanMeal, Meal } from '@/types'
 import { MealPicker } from './MealPicker'
 import { PortionInput } from './PortionInput'
+import { Icon } from '@/components/Icon'
 
 interface Props {
   slot: WeeklyPlanMeal | undefined
@@ -19,7 +20,6 @@ export function MealSlot({ slot, slotIndex, planId, dayId, onAdd, onRemove, onMu
 
   async function handlePick(meal: Meal) {
     if (slot) {
-      // Hot-swap: delete old slot first, then add new
       await fetch(`/api/plans/${planId}/days/${dayId}/meals/${slot.id}`, { method: 'DELETE' })
       onRemove(slot.id)
     }
@@ -35,43 +35,34 @@ export function MealSlot({ slot, slotIndex, planId, dayId, onAdd, onRemove, onMu
   if (!slot) {
     return (
       <>
-        <button
-          onClick={() => setPicking(true)}
-          className="w-full border border-dashed border-gray-300 dark:border-zinc-600 rounded-xl p-3 text-sm text-gray-400 dark:text-zinc-500 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors"
-        >
-          + Add Meal
+        <button className="add-meal-btn" onClick={() => setPicking(true)}>
+          <Icon name="plus" size={12} /> Add meal
         </button>
         {picking && <MealPicker onSelect={handlePick} onClose={() => setPicking(false)} />}
       </>
     )
   }
 
+  const kcal = Math.round(slot.meal.calories * slot.portionMultiplier)
+
   return (
     <>
-      <div className="border border-gray-200 dark:border-zinc-700 rounded-xl p-2.5 bg-white dark:bg-zinc-900">
-        <button onClick={() => setPicking(true)} className="text-left w-full">
-          <div className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-tight line-clamp-2">{slot.meal.title}</div>
+      <div className="plan-meal">
+        <button className="plan-meal-remove" onClick={() => onRemove(slot.id)} title="Remove">
+          <Icon name="x" size={10} />
         </button>
-        <div className="flex items-center justify-between mt-1.5 gap-1">
-          <span className="text-xs text-gray-400 dark:text-zinc-500 shrink-0">
-            {Math.round(slot.meal.calories * slot.portionMultiplier)} kcal
-          </span>
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="text-xs text-gray-300 dark:text-zinc-600">×</span>
-            <PortionInput
-              value={slot.portionMultiplier}
-              entryId={slot.id}
-              planId={planId}
-              dayId={dayId}
-              onChange={onMultiplierChange}
-            />
-            <button
-              onClick={() => onRemove(slot.id)}
-              className="text-gray-300 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 text-base leading-none w-5 text-center"
-            >
-              &times;
-            </button>
-          </div>
+        <div className="plan-meal-name" onClick={() => setPicking(true)} style={{ cursor: 'pointer' }}>
+          {slot.meal.title}
+        </div>
+        <div className="plan-meal-row">
+          <span className="plan-meal-kcal">{kcal} kcal</span>
+          <PortionInput
+            value={slot.portionMultiplier}
+            entryId={slot.id}
+            planId={planId}
+            dayId={dayId}
+            onChange={onMultiplierChange}
+          />
         </div>
       </div>
       {picking && <MealPicker onSelect={handlePick} onClose={() => setPicking(false)} />}

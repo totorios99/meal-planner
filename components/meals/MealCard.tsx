@@ -1,5 +1,6 @@
 'use client'
 import { Meal } from '@/types'
+import { Icon } from '@/components/Icon'
 
 interface Props {
   meal: Meal
@@ -8,29 +9,66 @@ interface Props {
 }
 
 export function MealCard({ meal, onEdit, onDelete }: Props) {
+  function handleDelete() {
+    if (!confirm(`Delete "${meal.title}"?`)) return
+    onDelete(meal.id)
+  }
+
   return (
-    <div className="break-inside-avoid mb-4 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden">
-      {meal.imageUrl && (
-        <img src={meal.imageUrl} alt={meal.title} className="w-full h-48 object-cover" />
-      )}
-      <div className="p-4">
-        <h3 className="font-semibold text-gray-900 dark:text-zinc-100 text-lg">{meal.title}</h3>
-        {meal.description && (
-          <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">{meal.description}</p>
+    <div className="meal-card">
+      <div className="meal-card-img">
+        {meal.imageUrl ? (
+          <img src={meal.imageUrl} alt={meal.title} />
+        ) : (
+          <div className="photo-ph">{meal.title[0]}</div>
         )}
-        <div className="flex gap-2 mt-4">
-          <button
-            onClick={() => onEdit(meal)}
-            className="flex-1 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700"
-          >
-            Edit
+        {meal.tag && <span className="meal-tag">{meal.tag}</span>}
+        <div className="meal-card-img-overlay">
+          <button className="icon-btn" title="Edit" onClick={() => onEdit(meal)}>
+            <Icon name="edit" size={15} />
           </button>
-          <button
-            onClick={() => onDelete(meal.id)}
-            className="flex-1 py-1.5 text-sm rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50"
-          >
-            Delete
+          <button className="icon-btn" title="Delete" onClick={handleDelete}>
+            <Icon name="trash" size={15} />
           </button>
+        </div>
+      </div>
+
+      <div className="meal-card-body">
+        <h3 className="meal-name">{meal.title}</h3>
+        {meal.description && <p className="meal-desc">{meal.description}</p>}
+
+        <div className="macro-row">
+          <div className="macro-chip">
+            <span className="macro-chip-label">kcal</span>
+            <span className="macro-chip-value num">{Math.round(meal.calories)}</span>
+          </div>
+          <div className="macro-chip">
+            <span className="macro-chip-label">
+              <span className="macro-dot" style={{ background: 'var(--protein)', marginRight: 4 }} />
+              Protein
+            </span>
+            <span className="macro-chip-value num">
+              {Math.round(meal.protein)}<span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 1 }}>g</span>
+            </span>
+          </div>
+          <div className="macro-chip">
+            <span className="macro-chip-label">
+              <span className="macro-dot" style={{ background: 'var(--carbs)', marginRight: 4 }} />
+              Carbs
+            </span>
+            <span className="macro-chip-value num">
+              {Math.round(meal.carbs)}<span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 1 }}>g</span>
+            </span>
+          </div>
+          <div className="macro-chip">
+            <span className="macro-chip-label">
+              <span className="macro-dot" style={{ background: 'var(--fats)', marginRight: 4 }} />
+              Fats
+            </span>
+            <span className="macro-chip-value num">
+              {Math.round(meal.fats)}<span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 1 }}>g</span>
+            </span>
+          </div>
         </div>
       </div>
     </div>

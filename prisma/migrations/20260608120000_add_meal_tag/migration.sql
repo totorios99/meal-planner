@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Meal" ADD COLUMN "tag" TEXT NOT NULL DEFAULT '';

@@ -13,6 +13,7 @@ model Meal {
   id          Int    @id @default(autoincrement())
   title       String
   description String @default("")
+  tag         String @default("")
   calories    Float
   protein     Float
   carbs       Float

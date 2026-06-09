@@ -1,12 +1,16 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Meal } from '@/types'
 import { MealGrid } from '@/components/meals/MealGrid'
 import { MealModal } from '@/components/meals/MealModal'
+import { Icon } from '@/components/Icon'
 
-export default function MealsPage() {
+export default function CookbookPage() {
   const [meals, setMeals] = useState<Meal[]>([])
-  const [showCreate, setShowCreate] = useState(false)
+  const [q, setQ] = useState('')
+  const [activeTag, setActiveTag] = useState('All')
+  const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
+  const [showModal, setShowModal] = useState(false)
 
   const fetchMeals = useCallback(async () => {
     const res = await fetch('/api/meals')
@@ -16,22 +20,103 @@ export default function MealsPage() {
 
   useEffect(() => { fetchMeals() }, [fetchMeals])
 
+  const tags = useMemo(() => {
+    const s = new Set<string>()
+    meals.forEach(m => { if (m.tag) s.add(m.tag) })
+    return ['All', ...Array.from(s)]
+  }, [meals])
+
+  const filtered = useMemo(() => {
+    return meals.filter(m => {
+      if (activeTag !== 'All' && m.tag !== activeTag) return false
+      if (q) {
+        const hay = `${m.title} ${m.description} ${m.tag}`.toLowerCase()
+        if (!hay.includes(q.toLowerCase())) return false
+      }
+      return true
+    })
+  }, [meals, activeTag, q])
+
+  function openCreate() {
+    setEditingMeal(null)
+    setShowModal(true)
+  }
+
+  function openEdit(meal: Meal) {
+    setEditingMeal(meal)
+    setShowModal(true)
+  }
+
+  async function handleDelete(id: number) {
+    await fetch(`/api/meals/${id}`, { method: 'DELETE' })
+    fetchMeals()
+  }
+
+  function closeModal() {
+    setShowModal(false)
+    setEditingMeal(null)
+  }
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 w-full">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-zinc-100">Meal Cookbook</h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700"
-        >
-          + New Meal
-        </button>
+    <div className="page">
+      {/* Page header */}
+      <div className="page-header">
+        <div className="page-header-text">
+          <div className="page-eyebrow">Cookbook · {meals.length} meal{meals.length !== 1 ? 's' : ''}</div>
+          <h1 className="page-title">Your <em>recipes,</em> with macros.</h1>
+          <p className="page-sub">Tap any card to edit. New ideas slot straight into next week&apos;s plan.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <button className="btn btn-ghost">
+            <Icon name="sparkle" size={14} /> Generate ideas
+          </button>
+          <button className="btn btn-primary" onClick={openCreate}>
+            <Icon name="plus" size={14} /> New meal
+          </button>
+        </div>
       </div>
-      <MealGrid meals={meals} onRefresh={fetchMeals} />
-      {showCreate && (
+
+      {/* Search + filter toolbar */}
+      <div className="toolbar">
+        <div className="search">
+          <Icon name="search" size={16} className="search-icon" />
+          <input
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="Search meals, ingredients, tags…"
+          />
+        </div>
+        <div className="chips">
+          {tags.map(t => (
+            <button
+              key={t}
+              className={`chip ${activeTag === t ? 'active' : ''}`}
+              onClick={() => setActiveTag(t)}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid */}
+      {meals.length === 0 ? (
+        <div className="empty">
+          <div className="empty-title">No meals yet.</div>
+          <p style={{ fontSize: 14, marginTop: 6 }}>Add your first recipe to get started.</p>
+          <button className="btn btn-primary btn-sm" style={{ marginTop: 16 }} onClick={openCreate}>
+            <Icon name="plus" size={14} /> New meal
+          </button>
+        </div>
+      ) : (
+        <MealGrid meals={filtered} onEdit={openEdit} onDelete={handleDelete} />
+      )}
+
+      {/* Modal */}
+      {showModal && (
         <MealModal
-          meal={null}
-          onClose={() => setShowCreate(false)}
+          meal={editingMeal}
+          onClose={closeModal}
           onSaved={fetchMeals}
         />
       )}

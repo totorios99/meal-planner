@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
     data: {
       title: body.title,
       description: body.description ?? '',
+      tag: body.tag ?? '',
       calories: Number(body.calories),
       protein: Number(body.protein),
       carbs: Number(body.carbs),

@@ -2,6 +2,7 @@ export type Meal = {
   id: number
   title: string
   description: string
+  tag: string
   calories: number
   protein: number
   carbs: number

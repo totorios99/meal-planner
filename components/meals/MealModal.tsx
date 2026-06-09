@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Meal } from '@/types'
+import { Icon } from '@/components/Icon'
 
 interface Props {
   meal?: Meal | null
@@ -8,7 +10,16 @@ interface Props {
   onSaved: () => void
 }
 
-const EMPTY = { title: '', description: '', calories: '', protein: '', carbs: '', fats: '', imageUrl: '' }
+const EMPTY = {
+  title: '',
+  description: '',
+  tag: '',
+  calories: '',
+  protein: '',
+  carbs: '',
+  fats: '',
+  imageUrl: '',
+}
 
 export function MealModal({ meal, onClose, onSaved }: Props) {
   const [form, setForm] = useState(EMPTY)
@@ -19,6 +30,7 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
       setForm({
         title: meal.title,
         description: meal.description,
+        tag: meal.tag,
         calories: String(meal.calories),
         protein: String(meal.protein),
         carbs: String(meal.carbs),
@@ -30,49 +42,154 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
     }
   }, [meal])
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  function set(field: string, value: string) {
+    setForm(f => ({ ...f, [field]: value }))
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     const method = meal ? 'PUT' : 'POST'
     const url = meal ? `/api/meals/${meal.id}` : '/api/meals'
-    await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+    await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
     setSaving(false)
     onSaved()
     onClose()
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-md p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-zinc-100">{meal ? 'Edit Meal' : 'New Meal'}</h2>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input required placeholder="Title" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="w-full border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
-          <textarea placeholder="Description (optional)" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="w-full border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm h-20 resize-none bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">Calories</label>
-              <input required type="number" min="0" step="any" placeholder="0" value={form.calories} onChange={e => setForm(f => ({ ...f, calories: e.target.value }))} className="w-full border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100" />
+  return createPortal(
+    <div className="sheet-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="sheet">
+        <div className="sheet-head">
+          <h2 className="sheet-title">{meal ? 'Edit meal' : 'New meal'}</h2>
+          <button className="icon-btn" onClick={onClose} title="Close">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="sheet-body">
+            <div className="field">
+              <label htmlFor="title">Name</label>
+              <input
+                id="title"
+                required
+                placeholder="e.g. Chicken Rice Bowl"
+                value={form.title}
+                onChange={e => set('title', e.target.value)}
+              />
             </div>
-            <div>
-              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">Protein (g)</label>
-              <input required type="number" min="0" step="any" placeholder="0" value={form.protein} onChange={e => setForm(f => ({ ...f, protein: e.target.value }))} className="w-full border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100" />
+
+            <div className="field">
+              <label htmlFor="description">Description</label>
+              <textarea
+                id="description"
+                placeholder="One-line description"
+                value={form.description}
+                onChange={e => set('description', e.target.value)}
+                style={{ resize: 'none', height: 72 }}
+              />
             </div>
-            <div>
-              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">Carbs (g)</label>
-              <input required type="number" min="0" step="any" placeholder="0" value={form.carbs} onChange={e => setForm(f => ({ ...f, carbs: e.target.value }))} className="w-full border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100" />
+
+            <div className="field">
+              <label htmlFor="tag">Tag</label>
+              <input
+                id="tag"
+                placeholder="e.g. Breakfast, Dinner, High protein"
+                value={form.tag}
+                onChange={e => set('tag', e.target.value)}
+              />
             </div>
-            <div>
-              <label className="text-xs text-gray-500 dark:text-zinc-400 mb-1 block">Fats (g)</label>
-              <input required type="number" min="0" step="any" placeholder="0" value={form.fats} onChange={e => setForm(f => ({ ...f, fats: e.target.value }))} className="w-full border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100" />
+
+            <div className="field-grid-2">
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="calories">Calories</label>
+                <input
+                  id="calories"
+                  required
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0"
+                  value={form.calories}
+                  onChange={e => set('calories', e.target.value)}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="protein">Protein (g)</label>
+                <input
+                  id="protein"
+                  required
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0"
+                  value={form.protein}
+                  onChange={e => set('protein', e.target.value)}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="carbs">Carbs (g)</label>
+                <input
+                  id="carbs"
+                  required
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0"
+                  value={form.carbs}
+                  onChange={e => set('carbs', e.target.value)}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="fats">Fats (g)</label>
+                <input
+                  id="fats"
+                  required
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0"
+                  value={form.fats}
+                  onChange={e => set('fats', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="field" style={{ marginTop: 14 }}>
+              <label htmlFor="imageUrl">Photo URL</label>
+              <input
+                id="imageUrl"
+                placeholder="https://…"
+                value={form.imageUrl}
+                onChange={e => set('imageUrl', e.target.value)}
+              />
             </div>
           </div>
-          <input placeholder="Image URL (optional)" value={form.imageUrl} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} className="w-full border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 text-sm">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
+
+          <div className="sheet-foot">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Saving…' : meal ? 'Save changes' : 'Add meal'}
+            </button>
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

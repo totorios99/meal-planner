@@ -1,20 +1,10 @@
 'use client'
+import { Icon } from '@/components/Icon'
 
 export function PrintButton() {
   return (
-    <button
-      onClick={() => window.print()}
-      style={{
-        padding: '0.5rem 1.5rem',
-        background: '#1d4ed8',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '0.5rem',
-        cursor: 'pointer',
-        fontSize: '0.875rem',
-      }}
-    >
-      Print
+    <button className="btn btn-primary btn-sm" onClick={() => window.print()}>
+      <Icon name="printer" size={14} /> Print
     </button>
   )
 }
