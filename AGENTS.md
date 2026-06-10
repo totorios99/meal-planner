@@ -48,3 +48,23 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 - `deploy.sh` — rebuild image + restart container
 - `lib/prisma.ts` — Prisma client singleton with libSQL adapter
 - `components/Nav.tsx` — theme toggle (system/light/dark 3-state cycle)
+
+## Design system
+
+- CSS custom properties only — no Tailwind utility classes in component markup
+- Tokens defined in `app/globals.css`: surfaces (`--bg`, `--bg-elev`, `--bg-sunken`), ink, accent (olive `#2F5237`), macro colours (`--protein` / `--carbs` / `--fats`)
+- Dark mode via `[data-theme="dark"]` attribute on `<html>`, set by `Nav.tsx`
+- Design handoff lives in `design_handoff_meal_planner/` — reference for component shapes and visual spec
+
+## Git & SSH
+
+- Remote: `git@github.com:totorios99/meal-planner.git` (SSH)
+- Push requires SSH agent running: `eval (ssh-agent -c) && ssh-add ~/.ssh/id_ed25519`
+- Agent does not persist across terminal sessions — re-run before pushing
+
+## Companion app — Forma
+
+- Second CasaOS app: AI nutrition + workout planner
+- Design handoff: `design_handoff_forma/` — full spec, Prisma schema, Anthropic SDK pattern
+- Prototype: `forma.html` — open in browser, no server needed
+- Builds as separate repo/container on port `3001`; shares same design token conventions as Mise
