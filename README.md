@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mise — Meal Planner
 
-## Getting Started
+A personal meal planning app self-hosted on CasaOS. Manage a cookbook of meals, build weekly plans with macro tracking, and print weekly menus.
 
-First, run the development server:
+![Home](uploads/home.png)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Features
+
+- **Cookbook** — add meals with calories, macros (P/C/F), tags, and photos
+- **Weekly Planner** — drag meals into Mon–Sun slots, track daily macro totals, mark days off
+- **Print view** — clean printable weekly menu, hides UI chrome
+- **Dark mode** — system/light/dark three-state toggle, persists across sessions
+- **Mobile-first** — fixed bottom tab bar, safe-area aware, works on phone browser
+
+## Tech stack
+
+| Layer | Choice |
+|-------|--------|
+| Framework | Next.js 16 (App Router) |
+| Database | SQLite via Prisma 7 + libSQL adapter |
+| Language | TypeScript (strict) |
+| Styles | CSS custom properties (no Tailwind) |
+| Deployment | Docker on CasaOS |
+
+## Project structure
+
+```
+app/
+  page.tsx          # Home dashboard
+  meals/            # Cookbook page
+  planner/          # Weekly planner
+  print/            # Print view
+  api/              # REST API routes
+components/
+  Nav.tsx           # Top nav + theme toggle
+  Icon.tsx          # SVG icon set
+  meals/            # Cookbook components (MealGrid, MealModal, …)
+  planner/          # Planner components (WeekBoard, DayCard, MealSlot, …)
+lib/
+  prisma.ts         # Prisma client singleton
+prisma/
+  schema.prisma     # Meal, WeeklyPlan, WeeklyPlanDay, WeeklyPlanMeal models
+scripts/
+  migrate.js        # Migration runner (used at container startup)
+design_handoff_meal_planner/   # Original design spec + prototype
+design_handoff_forma/          # Design handoff for Forma (companion app)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Dev workflow
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev          # localhost:3000 with HMR
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Database migrations:
 
-## Learn More
+```bash
+npx prisma migrate dev --name <description>
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment (CasaOS)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+sudo ./deploy.sh     # rebuilds Docker image, restarts container
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Container runs on **port 3000**, data persisted at `/DATA/AppData/mise/`.
 
-## Deploy on Vercel
+> Do not run Docker during dev iteration — use `npm run dev` for HMR.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Data model
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+Meal                  — cookbook entries (title, tag, kcal, protein, carbs, fats, imageUrl)
+WeeklyPlan            — a week's plan (weekStart, isActive)
+  WeeklyPlanDay       — one day slot (dayIndex 0–6, isDismissed, justification note)
+    WeeklyPlanMeal    — a meal in a day slot (mealId, quantity)
+```
+
+## Companion app
+
+**Forma** — AI-powered nutrition + workout planner (next project, port 3001).  
+Design handoff: [`design_handoff_forma/README.md`](design_handoff_forma/README.md)  
+Prototype: [`forma.html`](forma.html) — open in browser, no server needed.
