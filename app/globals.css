@@ -335,10 +335,16 @@ input, select, textarea { font-family: inherit; color: inherit; }
   color: var(--ink);
 }
 .meal-card-img-overlay .icon-btn:hover { background: #fff; }
-.meal-tag {
+.meal-tags {
   position: absolute;
   top: 12px;
   left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: calc(100% - 24px);
+}
+.meal-tag {
   background: rgba(255,255,255,.92);
   color: var(--ink-2);
   font-size: 11px;
@@ -348,6 +354,7 @@ input, select, textarea { font-family: inherit; color: inherit; }
   border-radius: 999px;
   text-transform: uppercase;
   backdrop-filter: blur(4px);
+  white-space: nowrap;
 }
 .meal-card-body {
   padding: 16px 18px 18px;

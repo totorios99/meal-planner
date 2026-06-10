@@ -22,13 +22,18 @@ export default function CookbookPage() {
 
   const tags = useMemo(() => {
     const s = new Set<string>()
-    meals.forEach(m => { if (m.tag) s.add(m.tag) })
-    return ['All', ...Array.from(s)]
+    meals.forEach(m => {
+      if (m.tag) m.tag.split(',').map(t => t.trim()).filter(Boolean).forEach(t => s.add(t))
+    })
+    return ['All', ...Array.from(s).sort()]
   }, [meals])
 
   const filtered = useMemo(() => {
     return meals.filter(m => {
-      if (activeTag !== 'All' && m.tag !== activeTag) return false
+      if (activeTag !== 'All') {
+        const mealTags = m.tag ? m.tag.split(',').map(t => t.trim()).filter(Boolean) : []
+        if (!mealTags.includes(activeTag)) return false
+      }
       if (q) {
         const hay = `${m.title} ${m.description} ${m.tag}`.toLowerCase()
         if (!hay.includes(q.toLowerCase())) return false

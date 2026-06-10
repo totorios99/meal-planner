@@ -104,13 +104,22 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
             </div>
 
             <div className="field">
-              <label htmlFor="tag">Tag</label>
+              <label htmlFor="tag">Tags <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— comma separated</span></label>
               <input
                 id="tag"
-                placeholder="e.g. Breakfast, Dinner, High protein"
+                placeholder="e.g. Breakfast, High protein, Meal prep"
                 value={form.tag}
                 onChange={e => set('tag', e.target.value)}
               />
+              {form.tag && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                  {form.tag.split(',').map(t => t.trim()).filter(Boolean).map(t => (
+                    <span key={t} style={{ fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 999, background: 'var(--bg-sunken)', color: 'var(--ink-2)', textTransform: 'uppercase', letterSpacing: '.02em' }}>
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="field-grid-2">

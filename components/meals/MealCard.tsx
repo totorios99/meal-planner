@@ -22,7 +22,13 @@ export function MealCard({ meal, onEdit, onDelete }: Props) {
         ) : (
           <div className="photo-ph">{meal.title[0]}</div>
         )}
-        {meal.tag && <span className="meal-tag">{meal.tag}</span>}
+        {meal.tag && (
+          <div className="meal-tags">
+            {meal.tag.split(',').map(t => t.trim()).filter(Boolean).map(t => (
+              <span key={t} className="meal-tag">{t}</span>
+            ))}
+          </div>
+        )}
         <div className="meal-card-img-overlay">
           <button className="icon-btn" title="Edit" onClick={() => onEdit(meal)}>
             <Icon name="edit" size={15} />
