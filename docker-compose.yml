@@ -6,7 +6,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - mise-data:/app/data
+      - /DATA/AppData/mise:/app/data
     environment:
       - DATABASE_URL=file:/app/data/meal-planner.db
       - NODE_ENV=production
@@ -18,9 +18,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-
-volumes:
-  mise-data:
 
 x-casaos:
   architectures:
