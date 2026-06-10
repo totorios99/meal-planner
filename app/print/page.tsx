@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { PrintButton } from '@/components/print/PrintButton'
 
+export const dynamic = 'force-dynamic'
+
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 function fmt(d: Date, opts: Intl.DateTimeFormatOptions) {

@@ -1,13 +1,14 @@
 services:
-  meal-planner:
+  mise:
     build: .
-    container_name: meal-planner
+    image: mise
+    container_name: mise
     ports:
       - "3000:3000"
     volumes:
-      - ./data:/app/db
+      - mise-data:/app/data
     environment:
-      - DATABASE_URL=file:/app/db/meal-planner.db
+      - DATABASE_URL=file:/app/data/meal-planner.db
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
     restart: unless-stopped
@@ -16,4 +17,25 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 20s
+
+volumes:
+  mise-data:
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+    - arm
+  main: mise
+  title:
+    en_us: Mise
+  description:
+    en_us: Personal meal planner with weekly planning, macro tracking, and print-ready meal references.
+  tagline:
+    en_us: Meal planning, simplified.
+  developer: Antonio Rios
+  author: Antonio Rios
+  category: Utilities
+  port_map: "3000"
+  icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjQzg2MDJBIi8+PHRleHQgeD0iMjU2IiB5PSIzNzAiIGZvbnQtZmFtaWx5PSJHZW9yZ2lhLHNlcmlmIiBmb250LXNpemU9IjMwMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0ZGRjhGMiIgdGV4dC1hbmNob3I9Im1pZGxlIj5NPC90ZXh0Pjwvc3ZnPgo="
