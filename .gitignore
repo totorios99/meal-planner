@@ -45,3 +45,6 @@ next-env.d.ts
 # database files
 db/*.db
 db/*.db-journal
+
+# user uploads
+/uploads
