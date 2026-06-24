@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono, Newsreader } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Nav } from '@/components/Nav'
 
@@ -13,29 +13,10 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
-const newsreader = Newsreader({
-  variable: '--font-newsreader',
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  style: ['normal', 'italic'],
-})
-
 export const metadata: Metadata = {
   title: 'Mise — Meal Planner',
   description: 'Your recipes, with macros.',
 }
-
-const THEME_SCRIPT = `(function(){
-  var p=localStorage.getItem('theme-pref')||localStorage.getItem('theme')||'system';
-  if(p==='light'||p==='dark'){
-    var dark=p==='dark';
-    document.documentElement.setAttribute('data-theme',dark?'dark':'light');
-    if(dark)document.documentElement.classList.add('dark');
-  } else {
-    var dark=window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if(dark){document.documentElement.setAttribute('data-theme','dark');document.documentElement.classList.add('dark');}
-  }
-})()`
 
 export default function RootLayout({
   children,
@@ -46,12 +27,18 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${newsreader.variable}`}
+      data-wallpaper="mist"
+      className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var p=localStorage.getItem('theme-pref')||'system';var d=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);var e=document.documentElement;e.setAttribute('data-theme',d?'dark':'light');e.classList.toggle('dark',d);}catch(_){}})();`,
+          }}
+        />
       </head>
       <body className="app">
+        <div className="wallpaper" />
         <Nav />
         {children}
       </body>

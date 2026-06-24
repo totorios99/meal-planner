@@ -58,7 +58,7 @@ function MacroRing({ protein, carbs, fats, kcal, targets }: {
         )
       })}
       <text x={cx} y={cy - 6} textAnchor="middle" dominantBaseline="central"
-        fontFamily="var(--serif)" fontSize={size * 0.25} fontWeight="500" fill="var(--ink)">
+        fontFamily="var(--display)" fontSize={size * 0.25} fontWeight="500" fill="var(--ink)">
         {Math.round(kcalPct * 100)}%
       </text>
       <text x={cx} y={cy + size * 0.17} textAnchor="middle" dominantBaseline="central"
@@ -126,6 +126,14 @@ export default function HomePage() {
   const today = plan?.days.find(d => d.dayIndex === todayDayIndex())
   const todayMeals = today?.meals ?? []
   const weekStart = plan ? new Date(plan.weekStart) : null
+
+  const daysOn = plan ? plan.days.filter(d => !d.isDismissed).length : 0
+  const weekKcal = plan
+    ? plan.days.reduce((s, d) => s + (d.isDismissed ? 0 : d.meals.reduce((a, m) => a + m.meal.calories * m.portionMultiplier, 0)), 0)
+    : 0
+  const weekRange = weekStart
+    ? `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${dayDate(weekStart, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${dayDate(weekStart, 6).getFullYear()}`
+    : ''
 
   const todayTotals = todayMeals.reduce((acc, wpm) => ({
     calories: acc.calories + wpm.meal.calories * wpm.portionMultiplier,
@@ -245,9 +253,14 @@ export default function HomePage() {
         <div className="week-strip">
           <div className="week-strip-head">
             <h2>This week</h2>
-            <Link href="/planner" className="section-link">
-              Open planner <Icon name="arrow-right" size={13} />
-            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span className="week-strip-sub">
+                {weekRange} · {daysOn} day{daysOn !== 1 ? 's' : ''} on · {Math.round(weekKcal).toLocaleString()} kcal
+              </span>
+              <Link href="/planner" className="section-link">
+                Open planner <Icon name="arrow-right" size={13} />
+              </Link>
+            </div>
           </div>
           <div className="week-strip-days">
             {plan.days.map(day => {
@@ -258,7 +271,7 @@ export default function HomePage() {
                 <Link
                   key={day.id}
                   href="/planner"
-                  className={`week-day${day.isDismissed ? ' off' : ''}`}
+                  className={`week-day${isToday ? ' today' : ''}${day.isDismissed ? ' off' : ''}`}
                   style={{ textDecoration: 'none' }}
                 >
                   <div className="week-day-name">{DAY_ABBR[day.dayIndex]}</div>
