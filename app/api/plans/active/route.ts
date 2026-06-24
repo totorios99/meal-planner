@@ -1,33 +1,44 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 function getThisMonday(): Date {
   const d = new Date()
-  const day = d.getDay() // 0=Sun
+  const day = d.getDay()
   const diff = day === 0 ? -6 : 1 - day
   d.setDate(d.getDate() + diff)
   d.setHours(0, 0, 0, 0)
   return d
 }
 
-export async function GET() {
-  let plan = await prisma.weeklyPlan.findFirst({
-    where: { isActive: true },
+function parseLocalDate(str: string): Date {
+  const [y, m, d] = str.split('-').map(Number)
+  return new Date(y, m - 1, d, 0, 0, 0, 0)
+}
+
+const planInclude = {
+  days: {
+    orderBy: { dayIndex: 'asc' as const },
     include: {
-      days: {
-        orderBy: { dayIndex: 'asc' },
-        include: {
-          meals: {
-            orderBy: { slotIndex: 'asc' },
-            include: { meal: true }
-          }
-        }
+      meals: {
+        orderBy: { slotIndex: 'asc' as const },
+        include: { meal: true }
       }
     }
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const weekParam = request.nextUrl.searchParams.get('weekStart')
+  const weekStart = weekParam ? parseLocalDate(weekParam) : getThisMonday()
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekEnd.getDate() + 1)
+
+  let plan = await prisma.weeklyPlan.findFirst({
+    where: { weekStart: { gte: weekStart, lt: weekEnd } },
+    include: planInclude
   })
 
   if (!plan) {
-    const weekStart = getThisMonday()
     const newPlan = await prisma.weeklyPlan.create({
       data: { weekStart, isActive: true }
     })
@@ -38,17 +49,7 @@ export async function GET() {
     }
     plan = await prisma.weeklyPlan.findFirst({
       where: { id: newPlan.id },
-      include: {
-        days: {
-          orderBy: { dayIndex: 'asc' },
-          include: {
-            meals: {
-              orderBy: { slotIndex: 'asc' },
-              include: { meal: true }
-            }
-          }
-        }
-      }
+      include: planInclude
     })
   }
 

@@ -38,6 +38,7 @@ export function Icon({ name, size = 16, className = '' }: IconProps) {
     case 'sparkle':    return <svg {...props}><path d="M12 3v6m0 6v6M3 12h6m6 0h6"/></svg>
     case 'arrow-right':return <svg {...props}><path d="M5 12h14M13 5l7 7-7 7"/></svg>
     case 'check':      return <svg {...props}><path d="m5 12 5 5L20 7"/></svg>
+    case 'drag':       return <svg {...props} strokeWidth={2}><circle cx="9" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="17" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="17" r="1" fill="currentColor" stroke="none"/></svg>
     default: return null
   }
 }

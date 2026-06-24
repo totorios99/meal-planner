@@ -11,26 +11,44 @@ function fmt(d: Date) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+function getWeekBounds(offset: number): { weekStart: Date; weekEnd: Date; weekParam: string } {
+  const d = new Date()
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff + offset * 7)
+  d.setHours(0, 0, 0, 0)
+  const weekStart = new Date(d)
+  const weekEnd = new Date(d)
+  weekEnd.setDate(weekEnd.getDate() + 6)
+  const weekParam = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`
+  return { weekStart, weekEnd, weekParam }
+}
+
 export default function PlannerPage() {
   const [plan, setPlan] = useState<WeeklyPlan | null>(null)
   const [loading, setLoading] = useState(true)
+  const [weekOffset, setWeekOffset] = useState(0)
   const { targets, updateTargets } = useMacroTargets()
   const [showTargets, setShowTargets] = useState(false)
 
   const fetchPlan = useCallback(async () => {
+    setLoading(true)
+    const { weekParam } = getWeekBounds(weekOffset)
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 8000)
     try {
-      const res = await fetch('/api/plans/active', { signal: ctrl.signal })
+      const res = await fetch(`/api/plans/active?weekStart=${weekParam}`, { signal: ctrl.signal })
       if (res.ok) setPlan(await res.json())
     } catch { /* network error or timeout */ }
     finally {
       clearTimeout(timer)
       setLoading(false)
     }
-  }, [])
+  }, [weekOffset])
 
   useEffect(() => { fetchPlan() }, [fetchPlan])
+
+  const { weekStart, weekEnd } = getWeekBounds(weekOffset)
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--ink-4)' }}>
@@ -43,10 +61,6 @@ export default function PlannerPage() {
       <button className="btn btn-ghost btn-sm" onClick={fetchPlan}>Retry</button>
     </div>
   )
-
-  const weekStart = new Date(plan.weekStart)
-  const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekEnd.getDate() + 6)
 
   const daysPlanned = plan.days.filter(d => !d.isDismissed && d.meals.length > 0).length
   const totalKcal = plan.days.reduce((sum, d) => {
@@ -67,9 +81,13 @@ export default function PlannerPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <div className="week-nav">
-            <button disabled title="Previous week"><Icon name="chev-left" size={14} /></button>
+            <button onClick={() => setWeekOffset(o => o - 1)} title="Previous week">
+              <Icon name="chev-left" size={14} />
+            </button>
             <span className="label">{fmt(weekStart)} – {fmt(weekEnd)}</span>
-            <button disabled title="Next week"><Icon name="chev-right" size={14} /></button>
+            <button onClick={() => setWeekOffset(o => o + 1)} title="Next week">
+              <Icon name="chev-right" size={14} />
+            </button>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={() => setShowTargets(true)}>
             <Icon name="settings" size={14} /> Targets

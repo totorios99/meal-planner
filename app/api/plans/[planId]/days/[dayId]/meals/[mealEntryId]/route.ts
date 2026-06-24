@@ -20,6 +20,10 @@ export async function DELETE(
   { params }: { params: Promise<{ mealEntryId: string }> }
 ) {
   const { mealEntryId } = await params
-  await prisma.weeklyPlanMeal.delete({ where: { id: Number(mealEntryId) } })
-  return NextResponse.json({ deleted: true })
+  try {
+    await prisma.weeklyPlanMeal.delete({ where: { id: Number(mealEntryId) } })
+    return NextResponse.json({ deleted: true })
+  } catch {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
 }
