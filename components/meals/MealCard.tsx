@@ -51,7 +51,7 @@ export function MealCard({ meal, onEdit, onDelete }: Props) {
           <div className="macro-chip">
             <span className="macro-chip-label">
               <span className="macro-dot" style={{ background: 'var(--protein)', marginRight: 4 }} />
-              Protein
+              <span className="macro-full">Protein</span><span className="macro-abbr">P</span>
             </span>
             <span className="macro-chip-value num">
               {Math.round(meal.protein)}<span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 1 }}>g</span>
@@ -60,7 +60,7 @@ export function MealCard({ meal, onEdit, onDelete }: Props) {
           <div className="macro-chip">
             <span className="macro-chip-label">
               <span className="macro-dot" style={{ background: 'var(--carbs)', marginRight: 4 }} />
-              Carbs
+              <span className="macro-full">Carbs</span><span className="macro-abbr">C</span>
             </span>
             <span className="macro-chip-value num">
               {Math.round(meal.carbs)}<span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 1 }}>g</span>
@@ -69,7 +69,7 @@ export function MealCard({ meal, onEdit, onDelete }: Props) {
           <div className="macro-chip">
             <span className="macro-chip-label">
               <span className="macro-dot" style={{ background: 'var(--fats)', marginRight: 4 }} />
-              Fats
+              <span className="macro-full">Fats</span><span className="macro-abbr">F</span>
             </span>
             <span className="macro-chip-value num">
               {Math.round(meal.fats)}<span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 1 }}>g</span>

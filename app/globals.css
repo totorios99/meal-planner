@@ -521,6 +521,7 @@ input, select, textarea { font-family: inherit; color: inherit; }
   display: flex;
   align-items: center;
 }
+.macro-abbr { display: none; }
 .macro-chip-value {
   font-size: 15px;
   font-weight: 500;
@@ -1580,6 +1581,8 @@ input, select, textarea { font-family: inherit; color: inherit; }
   .qa-card { padding: 16px 18px; }
 
   .meal-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .macro-full { display: none; }
+  .macro-abbr { display: inline; }
   .meal-card-body { padding: 10px 12px 12px; gap: 6px; }
   .meal-name { font-size: 14px; }
   .meal-desc { display: none; }
