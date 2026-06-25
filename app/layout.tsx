@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Nav } from '@/components/Nav'
@@ -16,6 +16,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Mise — Meal Planner',
   description: 'Your recipes, with macros.',
+}
+
+// resizes-content: on-screen keyboard shrinks the layout viewport instead of
+// overlaying it, so bottom-anchored sheets (e.g. the meal picker) sit above
+// the keyboard rather than behind it.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  interactiveWidget: 'resizes-content',
 }
 
 export default function RootLayout({

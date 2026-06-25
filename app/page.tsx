@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { WeeklyPlan, Meal } from '@/types'
 import { useMacroTargets } from '@/lib/useMacroTargets'
@@ -109,6 +109,7 @@ export default function HomePage() {
   const [showNewMeal, setShowNewMeal] = useState(false)
   const [showTargets, setShowTargets] = useState(false)
   const { targets, updateTargets } = useMacroTargets()
+  const weekDaysRef = useRef<HTMLDivElement>(null)
 
   const fetchAll = useCallback(async () => {
     try {
@@ -122,6 +123,18 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  useEffect(() => {
+    // Center today's chip within the horizontal strip only — scrollIntoView
+    // would scroll the whole page vertically to the strip on load.
+    const container = weekDaysRef.current
+    const el = container?.querySelector('.today') as HTMLElement | null
+    if (container && el) {
+      container.scrollLeft +=
+        el.getBoundingClientRect().left - container.getBoundingClientRect().left
+        - (container.clientWidth - el.clientWidth) / 2
+    }
+  }, [plan])
 
   const today = plan?.days.find(d => d.dayIndex === todayDayIndex())
   const todayMeals = today?.meals ?? []
@@ -153,7 +166,7 @@ export default function HomePage() {
   return (
     <div className="page">
       {/* Header */}
-      <div className="page-header" style={{ marginBottom: 32 }}>
+      <div className="page-header">
         <div className="page-header-text">
           <div className="page-eyebrow" suppressHydrationWarning>{eyebrow}</div>
           <h1 className="page-title" suppressHydrationWarning>{greeting()}, <em>Antonio.</em></h1>
@@ -262,7 +275,7 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-          <div className="week-strip-days">
+          <div className="week-strip-days" ref={weekDaysRef}>
             {plan.days.map(day => {
               const date = dayDate(weekStart, day.dayIndex)
               const isToday = day.dayIndex === todayDayIndex()
