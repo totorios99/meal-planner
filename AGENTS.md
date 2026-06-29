@@ -10,8 +10,8 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 
 ## Dev workflow
 
-- `npm run dev` — local development, HMR, no Docker needed
-- Dev server runs on `localhost:3000`; LAN access requires `allowedDevOrigins` (already in `next.config.ts`)
+- `npm run dev -- --port 3020` — local development, HMR, no Docker needed (always use port 3020)
+- Dev server runs on `localhost:3020`; LAN access requires `allowedDevOrigins` (already in `next.config.ts`)
 - Never run Docker during dev iteration — slow, no HMR
 
 ## Branching
@@ -47,7 +47,7 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 - `scripts/migrate.js` — custom migration runner (avoids Prisma CLI in Alpine container)
 - `deploy.sh` — rebuild image + restart container
 - `lib/prisma.ts` — Prisma client singleton with libSQL adapter
-- `components/Nav.tsx` — theme toggle (system/light/dark 3-state cycle)
+- `components/Nav.tsx` — desktop nav with icon+label links, mobile top pill (brand only), bottom tabbar; theme toggle (system/light/dark 3-state cycle)
 
 ## Design system
 
@@ -55,6 +55,13 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 - Tokens defined in `app/globals.css`: surfaces (`--bg`, `--bg-elev`, `--bg-sunken`), ink, accent (olive `#2F5237`), macro colours (`--protein` / `--carbs` / `--fats`)
 - Dark mode via `[data-theme="dark"]` attribute on `<html>`, set by `Nav.tsx`
 - Design handoff lives in `design_handoff_meal_planner/` — reference for component shapes and visual spec
+- Page header pattern: `.page-eyebrow` (12px uppercase label) → `.page-title` (display font, 46px, gradient `<em>` for name) → `.home-sub` (15px, `--ink-3`)
+
+## Timezone handling
+
+- Server runs in UTC (Docker). Never rely on server-side `new Date()` to compute "current week"
+- Always pass `weekStart` as a `YYYY-MM-DD` query param from the client (browser local time)
+- `getThisMonday()` in `/api/plans/active/route.ts` is a UTC fallback — avoid triggering it
 
 ## Git & SSH
 

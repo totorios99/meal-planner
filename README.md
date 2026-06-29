@@ -10,7 +10,8 @@ A personal meal planning app self-hosted on CasaOS. Manage a cookbook of meals, 
 - **Weekly Planner** — drag meals into Mon–Sun slots, track daily macro totals, mark days off
 - **Print view** — clean printable weekly menu, hides UI chrome
 - **Dark mode** — system/light/dark three-state toggle, persists across sessions
-- **Mobile-first** — fixed bottom tab bar, safe-area aware, works on phone browser
+- **Mobile-first** — bottom tab bar (fixed, safe-area aware), compact top pill nav, works on phone browser
+- **Desktop nav** — icon + label links, glass pill style
 
 ## Tech stack
 
@@ -50,7 +51,7 @@ design_handoff_forma/          # Design handoff for Forma (companion app)
 
 ```bash
 npm install
-npm run dev          # localhost:3000 with HMR
+npm run dev -- --port 3020   # localhost:3020 with HMR
 ```
 
 Database migrations:
