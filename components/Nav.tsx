@@ -82,6 +82,7 @@ export function Nav() {
                 href={l.href}
                 className={`nav-link ${pathname === l.href ? 'active' : ''}`}
               >
+                <Icon name={l.icon} size={15} />
                 {l.label}
               </Link>
             ))}

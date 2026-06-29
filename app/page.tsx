@@ -14,6 +14,13 @@ function todayDayIndex() {
   return (new Date().getDay() + 6) % 7
 }
 
+function localMonday() {
+  const d = new Date()
+  const diff = d.getDay() === 0 ? -6 : 1 - d.getDay()
+  d.setDate(d.getDate() + diff)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function greeting() {
   const h = new Date().getHours()
   if (h < 12) return 'Good morning'
@@ -114,7 +121,7 @@ export default function HomePage() {
   const fetchAll = useCallback(async () => {
     try {
       const [planRes, mealsRes] = await Promise.all([
-        fetch('/api/plans/active'),
+        fetch(`/api/plans/active?weekStart=${localMonday()}`),
         fetch('/api/meals'),
       ])
       if (planRes.ok) setPlan(await planRes.json())
@@ -156,7 +163,7 @@ export default function HomePage() {
   }), { calories: 0, protein: 0, carbs: 0, fats: 0 })
 
   const now = new Date()
-  const eyebrow = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  const eyebrow = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
   async function handleDelete(id: number) {
     await fetch(`/api/meals/${id}`, { method: 'DELETE' })
@@ -170,7 +177,7 @@ export default function HomePage() {
         <div className="page-header-text">
           <div className="page-eyebrow" suppressHydrationWarning>{eyebrow}</div>
           <h1 className="page-title" suppressHydrationWarning>{greeting()}, <em>Antonio.</em></h1>
-          <p className="page-sub">Here&apos;s your week at a glance.</p>
+          <p className="home-sub">Here&apos;s your week at a glance.</p>
         </div>
       </div>
 

@@ -248,6 +248,9 @@ input, select, textarea { font-family: inherit; color: inherit; }
   margin-left: 4px;
 }
 .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 14px;
   border-radius: var(--r-pill);
   font-size: 14px;
@@ -349,7 +352,7 @@ input, select, textarea { font-family: inherit; color: inherit; }
   display: flex;
   align-items: flex-end;
   gap: 24px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 .page-header-text { flex: 1; min-width: 0; }
 .page-eyebrow {
@@ -383,6 +386,12 @@ input, select, textarea { font-family: inherit; color: inherit; }
   color: var(--ink-2);
   font-size: 15px;
   font-weight: 450;
+}
+.home-sub {
+  font-size: 15px;
+  font-weight: 450;
+  color: var(--ink-3);
+  margin-top: 10px;
 }
 
 /* === Glass surfaces (cards & panels) === */
@@ -1511,7 +1520,7 @@ input, select, textarea { font-family: inherit; color: inherit; }
 
 @media (max-width: 768px) {
   .nav { position: absolute; top: 12px; left: 12px; right: 12px; padding: 0; }
-  .nav-inner { padding: 11px 16px; gap: 12px; }
+  .nav-inner { padding: 5px 16px; gap: 12px; }
   .nav-links { display: none; }
   .icon-btn { width: 44px; height: 44px; border-radius: 12px; }
 
@@ -1536,7 +1545,7 @@ input, select, textarea { font-family: inherit; color: inherit; }
     align-items: center;
     justify-content: center;
     gap: 3px;
-    min-height: 52px;
+    min-height: 56px;
     border: none;
     background: transparent;
     color: var(--ink-4);
@@ -1552,11 +1561,11 @@ input, select, textarea { font-family: inherit; color: inherit; }
   .tab.active svg { stroke-width: 2; }
   .tab:active { background: var(--bg-sunken); }
 
-  .app { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+  .app { padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
 
-  .page { padding: 92px 16px 40px; }
+  .page { padding: 94px 16px 40px; }
   .print-shell { padding: 20px 16px 40px; }
-  .page-header { flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 22px; }
+  .page-header { flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 12px; }
   .page-title { font-size: 32px; }
   .page-header .btn { flex: 1; justify-content: center; }
 
