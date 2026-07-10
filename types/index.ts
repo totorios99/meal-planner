@@ -8,6 +8,12 @@ export type Meal = {
   carbs: number
   fats: number
   imageUrl: string
+  ingredients: string // JSON-encoded string[] — use parseList()
+  steps: string // JSON-encoded string[] — use parseList()
+  prepMinutes: number
+  cookMinutes: number
+  servings: number
+  isFavorite: boolean
   createdAt: string
   updatedAt: string
 }

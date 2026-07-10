@@ -19,6 +19,12 @@ model Meal {
   carbs       Float
   fats        Float
   imageUrl    String @default("")
+  ingredients String @default("[]") // JSON string[]
+  steps       String @default("[]") // JSON string[]
+  prepMinutes Int    @default(0)
+  cookMinutes Int    @default(0)
+  servings    Int    @default(1)
+  isFavorite  Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
