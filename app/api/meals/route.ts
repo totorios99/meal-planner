@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { mealInput, toMealData } from '@/lib/mealSchema'
 
 export async function GET() {
   const meals = await prisma.meal.findMany({ orderBy: { createdAt: 'desc' } })
@@ -7,18 +8,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const meal = await prisma.meal.create({
-    data: {
-      title: body.title,
-      description: body.description ?? '',
-      tag: body.tag ?? '',
-      calories: Number(body.calories),
-      protein: Number(body.protein),
-      carbs: Number(body.carbs),
-      fats: Number(body.fats),
-      imageUrl: body.imageUrl ?? '',
-    }
-  })
+  const parsed = mealInput.safeParse(await request.json())
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues }, { status: 400 })
+  }
+  const meal = await prisma.meal.create({ data: toMealData(parsed.data) })
   return NextResponse.json(meal, { status: 201 })
 }

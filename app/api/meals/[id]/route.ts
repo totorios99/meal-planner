@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { mealInput, toMealData } from '@/lib/mealSchema'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -10,19 +11,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const body = await request.json()
+  const parsed = mealInput.safeParse(await request.json())
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues }, { status: 400 })
+  }
   const meal = await prisma.meal.update({
     where: { id: Number(id) },
-    data: {
-      title: body.title,
-      description: body.description ?? '',
-      tag: body.tag ?? '',
-      calories: Number(body.calories),
-      protein: Number(body.protein),
-      carbs: Number(body.carbs),
-      fats: Number(body.fats),
-      imageUrl: body.imageUrl ?? '',
-    }
+    data: toMealData(parsed.data),
   })
   return NextResponse.json(meal)
 }
