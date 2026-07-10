@@ -70,10 +70,17 @@ Container runs on **port 3000**, data persisted at `/DATA/AppData/mise/`.
 
 > Do not run Docker during dev iteration — use `npm run dev` for HMR.
 
+### Import API key
+
+`POST /api/meals/import` lets external agents push structured recipes. It requires
+`x-api-key` matching the `MISE_API_KEY` env var — put it in a `.env` next to
+`docker-compose.yml` (gitignored). If unset, import is disabled.
+
 ## Data model
 
 ```
-Meal                  — cookbook entries (title, tag, kcal, protein, carbs, fats, imageUrl)
+Meal                  — cookbook entries (title, tag, kcal, protein, carbs, fats, imageUrl,
+                        ingredients/steps as JSON string[], prep/cook minutes, servings, isFavorite)
 WeeklyPlan            — a week's plan (weekStart, isActive)
   WeeklyPlanDay       — one day slot (dayIndex 0–6, isDismissed, justification note)
     WeeklyPlanMeal    — a meal in a day slot (mealId, quantity)

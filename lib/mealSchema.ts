@@ -19,6 +19,38 @@ export const mealInput = z.object({
 
 export type MealInput = z.infer<typeof mealInput>
 
+// Shape external agents send to POST /api/meals/import (see mcp/extraction-prompt.md)
+export const importSchema = z.object({
+  name: z.string().trim().min(1),
+  description: z.string().default(''),
+  image: z.string().default(''),
+  servings: z.number().int().min(1).default(1),
+  prepMinutes: z.number().int().min(0).default(0),
+  cookMinutes: z.number().int().min(0).default(0),
+  calories: z.number().min(0),
+  protein: z.number().min(0),
+  carbs: z.number().min(0),
+  fats: z.number().min(0),
+  categories: z.array(z.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack'])).default([]),
+  tags: z.array(z.string()).default([]),
+  ingredients: z.array(z.string()).min(1),
+  steps: z.array(z.string()).min(1),
+})
+
+export type ImportInput = z.infer<typeof importSchema>
+
+export function importToMealData(input: ImportInput) {
+  const { name, image, categories, tags, ingredients, steps, ...rest } = input
+  return {
+    ...rest,
+    title: name,
+    imageUrl: image,
+    tag: [...categories, ...tags].join(', '),
+    ingredients: JSON.stringify(ingredients),
+    steps: JSON.stringify(steps),
+  }
+}
+
 // ingredients/steps live in String columns as JSON — stringify at the write boundary
 export function toMealData(input: MealInput) {
   return {

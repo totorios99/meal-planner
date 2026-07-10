@@ -11,6 +11,7 @@ services:
       - DATABASE_URL=file:/app/data/meal-planner.db
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
+      - MISE_API_KEY=${MISE_API_KEY:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/meals"]
