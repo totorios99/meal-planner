@@ -1,6 +1,7 @@
 'use client'
 import { Meal } from '@/types'
 import { Icon } from '@/components/Icon'
+import { MacroRow } from '@/components/meals/MacroRow'
 
 interface Props {
   meal: Meal
@@ -43,39 +44,7 @@ export function MealCard({ meal, onEdit, onDelete }: Props) {
         <h3 className="meal-name">{meal.title}</h3>
         {meal.description && <p className="meal-desc">{meal.description}</p>}
 
-        <div className="macro-row">
-          <div className="macro-chip">
-            <span className="macro-chip-label">kcal</span>
-            <span className="macro-chip-value num">{Math.round(meal.calories)}</span>
-          </div>
-          <div className="macro-chip">
-            <span className="macro-chip-label">
-              <span className="macro-dot" style={{ background: 'var(--protein)', marginRight: 4 }} />
-              <span className="macro-full">Protein</span><span className="macro-abbr">P</span>
-            </span>
-            <span className="macro-chip-value num">
-              {Math.round(meal.protein)}<span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 1 }}>g</span>
-            </span>
-          </div>
-          <div className="macro-chip">
-            <span className="macro-chip-label">
-              <span className="macro-dot" style={{ background: 'var(--carbs)', marginRight: 4 }} />
-              <span className="macro-full">Carbs</span><span className="macro-abbr">C</span>
-            </span>
-            <span className="macro-chip-value num">
-              {Math.round(meal.carbs)}<span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 1 }}>g</span>
-            </span>
-          </div>
-          <div className="macro-chip">
-            <span className="macro-chip-label">
-              <span className="macro-dot" style={{ background: 'var(--fats)', marginRight: 4 }} />
-              <span className="macro-full">Fats</span><span className="macro-abbr">F</span>
-            </span>
-            <span className="macro-chip-value num">
-              {Math.round(meal.fats)}<span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 1 }}>g</span>
-            </span>
-          </div>
-        </div>
+        <MacroRow calories={meal.calories} protein={meal.protein} carbs={meal.carbs} fats={meal.fats} />
       </div>
     </div>
   )
