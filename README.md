@@ -76,6 +76,31 @@ Container runs on **port 3000**, data persisted at `/DATA/AppData/mise/`.
 `x-api-key` matching the `MISE_API_KEY` env var — put it in a `.env` next to
 `docker-compose.yml` (gitignored). If unset, import is disabled.
 
+## MCP server (agent access)
+
+`mcp/server.mjs` exposes the whole app to MCP agents over stdio — meal CRUD,
+import, favorites, and weekly-plan manipulation — plus an `extract-recipe`
+prompt and `mise://recipe-schema` resource carrying the extraction rules in
+`mcp/extraction-prompt.md`. It talks to a running Mise instance over HTTP and
+is not part of the Docker image.
+
+Client config:
+
+```json
+{
+  "mcpServers": {
+    "mise": {
+      "command": "node",
+      "args": ["/path/to/meal-planner/mcp/server.mjs"],
+      "env": {
+        "MISE_URL": "http://localhost:3000",
+        "MISE_API_KEY": "<same key as the container>"
+      }
+    }
+  }
+}
+```
+
 ## Data model
 
 ```
