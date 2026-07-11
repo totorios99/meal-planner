@@ -23,7 +23,7 @@ export type MealInput = z.infer<typeof mealInput>
 export const importSchema = z.object({
   name: z.string().trim().min(1),
   description: z.string().default(''),
-  image: z.string().default(''),
+  image: z.url({ error: 'image is required — a valid URL to the recipe photo' }),
   servings: z.number().int().min(1).default(1),
   prepMinutes: z.number().int().min(0).default(0),
   cookMinutes: z.number().int().min(0).default(0),

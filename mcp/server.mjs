@@ -71,7 +71,7 @@ server.registerTool('get_meal', {
 const importShape = {
   name: z.string().min(1).describe('Recipe title'),
   description: z.string().optional().describe('One-line summary'),
-  image: z.string().optional().describe('Image URL'),
+  image: z.url().describe('Image URL (required) — recipe photo from og:image, oEmbed thumbnail, or best video frame'),
   servings: z.number().int().min(1).optional().describe('Servings the recipe yields (default 1)'),
   prepMinutes: z.number().int().min(0).optional(),
   cookMinutes: z.number().int().min(0).optional(),

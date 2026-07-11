@@ -13,6 +13,12 @@ CATEGORIES:
 - Use ONLY: "Breakfast", "Lunch", "Dinner", "Snack"
 - Choose based on when typically eaten; multiple allowed if appropriate
 
+IMAGE:
+- Mandatory. Use the recipe's main photo: og:image / recipe schema image /
+  oEmbed thumbnail / the best food shot available
+- No image obtainable → treat as unextractable and return {}
+- Prefer stable URLs; note that some CDNs (e.g. TikTok) sign URLs that expire
+
 NUTRITION:
 - ALWAYS estimate nutrition independently from the ingredients using standard
   nutritional knowledge, even when the source provides values
@@ -30,7 +36,7 @@ with header `x-api-key: {MISE_API_KEY}`.
 {
   "name": "string (required)",
   "description": "string, one-line summary (optional)",
-  "image": "string, image URL (optional)",
+  "image": "string, image URL (required)",
   "servings": 1,
   "prepMinutes": 0,
   "cookMinutes": 0,
