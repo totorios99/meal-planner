@@ -6,9 +6,10 @@ interface Props {
   meals: Meal[]
   onEdit: (meal: Meal) => void
   onDelete: (id: number) => void
+  onFavToggled?: () => void
 }
 
-export function MealGrid({ meals, onEdit, onDelete }: Props) {
+export function MealGrid({ meals, onEdit, onDelete, onFavToggled }: Props) {
   if (meals.length === 0) {
     return (
       <div className="empty">
@@ -26,6 +27,7 @@ export function MealGrid({ meals, onEdit, onDelete }: Props) {
           meal={meal}
           onEdit={onEdit}
           onDelete={onDelete}
+          onFavToggled={onFavToggled}
         />
       ))}
     </div>

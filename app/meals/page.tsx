@@ -114,7 +114,7 @@ export default function CookbookPage() {
           </button>
         </div>
       ) : (
-        <MealGrid meals={filtered} onEdit={openEdit} onDelete={handleDelete} />
+        <MealGrid meals={filtered} onEdit={openEdit} onDelete={handleDelete} onFavToggled={fetchMeals} />
       )}
 
       {/* Modal */}
