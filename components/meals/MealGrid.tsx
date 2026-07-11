@@ -21,13 +21,14 @@ export function MealGrid({ meals, onEdit, onDelete, onFavToggled }: Props) {
 
   return (
     <div className="meal-grid">
-      {meals.map(meal => (
+      {meals.map((meal, i) => (
         <MealCard
           key={meal.id}
           meal={meal}
           onEdit={onEdit}
           onDelete={onDelete}
           onFavToggled={onFavToggled}
+          style={{ '--i': Math.min(i, 10) } as React.CSSProperties}
         />
       ))}
     </div>

@@ -10,9 +10,10 @@ interface Props {
   onEdit: (meal: Meal) => void
   onDelete: (id: number) => void
   onFavToggled?: () => void
+  style?: React.CSSProperties
 }
 
-export function MealCard({ meal, onEdit, onDelete, onFavToggled }: Props) {
+export function MealCard({ meal, onEdit, onDelete, onFavToggled, style }: Props) {
   function handleEdit(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
@@ -27,7 +28,7 @@ export function MealCard({ meal, onEdit, onDelete, onFavToggled }: Props) {
   }
 
   return (
-    <Link href={`/meals/${meal.id}`} className="meal-card meal-card-link">
+    <Link href={`/meals/${meal.id}`} className="meal-card meal-card-link" style={style}>
       <div className="meal-card-img">
         {meal.imageUrl ? (
           <img src={meal.imageUrl} alt={meal.title} />
