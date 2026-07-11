@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Meal } from '@/types'
 import { Icon } from '@/components/Icon'
+import { parseList } from '@/lib/recipe'
 
 interface Props {
   meal?: Meal | null
@@ -19,6 +20,15 @@ const EMPTY = {
   carbs: '',
   fats: '',
   imageUrl: '',
+  ingredients: '',
+  steps: '',
+  prepMinutes: '',
+  cookMinutes: '',
+  servings: '',
+}
+
+function toLines(v: string) {
+  return v.split('\n').map(s => s.trim()).filter(Boolean)
 }
 
 export function MealModal({ meal, onClose, onSaved }: Props) {
@@ -36,6 +46,11 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
         carbs: String(meal.carbs),
         fats: String(meal.fats),
         imageUrl: meal.imageUrl,
+        ingredients: parseList(meal.ingredients).join('\n'),
+        steps: parseList(meal.steps).join('\n'),
+        prepMinutes: meal.prepMinutes ? String(meal.prepMinutes) : '',
+        cookMinutes: meal.cookMinutes ? String(meal.cookMinutes) : '',
+        servings: String(meal.servings),
       })
     } else {
       setForm(EMPTY)
@@ -62,7 +77,14 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
     await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        ingredients: toLines(form.ingredients),
+        steps: toLines(form.steps),
+        prepMinutes: form.prepMinutes || 0,
+        cookMinutes: form.cookMinutes || 0,
+        servings: form.servings || 1,
+      }),
     })
     setSaving(false)
     onSaved()
@@ -177,7 +199,65 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
               </div>
             </div>
 
+            <div className="field-grid-2" style={{ marginTop: 14 }}>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="prepMinutes">Prep (min)</label>
+                <input
+                  id="prepMinutes"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={form.prepMinutes}
+                  onChange={e => set('prepMinutes', e.target.value)}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="cookMinutes">Cook (min)</label>
+                <input
+                  id="cookMinutes"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={form.cookMinutes}
+                  onChange={e => set('cookMinutes', e.target.value)}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="servings">Servings</label>
+                <input
+                  id="servings"
+                  type="number"
+                  min="1"
+                  placeholder="1"
+                  value={form.servings}
+                  onChange={e => set('servings', e.target.value)}
+                />
+              </div>
+            </div>
+
             <div className="field" style={{ marginTop: 14 }}>
+              <label htmlFor="ingredients">Ingredients <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— one per line</span></label>
+              <textarea
+                id="ingredients"
+                placeholder={'200g chicken breast\n100g rice\n1 tbsp olive oil'}
+                value={form.ingredients}
+                onChange={e => set('ingredients', e.target.value)}
+                style={{ resize: 'vertical', height: 96 }}
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="steps">Steps <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— one per line</span></label>
+              <textarea
+                id="steps"
+                placeholder={'Season the chicken\nCook rice\nGrill 6 min per side'}
+                value={form.steps}
+                onChange={e => set('steps', e.target.value)}
+                style={{ resize: 'vertical', height: 96 }}
+              />
+            </div>
+
+            <div className="field">
               <label htmlFor="imageUrl">Photo URL</label>
               <input
                 id="imageUrl"
