@@ -14,9 +14,12 @@ CATEGORIES:
 - Choose based on when typically eaten; multiple allowed if appropriate
 
 NUTRITION:
-- MAY be estimated using standard nutritional knowledge if not provided
+- ALWAYS estimate nutrition independently from the ingredients using standard
+  nutritional knowledge, even when the source provides values
 - Formula: Calories = (fat × 9) + (carbs × 4) + (protein × 4)
 - Values are per serving
+- If source-provided values are within ±5% of your estimate, keep the source
+  values; otherwise use your estimate (sources often understate)
 
 ## JSON schema
 
