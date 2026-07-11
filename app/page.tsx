@@ -166,7 +166,12 @@ export default function HomePage() {
   const eyebrow = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
   async function handleDelete(id: number) {
-    await fetch(`/api/meals/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/meals/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      alert(body?.error ?? 'Could not delete meal')
+      return
+    }
     fetchAll()
   }
 

@@ -53,7 +53,12 @@ export default function CookbookPage() {
   }
 
   async function handleDelete(id: number) {
-    await fetch(`/api/meals/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/meals/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      alert(body?.error ?? 'Could not delete meal')
+      return
+    }
     fetchMeals()
   }
 

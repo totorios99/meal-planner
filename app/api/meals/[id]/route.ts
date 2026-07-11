@@ -49,6 +49,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  await prisma.meal.delete({ where: { id: Number(id) } })
+  const inPlans = await prisma.weeklyPlanMeal.count({ where: { mealId: Number(id) } })
+  if (inPlans > 0) {
+    return NextResponse.json(
+      { error: 'Meal is used in a weekly plan — remove it from plans first' },
+      { status: 409 }
+    )
+  }
+  try {
+    await prisma.meal.delete({ where: { id: Number(id) } })
+  } catch {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
   return NextResponse.json({ deleted: true })
 }
