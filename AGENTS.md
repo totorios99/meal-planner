@@ -48,6 +48,10 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 - `deploy.sh` — rebuild image + restart container
 - `lib/prisma.ts` — Prisma client singleton with libSQL adapter
 - `components/Nav.tsx` — desktop nav with icon+label links, mobile top pill (brand only), bottom tabbar; theme toggle (system/light/dark 3-state cycle)
+- `lib/mealSchema.ts` — zod schemas for meal CRUD (`mealInput`) and agent import (`importSchema`); `Meal.ingredients`/`steps` are JSON-encoded `string[]` columns, parse with `parseList()` from `lib/recipe.ts`
+- `app/api/meals/import/route.ts` — agent import endpoint, requires `x-api-key` = `MISE_API_KEY` env (unset = disabled); local dev key in gitignored `.env`
+- `mcp/server.mjs` — stdio MCP server proxying the HTTP API (run `npm run mcp` with `MISE_URL`/`MISE_API_KEY`); extraction rules + import JSON shape in `mcp/extraction-prompt.md`
+- Favorites: `PATCH /api/meals/[id]` with `{isFavorite}`, max 5 enforced server-side (409)
 
 ## Design system
 
