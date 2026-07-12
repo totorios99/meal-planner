@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { Meal } from '@/types'
 import { Icon } from '@/components/Icon'
 import { parseList } from '@/lib/recipe'
+import { PhotoInput } from '@/components/meals/PhotoInput'
 
 interface Props {
   meal?: Meal | null
@@ -257,15 +258,7 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
               />
             </div>
 
-            <div className="field">
-              <label htmlFor="imageUrl">Photo URL</label>
-              <input
-                id="imageUrl"
-                placeholder="https://…"
-                value={form.imageUrl}
-                onChange={e => set('imageUrl', e.target.value)}
-              />
-            </div>
+            <PhotoInput value={form.imageUrl} onChange={url => set('imageUrl', url)} />
           </div>
 
           <div className="sheet-foot">
