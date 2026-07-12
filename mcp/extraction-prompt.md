@@ -13,11 +13,20 @@ CATEGORIES:
 - Use ONLY: "Breakfast", "Lunch", "Dinner", "Snack"
 - Choose based on when typically eaten; multiple allowed if appropriate
 
+VIDEO LINKS (TikTok / Instagram Reels / YouTube Shorts):
+- These pages are JS-rendered — plain fetching returns an empty shell. Do NOT
+  give up or guess; call the `extract_video` MCP tool with the URL instead
+- It returns the caption, an audio transcript, and timestamped frames — extract
+  the recipe from those (the transcript usually carries ingredients + steps)
+- For the image, call `upload_frame` with the timestamp of the best
+  finished-dish frame and use the returned `/api/images/…` path
+
 IMAGE:
 - Mandatory. Use the recipe's main photo: og:image / recipe schema image /
   oEmbed thumbnail / the best food shot available
 - No image obtainable → treat as unextractable and return {}
-- Prefer stable URLs; note that some CDNs (e.g. TikTok) sign URLs that expire
+- Prefer stable URLs. Signed CDN URLs (e.g. TikTok thumbnails) expire — for
+  videos always use `upload_frame` instead
 
 NUTRITION:
 - ALWAYS estimate nutrition independently from the ingredients using standard

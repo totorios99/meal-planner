@@ -23,7 +23,10 @@ export type MealInput = z.infer<typeof mealInput>
 export const importSchema = z.object({
   name: z.string().trim().min(1),
   description: z.string().default(''),
-  image: z.url({ error: 'image is required — a valid URL to the recipe photo' }),
+  // Absolute URL, or a path from POST /api/images (stable local copy — preferred for video frames)
+  image: z.union([z.url(), z.string().regex(/^\/api\/images\//)], {
+    error: 'image is required — a valid URL or /api/images/… path to the recipe photo',
+  }),
   servings: z.number().int().min(1).default(1),
   prepMinutes: z.number().int().min(0).default(0),
   cookMinutes: z.number().int().min(0).default(0),
