@@ -9,7 +9,7 @@
  * Run: node mcp/server.mjs   (or `npm run mcp`)
  */
 import { readFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { createHash } from 'node:crypto'
@@ -140,6 +140,80 @@ server.registerTool('extract_video', {
     })
   }
   return { content }
+})
+
+// ── Photo carousels (TikTok photo/slideshow posts) ──
+// These have no video stream — yt-dlp's CLI JSON never surfaces the per-slide
+// images. tiktok_photos.py calls yt-dlp's own extractor internals (challenge
+// solving included) to pull the real imagePost.images list.
+// tiktok_photos.py imports yt_dlp directly — needs the venv `uv tool install yt-dlp` made, not system python
+const YTDLP_VENV_PYTHON = join(homedir(), '.local', 'share', 'uv', 'tools', 'yt-dlp', 'bin', 'python')
+const PYTHON = process.env.YTDLP_PYTHON_BIN ?? (existsSync(YTDLP_VENV_PYTHON) ? YTDLP_VENV_PYTHON : 'python3')
+const TIKTOK_PHOTOS_SCRIPT = new URL('./tiktok_photos.py', import.meta.url).pathname
+
+const photosDir = (url) =>
+  join(tmpdir(), `mise-photos-${createHash('sha1').update(url).digest('hex').slice(0, 12)}`)
+
+async function fetchPhotos(url) {
+  const dir = photosDir(url)
+  const dataFile = join(dir, 'data.json')
+  if (!existsSync(dataFile)) {
+    mkdirSync(dir, { recursive: true })
+    const { stdout } = await exec(PYTHON, [TIKTOK_PHOTOS_SCRIPT, url], { timeout: 60_000 })
+    const data = JSON.parse(stdout)
+    if (data.error) throw new Error(data.error)
+    await Promise.all(data.images.map(async (imgUrl, i) => {
+      const res = await fetch(imgUrl)
+      const buf = Buffer.from(await res.arrayBuffer())
+      await writeFile(join(dir, `slide_${i + 1}.jpg`), buf)
+    }))
+    await writeFile(dataFile, JSON.stringify(data))
+  }
+  return { dir, data: JSON.parse(await readFile(dataFile, 'utf8')) }
+}
+
+server.registerTool('extract_photos', {
+  description:
+    'Extract recipe content from a TikTok photo-carousel post (URL contains /photo/, not /video/ — ' +
+    'these have no video stream, so extract_video will not work). Downloads every slide image at full ' +
+    'resolution and returns the caption plus each slide labelled by index. Recipe text is often only ' +
+    'visible as an overlay baked into the slide images (read them directly) — the caption may or may not ' +
+    'repeat it. If a post has multiple recipes (one per slide), import each as a separate meal. Afterwards ' +
+    'call upload_photo with the slide index of each recipe\'s finished-dish image to get an image URL for import_meal.',
+  inputSchema: { url: z.string().url().describe('TikTok photo-post URL') },
+}, async ({ url }) => {
+  const { dir, data } = await fetchPhotos(url)
+  const content = [{ type: 'text', text: `Caption: ${data.caption}\n\n${data.images.length} slides:` }]
+  for (let i = 0; i < data.images.length; i++) {
+    content.push({ type: 'text', text: `slide ${i + 1}:` })
+    content.push({
+      type: 'image',
+      data: (await readFile(join(dir, `slide_${i + 1}.jpg`))).toString('base64'),
+      mimeType: 'image/jpeg',
+    })
+  }
+  return { content }
+})
+
+server.registerTool('upload_photo', {
+  description:
+    'Upload one full-resolution slide from a previously extracted photo post (see extract_photos) to the ' +
+    'Mise image store, and return a stable image URL to use as `image` in import_meal.',
+  inputSchema: {
+    url: z.string().url().describe('Same photo-post URL passed to extract_photos'),
+    slide: z.number().int().min(1).describe('1-based slide index to upload'),
+  },
+}, async ({ url, slide }) => {
+  const { dir } = await fetchPhotos(url)
+  const photo = join(dir, `slide_${slide}.jpg`)
+  if (!existsSync(photo)) throw new Error(`No slide ${slide}`)
+
+  const form = new FormData()
+  form.append('file', new Blob([await readFile(photo)], { type: 'image/jpeg' }), 'photo.jpg')
+  const res = await fetch(`${BASE}/api/images`, { method: 'POST', body: form })
+  const body = await res.json()
+  if (!res.ok) throw new Error(`Mise API ${res.status}: ${JSON.stringify(body)}`)
+  return json(body)
 })
 
 server.registerTool('upload_frame', {

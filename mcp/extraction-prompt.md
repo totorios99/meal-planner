@@ -21,6 +21,15 @@ VIDEO LINKS (TikTok / Instagram Reels / YouTube Shorts):
 - For the image, call `upload_frame` with the timestamp of the best
   finished-dish frame and use the returned `/api/images/…` path
 
+PHOTO CAROUSEL LINKS (TikTok URLs containing `/photo/`, not `/video/`):
+- No video/audio stream — `extract_video` will not work on these. Call
+  `extract_photos` instead, which returns every slide at full resolution
+- Recipe text is usually baked into the slide images as an overlay, not in
+  the caption — read the slide images directly
+- One post can contain multiple recipes (one per slide, e.g. "5 recipes to
+  try"). Import each as its own meal, not one meal per post
+- For each recipe's image, call `upload_photo` with that slide's index
+
 IMAGE:
 - Mandatory. Use the recipe's main photo: og:image / recipe schema image /
   oEmbed thumbnail / the best food shot available
