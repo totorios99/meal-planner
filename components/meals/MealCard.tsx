@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import Link from 'next/link'
 import { Meal } from '@/types'
 import { Icon } from '@/components/Icon'
@@ -14,41 +15,78 @@ interface Props {
 }
 
 export function MealCard({ meal, onEdit, onDelete, onFavToggled, style }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  function toggleMenu(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setMenuOpen(o => !o)
+  }
+
   function handleEdit(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
+    setMenuOpen(false)
     onEdit(meal)
   }
 
   function handleDelete(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
+    setMenuOpen(false)
     if (!confirm(`Delete "${meal.title}"?`)) return
     onDelete(meal.id)
   }
 
+  const tags = meal.tag.split(',').map(t => t.trim()).filter(Boolean)
+  const shownTags = tags.slice(0, 3)
+
   return (
-    <Link href={`/meals/${meal.id}`} className="meal-card meal-card-link" style={style}>
+    <Link
+      href={`/meals/${meal.id}`}
+      className="meal-card meal-card-link"
+      style={style}
+      onMouseLeave={() => setMenuOpen(false)}
+    >
       <div className="meal-card-img">
         {meal.imageUrl ? (
           <img src={meal.imageUrl} alt={meal.title} />
         ) : (
           <div className="photo-ph">{meal.title[0]}</div>
         )}
-        {meal.tag && (
+        {tags.length > 0 && (
           <div className="meal-tags">
-            {meal.tag.split(',').map(t => t.trim()).filter(Boolean).map(t => (
+            {shownTags.map(t => (
               <span key={t} className="meal-tag">{t}</span>
             ))}
+            {tags.length > shownTags.length && (
+              <span className="meal-tag meal-tag-more">+{tags.length - shownTags.length}</span>
+            )}
           </div>
         )}
-        <div className="meal-card-img-overlay">
-          <button className="icon-btn" title="Edit" onClick={handleEdit}>
-            <Icon name="edit" size={15} />
+        <div className="meal-menu-wrap">
+          <button
+            className={`meal-menu-btn${menuOpen ? ' open' : ''}`}
+            title="Meal actions"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={toggleMenu}
+          >
+            <Icon name="dots" size={16} />
           </button>
-          <button className="icon-btn" title="Delete" onClick={handleDelete}>
-            <Icon name="trash" size={15} />
-          </button>
+          {menuOpen && (
+            <>
+              <div className="meal-menu-backdrop" onClick={toggleMenu} />
+              <div className="meal-menu" role="menu">
+                <button role="menuitem" onClick={handleEdit}>
+                  <Icon name="edit" size={14} /> Edit
+                </button>
+                <button role="menuitem" className="danger" onClick={handleDelete}>
+                  <Icon name="trash" size={14} /> Delete
+                </button>
+              </div>
+            </>
+          )}
         </div>
         <div className={`meal-fav${meal.isFavorite ? ' has-fav' : ''}`}>
           <FavoriteButton mealId={meal.id} isFavorite={meal.isFavorite} onToggled={onFavToggled} />

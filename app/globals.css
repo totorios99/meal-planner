@@ -443,27 +443,57 @@ input, select, textarea { font-family: inherit; color: inherit; }
   transition: transform .4s ease;
 }
 .meal-card:hover .meal-card-img img { transform: scale(1.03); }
-.meal-card-img-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 55%, color-mix(in oklab, #000 50%, transparent));
-  opacity: 0;
-  transition: opacity .15s;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  padding: 12px;
-  gap: 6px;
-}
-.meal-card:hover .meal-card-img-overlay { opacity: 1; }
-.meal-card-img-overlay .icon-btn {
-  background: rgba(255,255,255,.16);
+.meal-menu-wrap { position: absolute; right: 10px; bottom: 10px; }
+.meal-menu-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.35);
   color: #fff;
   border: 1px solid rgba(255,255,255,.3);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s, background .15s;
 }
-.meal-card-img-overlay .icon-btn:hover { background: rgba(255,255,255,.28); }
+.meal-card:hover .meal-menu-btn, .meal-menu-btn.open { opacity: 1; }
+.meal-menu-btn:hover { background: rgba(0,0,0,.55); }
+.meal-menu-backdrop { position: fixed; inset: 0; z-index: 30; }
+.meal-menu {
+  position: absolute;
+  right: 0;
+  bottom: 36px;
+  z-index: 31;
+  min-width: 128px;
+  padding: 5px;
+  border-radius: 14px;
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow-glass);
+  animation: sheet-rise .18s cubic-bezier(.3,.8,.3,1);
+}
+.meal-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 11px;
+  border: none;
+  background: transparent;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background .15s;
+}
+.meal-menu button:hover { background: var(--glass-fill); color: var(--ink); }
+.meal-menu button.danger { color: var(--danger); }
 .meal-card-link { display: block; color: inherit; text-decoration: none; cursor: pointer; }
 .meal-fav {
   position: absolute;
@@ -506,6 +536,7 @@ input, select, textarea { font-family: inherit; color: inherit; }
   border: 1px solid rgba(255,255,255,.22);
   white-space: nowrap;
 }
+.meal-tag-more { background: rgba(0,0,0,.55); }
 .meal-card-body {
   padding: 16px 18px 18px;
   display: flex;
@@ -1622,9 +1653,14 @@ input, select, textarea { font-family: inherit; color: inherit; }
   .chips { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
   .chip { white-space: nowrap; }
-  .meal-card-img-overlay { opacity: 1; background: none; }
-  .meal-card-img-overlay .icon-btn { background: rgba(255,255,255,.2); }
+  .meal-menu-btn { opacity: 1; }
   .meal-fav { opacity: 1; }
+  .meal-fav .fav-btn { width: 28px; height: 28px; }
+  .meal-tags { gap: 3px; top: 8px; left: 8px; }
+  .meal-tag { font-size: 9px; padding: 3px 7px; }
+
+  .recipe-page { padding: 94px 16px calc(100px + env(safe-area-inset-bottom, 0px)); }
+  .recipe-hero { height: 200px; }
 
   .planner-grid { grid-template-columns: 1fr; gap: 12px; }
   .day-col { min-height: 0; }
