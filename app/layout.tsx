@@ -16,6 +16,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Mise — Meal Planner',
   description: 'Your recipes, with macros.',
+  // orange dev favicon so dev/prod tabs are distinguishable
+  icons: { icon: process.env.NODE_ENV === 'development' ? '/favicon-dev.ico' : '/favicon.ico' },
 }
 
 // resizes-content: on-screen keyboard shrinks the layout viewport instead of
