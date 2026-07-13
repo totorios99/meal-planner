@@ -48,3 +48,4 @@ db/*.db-journal
 
 # user uploads
 /uploads
+db/images/
