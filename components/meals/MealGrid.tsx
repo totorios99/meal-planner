@@ -9,6 +9,22 @@ interface Props {
   onFavToggled?: () => void
 }
 
+export function MealGridSkeleton() {
+  return (
+    <div className="meal-grid">
+      {Array.from({ length: 8 }, (_, i) => (
+        <div key={i} className="meal-card meal-skeleton" style={{ '--i': i } as React.CSSProperties}>
+          <div className="meal-skeleton-img shimmer" />
+          <div className="meal-skeleton-body">
+            <div className="shimmer meal-skeleton-bar" />
+            <div className="shimmer meal-skeleton-bar short" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function MealGrid({ meals, onEdit, onDelete, onFavToggled }: Props) {
   if (meals.length === 0) {
     return (

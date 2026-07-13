@@ -1,5 +1,5 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { BackLink } from '@/components/BackLink'
 import { prisma } from '@/lib/prisma'
 import { parseList } from '@/lib/recipe'
 import { Icon } from '@/components/Icon'
@@ -23,9 +23,7 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
 
   return (
     <main className="recipe-page">
-      <Link href="/meals" className="recipe-back">
-        <Icon name="chev-left" size={15} /> Cookbook
-      </Link>
+      <BackLink />
 
       <div className="recipe-hero">
         {meal.imageUrl ? (

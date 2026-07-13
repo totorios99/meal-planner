@@ -1,12 +1,17 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Meal } from '@/types'
-import { MealGrid } from '@/components/meals/MealGrid'
+import { MealGrid, MealGridSkeleton } from '@/components/meals/MealGrid'
 import { MealModal } from '@/components/meals/MealModal'
 import { Icon } from '@/components/Icon'
 
+// Module-level cache: back-navigation renders the grid synchronously so the
+// browser can restore the scroll position (an empty page has no height to
+// scroll to), then the fetch revalidates in the background.
+let mealsCache: Meal[] | null = null
+
 export default function CookbookPage() {
-  const [meals, setMeals] = useState<Meal[]>([])
+  const [meals, setMeals] = useState<Meal[] | null>(mealsCache)
   const [q, setQ] = useState('')
   const [activeTag, setActiveTag] = useState('All')
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
@@ -15,6 +20,7 @@ export default function CookbookPage() {
   const fetchMeals = useCallback(async () => {
     const res = await fetch('/api/meals')
     const data = await res.json()
+    mealsCache = data
     setMeals(data)
   }, [])
 
@@ -22,14 +28,14 @@ export default function CookbookPage() {
 
   const tags = useMemo(() => {
     const s = new Set<string>()
-    meals.forEach(m => {
+    ;(meals ?? []).forEach(m => {
       if (m.tag) m.tag.split(',').map(t => t.trim()).filter(Boolean).forEach(t => s.add(t))
     })
     return ['All', ...Array.from(s).sort()]
   }, [meals])
 
   const filtered = useMemo(() => {
-    return meals.filter(m => {
+    return (meals ?? []).filter(m => {
       if (activeTag !== 'All') {
         const mealTags = m.tag ? m.tag.split(',').map(t => t.trim()).filter(Boolean) : []
         if (!mealTags.includes(activeTag)) return false
@@ -72,7 +78,9 @@ export default function CookbookPage() {
       {/* Page header */}
       <div className="page-header">
         <div className="page-header-text">
-          <div className="page-eyebrow">Cookbook · {meals.length} meal{meals.length !== 1 ? 's' : ''}</div>
+          <div className="page-eyebrow">
+            {meals === null ? 'Cookbook' : `Cookbook · ${meals.length} meal${meals.length !== 1 ? 's' : ''}`}
+          </div>
           <h1 className="page-title">Your <em>recipes,</em> with macros.</h1>
           <p className="page-sub">Tap any card to edit. New ideas slot straight into next week&apos;s plan.</p>
         </div>
@@ -110,7 +118,9 @@ export default function CookbookPage() {
       </div>
 
       {/* Grid */}
-      {meals.length === 0 ? (
+      {meals === null ? (
+        <MealGridSkeleton />
+      ) : meals.length === 0 ? (
         <div className="empty">
           <div className="empty-title">No meals yet.</div>
           <p style={{ fontSize: 14, marginTop: 6 }}>Add your first recipe to get started.</p>

@@ -50,7 +50,7 @@ export function MealCard({ meal, onEdit, onDelete, onFavToggled, style }: Props)
     >
       <div className="meal-card-img">
         {meal.imageUrl ? (
-          <img src={meal.imageUrl} alt={meal.title} />
+          <img src={meal.imageUrl} alt={meal.title} loading="lazy" decoding="async" />
         ) : (
           <div className="photo-ph">{meal.title[0]}</div>
         )}
