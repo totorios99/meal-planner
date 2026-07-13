@@ -658,6 +658,8 @@ input, select, textarea { font-family: inherit; color: inherit; }
   transition: all .18s;
   cursor: pointer;
 }
+.chips-tags { flex-basis: 100%; }
+.chip-more { color: var(--ink-3); border-style: dashed; }
 .chip:hover { border-color: var(--stroke-hi); color: var(--ink); }
 .chip.active {
   background: var(--accent-grad);
