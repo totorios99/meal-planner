@@ -1,8 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import { WeeklyPlan, Meal } from '@/types'
-import { parseIngredients, sumIngredients } from '@/lib/recipe'
+import { WeeklyPlan, Meal, FoodRow } from '@/types'
+import { parseRefs, sumRefs, foodsMap } from '@/lib/recipe'
 import { useMacroTargets } from '@/lib/useMacroTargets'
 import { MealCard } from '@/components/meals/MealCard'
 import { MealModal } from '@/components/meals/MealModal'
@@ -113,6 +113,7 @@ function MacroRows({ protein, carbs, fats, targets }: {
 export default function HomePage() {
   const [plan, setPlan] = useState<WeeklyPlan | null>(null)
   const [meals, setMeals] = useState<Meal[]>([])
+  const [foods, setFoods] = useState<FoodRow[]>([])
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
   const [showNewMeal, setShowNewMeal] = useState(false)
   const [showTargets, setShowTargets] = useState(false)
@@ -121,12 +122,14 @@ export default function HomePage() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [planRes, mealsRes] = await Promise.all([
+      const [planRes, mealsRes, foodsRes] = await Promise.all([
         fetch(`/api/plans/active?weekStart=${localMonday()}`),
         fetch('/api/meals'),
+        fetch('/api/foods'),
       ])
       if (planRes.ok) setPlan(await planRes.json())
       if (mealsRes.ok) setMeals(await mealsRes.json())
+      if (foodsRes.ok) setFoods(await foodsRes.json())
     } catch { /* silently degrade */ }
   }, [])
 
@@ -148,16 +151,17 @@ export default function HomePage() {
   const todayMeals = today?.meals ?? []
   const weekStart = plan ? new Date(plan.weekStart) : null
 
+  const fmap = foodsMap(foods)
   const daysOn = plan ? plan.days.filter(d => !d.isDismissed).length : 0
   const weekKcal = plan
-    ? plan.days.reduce((s, d) => s + (d.isDismissed ? 0 : d.meals.reduce((a, m) => a + sumIngredients(parseIngredients(m.ingredients)).calories, 0)), 0)
+    ? plan.days.reduce((s, d) => s + (d.isDismissed ? 0 : d.meals.reduce((a, m) => a + sumRefs(parseRefs(m.ingredients), fmap).calories, 0)), 0)
     : 0
   const weekRange = weekStart
     ? `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${dayDate(weekStart, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${dayDate(weekStart, 6).getFullYear()}`
     : ''
 
   const todayTotals = todayMeals.reduce((acc, wpm) => {
-    const m = sumIngredients(parseIngredients(wpm.ingredients))
+    const m = sumRefs(parseRefs(wpm.ingredients), fmap)
     return {
       calories: acc.calories + m.calories,
       protein:  acc.protein  + m.protein,
@@ -214,7 +218,7 @@ export default function HomePage() {
           ) : (
             <div className="today-meals">
               {todayMeals.map(wpm => {
-                const mac = sumIngredients(parseIngredients(wpm.ingredients))
+                const mac = sumRefs(parseRefs(wpm.ingredients), fmap)
                 return (
                 <div key={wpm.id} className="today-meal">
                   <div className="today-meal-thumb">
@@ -298,7 +302,7 @@ export default function HomePage() {
             {plan.days.map(day => {
               const date = dayDate(weekStart, day.dayIndex)
               const isToday = day.dayIndex === todayDayIndex()
-              const kcal = day.isDismissed ? 0 : day.meals.reduce((s, m) => s + sumIngredients(parseIngredients(m.ingredients)).calories, 0)
+              const kcal = day.isDismissed ? 0 : day.meals.reduce((s, m) => s + sumRefs(parseRefs(m.ingredients), fmap).calories, 0)
               return (
                 <Link
                   key={day.id}

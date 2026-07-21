@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { ingredientSchema } from '@/lib/mealSchema'
+import { refSchema } from '@/lib/mealSchema'
 
-const putSchema = z.object({ ingredients: z.array(ingredientSchema) })
+const putSchema = z.object({ ingredients: z.array(refSchema) })
 
 export async function PUT(
   request: NextRequest,

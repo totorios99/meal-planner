@@ -3,7 +3,7 @@
  * Avoids needing Prisma CLI or native engine binaries at runtime.
  */
 const { createClient } = require('@libsql/client')
-const { readFileSync, readdirSync, statSync, mkdirSync } = require('fs')
+const { readFileSync, readdirSync, statSync, mkdirSync, existsSync } = require('fs')
 const { dirname, join } = require('path')
 
 async function migrate() {
@@ -32,14 +32,21 @@ async function migrate() {
     .filter(d => !applied.has(d))
 
   for (const name of pending) {
-    const sql = readFileSync(join(migrDir, name, 'migration.sql'), 'utf8')
-    const statements = sql
-      .split(';')
-      .map(s => s.replace(/^([ \t]*--[^\n]*\n)*/,'').trim())
-      .filter(s => s)
+    const sqlPath = join(migrDir, name, 'migration.sql')
+    if (existsSync(sqlPath)) {
+      const statements = readFileSync(sqlPath, 'utf8')
+        .split(';')
+        .map(s => s.replace(/^([ \t]*--[^\n]*\n)*/,'').trim())
+        .filter(s => s)
+      for (const stmt of statements) {
+        await db.execute(stmt)
+      }
+    }
 
-    for (const stmt of statements) {
-      await db.execute(stmt)
+    // Optional JS data step for transforms impractical in SQL (module.exports = async (db) => {...})
+    const jsPath = join(migrDir, name, 'migration.js')
+    if (existsSync(jsPath)) {
+      await require(jsPath)(db)
     }
 
     await db.execute({ sql: 'INSERT INTO _migrations (name) VALUES (?)', args: [name] })

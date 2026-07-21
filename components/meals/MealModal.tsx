@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Meal } from '@/types'
 import { Icon } from '@/components/Icon'
-import { parseList, parseIngredients, sumIngredients, type Ingredient } from '@/lib/recipe'
+import { parseList, parseRefs, sumRefs, foodsMap, type IngredientRef } from '@/lib/recipe'
 import { PhotoInput } from '@/components/meals/PhotoInput'
-import { IngredientEditor } from '@/components/meals/IngredientEditor'
+import { FoodPicker } from '@/components/meals/FoodPicker'
+import type { FoodRow } from '@/types'
 
 interface Props {
   meal?: Meal | null
@@ -30,9 +31,15 @@ function toLines(v: string) {
 
 export function MealModal({ meal, onClose, onSaved }: Props) {
   const [form, setForm] = useState(EMPTY)
-  // Seed synchronously: IngredientEditor reads its value once on mount, before effects run.
-  const [ingredients, setIngredients] = useState<Ingredient[]>(() => meal ? parseIngredients(meal.ingredients) : [])
+  // Seed synchronously: FoodPicker reads its value once on mount, before effects run.
+  const [ingredients, setIngredients] = useState<IngredientRef[]>(() => meal ? parseRefs(meal.ingredients) : [])
+  const [foods, setFoods] = useState<FoodRow[]>([])
+  const [foodsLoaded, setFoodsLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/foods').then(r => r.json()).then(setFoods).catch(() => {}).finally(() => setFoodsLoaded(true))
+  }, [])
 
   useEffect(() => {
     if (meal) {
@@ -46,14 +53,14 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
         cookMinutes: meal.cookMinutes ? String(meal.cookMinutes) : '',
         servings: String(meal.servings),
       })
-      setIngredients(parseIngredients(meal.ingredients))
+      setIngredients(parseRefs(meal.ingredients))
     } else {
       setForm(EMPTY)
       setIngredients([])
     }
   }, [meal])
 
-  const macros = sumIngredients(ingredients)
+  const macros = sumRefs(ingredients, foodsMap(foods))
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -143,7 +150,7 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
             </div>
 
             <div className="field">
-              <label>Macros <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— summed from ingredients</span></label>
+              <label>Macros <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— summed from foods</span></label>
               <div className="macro-readout">
                 <div><span>{Math.round(macros.calories)}</span><label>kcal</label></div>
                 <div><span>{Math.round(macros.protein)}</span><label>protein</label></div>
@@ -189,8 +196,8 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
             </div>
 
             <div className="field" style={{ marginTop: 14 }}>
-              <label>Ingredients <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— macros per row; totals above update live</span></label>
-              <IngredientEditor key={meal?.id ?? 'new'} value={ingredients} onChange={setIngredients} />
+              <label>Ingredients <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— pick foods; macros come from the Foods library</span></label>
+              <FoodPicker key={`${meal?.id ?? 'new'}-${foodsLoaded}`} value={ingredients} foods={foods} onChange={setIngredients} />
             </div>
 
             <div className="field">

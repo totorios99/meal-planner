@@ -1,11 +1,11 @@
 'use client'
 import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { WeeklyPlanDay, WeeklyPlanMeal, Meal } from '@/types'
+import { WeeklyPlanDay, WeeklyPlanMeal, Meal, FoodRow } from '@/types'
 import { DayAnalytics } from './DayAnalytics'
 import { MealPicker } from './MealPicker'
-import { IngredientEditor } from '@/components/meals/IngredientEditor'
-import { parseIngredients, sumIngredients, type Ingredient } from '@/lib/recipe'
+import { FoodPicker } from '@/components/meals/FoodPicker'
+import { parseRefs, sumRefs, foodsMap, type IngredientRef } from '@/lib/recipe'
 import { MacroTargets } from '@/lib/useMacroTargets'
 import { Icon } from '@/components/Icon'
 
@@ -15,11 +15,13 @@ interface Props {
   day: WeeklyPlanDay
   planId: number
   targets: MacroTargets
+  foods: FoodRow[]
   weekStart: string
   onDayUpdate: (updatedDay: WeeklyPlanDay) => void
 }
 
-export function DayCard({ day, planId, targets, weekStart, onDayUpdate }: Props) {
+export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }: Props) {
+  const fmap = foodsMap(foods)
   const [noteDraft, setNoteDraft] = useState(day.justification)
   const [showNote, setShowNote] = useState(false)
   // null = closed, 'add' = new meal, number = entry id to replace
@@ -89,7 +91,7 @@ export function DayCard({ day, planId, targets, weekStart, onDayUpdate }: Props)
   }
 
   // Live recalc: update local snapshot immediately, debounce the PUT (editor fires per keystroke).
-  function handleIngredientsChange(entryId: number, next: Ingredient[]) {
+  function handleIngredientsChange(entryId: number, next: IngredientRef[]) {
     const json = JSON.stringify(next)
     onDayUpdate({ ...day, meals: day.meals.map(m => m.id === entryId ? { ...m, ingredients: json } : m) })
     clearTimeout(saveTimers.current[entryId])
@@ -138,7 +140,7 @@ export function DayCard({ day, planId, targets, weekStart, onDayUpdate }: Props)
   }
 
   const totals = day.meals.reduce((acc, wpm) => {
-    const m = sumIngredients(parseIngredients(wpm.ingredients))
+    const m = sumRefs(parseRefs(wpm.ingredients), fmap)
     return {
       calories: acc.calories + m.calories,
       protein:  acc.protein  + m.protein,
@@ -180,7 +182,7 @@ export function DayCard({ day, planId, targets, weekStart, onDayUpdate }: Props)
       ) : (
         <div className="day-body">
           {sortedMeals.map((entry, i) => {
-            const kcal = Math.round(sumIngredients(parseIngredients(entry.ingredients)).calories)
+            const kcal = Math.round(sumRefs(parseRefs(entry.ingredients), fmap).calories)
             const isDragging = dragIdx === i
             const isDropTarget = dropIdx === i && dragIdx !== i
             return (
@@ -272,8 +274,10 @@ export function DayCard({ day, planId, targets, weekStart, onDayUpdate }: Props)
               <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>
                 Edits apply to this day only — the recipe and other days are untouched.
               </p>
-              <IngredientEditor
-                value={parseIngredients(expandedEntry.ingredients)}
+              <FoodPicker
+                key={`${expandedEntry.id}-${foods.length > 0}`}
+                value={parseRefs(expandedEntry.ingredients)}
+                foods={foods}
                 onChange={next => handleIngredientsChange(expandedEntry.id, next)}
               />
             </div>

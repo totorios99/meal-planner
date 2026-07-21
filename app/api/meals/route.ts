@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { mealInput, toMealData } from '@/lib/mealSchema'
+import { macrosForRefs } from '@/lib/foods'
 
 export async function GET() {
   const meals = await prisma.meal.findMany({ orderBy: { createdAt: 'desc' } })
@@ -12,6 +13,8 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues }, { status: 400 })
   }
-  const meal = await prisma.meal.create({ data: toMealData(parsed.data) })
+  const data = toMealData(parsed.data)
+  const macros = await macrosForRefs(data.ingredients) // cached totals from foods
+  const meal = await prisma.meal.create({ data: { ...data, ...macros } })
   return NextResponse.json(meal, { status: 201 })
 }

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { PrintButton } from '@/components/print/PrintButton'
-import { parseIngredients, sumIngredients } from '@/lib/recipe'
+import { parseRefs, sumRefs, foodsMap } from '@/lib/recipe'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,6 +43,8 @@ export default async function PrintPage() {
     )
   }
 
+  const fmap = foodsMap(await prisma.food.findMany())
+
   const weekStart = new Date(plan.weekStart)
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekEnd.getDate() + 6)
@@ -55,7 +57,7 @@ export default async function PrintPage() {
   const days = plan.days.map(day => {
     const totals = day.meals.reduce(
       (acc, wpm) => {
-        const m = sumIngredients(parseIngredients(wpm.ingredients))
+        const m = sumRefs(parseRefs(wpm.ingredients), fmap)
         return {
           calories: acc.calories + m.calories,
           protein:  acc.protein  + m.protein,
@@ -68,19 +70,19 @@ export default async function PrintPage() {
     return { day, totals, isEmpty: day.meals.length === 0 }
   })
 
-  // Shopping list: aggregate ingredients across on-days, group by name+unit, sum quantities.
-  // Synthetic placeholders ((whole meal)/(unallocated)) carry macros not a real item — skip them.
+  // Shopping list: aggregate refs across on-days, group by food + measure, sum quantities.
   const shopping = new Map<string, { name: string; unit: string; quantity: number }>()
   for (const day of plan.days) {
     if (day.isDismissed) continue
     for (const wpm of day.meals) {
-      for (const ing of parseIngredients(wpm.ingredients)) {
-        const name = ing.name.trim()
-        if (!name || name.startsWith('(')) continue
-        const key = `${name.toLowerCase()}|${ing.unit.trim().toLowerCase()}`
+      for (const ref of parseRefs(wpm.ingredients)) {
+        const food = fmap.get(ref.foodId)
+        if (!food) continue
+        const unit = ref.measure || food.baseUnit
+        const key = `${food.name.toLowerCase()}|${unit.toLowerCase()}`
         const existing = shopping.get(key)
-        if (existing) existing.quantity += ing.quantity
-        else shopping.set(key, { name, unit: ing.unit.trim(), quantity: ing.quantity })
+        if (existing) existing.quantity += ref.quantity
+        else shopping.set(key, { name: food.name, unit, quantity: ref.quantity })
       }
     }
   }
@@ -135,7 +137,7 @@ export default async function PrintPage() {
                 ) : (
                   <>
                     {day.meals.map(wpm => {
-                      const m = sumIngredients(parseIngredients(wpm.ingredients))
+                      const m = sumRefs(parseRefs(wpm.ingredients), fmap)
                       return (
                       <div key={wpm.id} className="print-meal">
                         <div className="print-meal-name">{wpm.meal.title}</div>

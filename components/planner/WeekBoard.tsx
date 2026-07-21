@@ -1,15 +1,16 @@
 'use client'
-import { WeeklyPlan, WeeklyPlanDay } from '@/types'
+import { WeeklyPlan, WeeklyPlanDay, FoodRow } from '@/types'
 import { DayCard } from './DayCard'
 import { MacroTargets } from '@/lib/useMacroTargets'
 
 interface Props {
   plan: WeeklyPlan
   targets: MacroTargets
+  foods: FoodRow[]
   onPlanUpdate: (plan: WeeklyPlan) => void
 }
 
-export function WeekBoard({ plan, targets, onPlanUpdate }: Props) {
+export function WeekBoard({ plan, targets, foods, onPlanUpdate }: Props) {
   function handleDayUpdate(updatedDay: WeeklyPlanDay) {
     onPlanUpdate({ ...plan, days: plan.days.map(d => d.id === updatedDay.id ? updatedDay : d) })
   }
@@ -22,6 +23,7 @@ export function WeekBoard({ plan, targets, onPlanUpdate }: Props) {
           day={day}
           planId={plan.id}
           targets={targets}
+          foods={foods}
           weekStart={plan.weekStart}
           onDayUpdate={handleDayUpdate}
         />

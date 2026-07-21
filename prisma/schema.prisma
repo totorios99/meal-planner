@@ -61,22 +61,21 @@ model WeeklyPlanMeal {
   mealId          Int
   meal            Meal          @relation(fields: [mealId], references: [id])
   slotIndex       Int
-  ingredients     String        @default("[]") // JSON Ingredient[] — per-placement snapshot, edited independently of the Meal
+  ingredients     String        @default("[]") // JSON IngredientRef[] {foodId,quantity,measure} — per-placement, edited independently
 }
 
-// Personal ingredient library — pick-list that prefills macros; seeds a future food DB.
-// Macros are per 1 unit; line-items copy per-unit × quantity, so editing the library never
-// mutates existing recipe/placement snapshots (no FK back here by design).
-model Ingredient {
+// Food source of truth. Macros are per 1 baseUnit; measures give conversion factors
+// (perBase = base units in 1 of that measure, e.g. rice cup -> 185 g). Meals reference
+// foods by id, so correcting a food propagates to every meal/plan that uses it.
+model Food {
   id        Int      @id @default(autoincrement())
-  name      String
-  unit      String   @default("")
+  name      String   @unique
+  baseUnit  String   @default("")
   calories  Float    @default(0)
   protein   Float    @default(0)
   carbs     Float    @default(0)
   fats      Float    @default(0)
+  measures  String   @default("[]") // JSON [{unit, perBase}]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@unique([name, unit])
 }

@@ -73,11 +73,12 @@ with header `x-api-key: {MISE_API_KEY}`.
 ```
 
 - `calories`/`protein`/`carbs`/`fats` (top level) are required numbers ≥ 0 (grams for macros, per serving)
-- `ingredients` items may be plain strings or structured objects. Include per-ingredient
-  macros (for the stated quantity) when you can derive them reliably — this lets the user
-  re-portion and swap ingredients with macros recalculating. If you cannot (e.g. video/photo
-  with no reliable amounts), send plain strings; Mise parks the top-level totals on one row.
-- Do NOT mix confident and guessed per-ingredient macros — if unsure for any item, send all
-  ingredients as plain strings and rely on the top-level totals.
+- `ingredients` items may be plain strings or objects. Mise creates a **Food** per name
+  (its macro source of truth) and links the meal to it. Include per-ingredient macros (for
+  the stated quantity) when you can derive them reliably — that seeds accurate foods. If you
+  cannot (e.g. video/photo with no reliable amounts), send plain strings; Mise splits the
+  top-level totals across the ingredients as a placeholder the user later refines.
+- If a food with the same name already exists, Mise references it and does NOT overwrite its
+  macros — the existing food stays the source of truth.
 - `categories` become leading tags in Mise; `tags` follow them
 - Unknown optional fields: omit them, do not invent values
