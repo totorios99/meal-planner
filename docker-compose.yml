@@ -1,7 +1,8 @@
 services:
   mise:
-    build: .
-    image: mise
+    # Built and pushed to GHCR by .github/workflows/deploy.yml on every push to main.
+    # The global watchtower (labelled containers, 300s poll) pulls new :latest and recreates.
+    image: ghcr.io/totorios99/meal-planner:latest
     container_name: mise
     ports:
       - "3000:3000"
@@ -19,6 +20,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
 
 x-casaos:
   architectures:

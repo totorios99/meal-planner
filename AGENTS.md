@@ -32,9 +32,10 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 
 - CasaOS runs on the same machine as dev
 - Container name: `mise`, port `3000`, data at `/DATA/AppData/mise/`
-- To deploy: `sudo ./deploy.sh` from project root — rebuilds image and restarts container
-- Suggest running `sudo ./deploy.sh` after merging to `main` when changes affect server-side code, API routes, DB schema, or the Docker setup
-- No CI/CD, no registry — local image only
+- **Push-to-deploy**: pushing to `main` triggers `.github/workflows/deploy.yml`, which builds and pushes `ghcr.io/totorios99/meal-planner:latest`; the global `watchtower` (polls every 300s, `--label-enable`) pulls the new image and recreates the container. `migrate.js` runs at container start, so DB migrations apply automatically.
+- Manual deploy: `sudo ./deploy.sh` — pulls the GHCR image and recreates (no local build)
+- The container is labelled `com.centurylinklabs.watchtower.enable=true` in `docker-compose.yml`
+- GHCR package must be pullable by the host (public, or `docker login ghcr.io` on the host)
 
 ## Server components & static rendering
 
