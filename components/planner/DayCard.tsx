@@ -1,9 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { WeeklyPlanDay, WeeklyPlanMeal, Meal } from '@/types'
 import { DayAnalytics } from './DayAnalytics'
 import { MealPicker } from './MealPicker'
-import { PortionInput } from './PortionInput'
+import { IngredientEditor } from '@/components/meals/IngredientEditor'
+import { parseIngredients, sumIngredients, type Ingredient } from '@/lib/recipe'
 import { MacroTargets } from '@/lib/useMacroTargets'
 import { Icon } from '@/components/Icon'
 
@@ -22,8 +24,10 @@ export function DayCard({ day, planId, targets, weekStart, onDayUpdate }: Props)
   const [showNote, setShowNote] = useState(false)
   // null = closed, 'add' = new meal, number = entry id to replace
   const [picking, setPicking] = useState<'add' | number | null>(null)
+  const [expanded, setExpanded] = useState<number | null>(null)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dropIdx, setDropIdx] = useState<number | null>(null)
+  const saveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
 
   const [wy, wm, wd] = weekStart.split('T')[0].split('-').map(Number)
   const date = new Date(wy, wm - 1, wd + day.dayIndex)
@@ -84,8 +88,18 @@ export function DayCard({ day, planId, targets, weekStart, onDayUpdate }: Props)
     onDayUpdate({ ...day, meals: day.meals.filter(m => m.id !== entryId) })
   }
 
-  function handleMultiplierChange(entryId: number, newMultiplier: number) {
-    onDayUpdate({ ...day, meals: day.meals.map(m => m.id === entryId ? { ...m, portionMultiplier: newMultiplier } : m) })
+  // Live recalc: update local snapshot immediately, debounce the PUT (editor fires per keystroke).
+  function handleIngredientsChange(entryId: number, next: Ingredient[]) {
+    const json = JSON.stringify(next)
+    onDayUpdate({ ...day, meals: day.meals.map(m => m.id === entryId ? { ...m, ingredients: json } : m) })
+    clearTimeout(saveTimers.current[entryId])
+    saveTimers.current[entryId] = setTimeout(() => {
+      fetch(`/api/plans/${planId}/days/${day.id}/meals/${entryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredients: next })
+      })
+    }, 600)
   }
 
   async function handleReorder(fromIdx: number, toIdx: number) {
@@ -123,14 +137,18 @@ export function DayCard({ day, planId, targets, weekStart, onDayUpdate }: Props)
     setDropIdx(null)
   }
 
-  const totals = day.meals.reduce((acc, wpm) => ({
-    calories: acc.calories + wpm.meal.calories * wpm.portionMultiplier,
-    protein:  acc.protein  + wpm.meal.protein  * wpm.portionMultiplier,
-    carbs:    acc.carbs    + wpm.meal.carbs    * wpm.portionMultiplier,
-    fats:     acc.fats     + wpm.meal.fats     * wpm.portionMultiplier,
-  }), { calories: 0, protein: 0, carbs: 0, fats: 0 })
+  const totals = day.meals.reduce((acc, wpm) => {
+    const m = sumIngredients(parseIngredients(wpm.ingredients))
+    return {
+      calories: acc.calories + m.calories,
+      protein:  acc.protein  + m.protein,
+      carbs:    acc.carbs    + m.carbs,
+      fats:     acc.fats     + m.fats,
+    }
+  }, { calories: 0, protein: 0, carbs: 0, fats: 0 })
 
   const hasNote = noteDraft.trim().length > 0
+  const expandedEntry = expanded !== null ? day.meals.find(m => m.id === expanded) : undefined
 
   return (
     <div className={`day-col${day.isDismissed ? ' off' : ''}${isToday ? ' today' : ''}`}>
@@ -162,7 +180,7 @@ export function DayCard({ day, planId, targets, weekStart, onDayUpdate }: Props)
       ) : (
         <div className="day-body">
           {sortedMeals.map((entry, i) => {
-            const kcal = Math.round(entry.meal.calories * entry.portionMultiplier)
+            const kcal = Math.round(sumIngredients(parseIngredients(entry.ingredients)).calories)
             const isDragging = dragIdx === i
             const isDropTarget = dropIdx === i && dragIdx !== i
             return (
@@ -187,18 +205,19 @@ export function DayCard({ day, planId, targets, weekStart, onDayUpdate }: Props)
                   className="plan-meal-name"
                   onClick={() => setPicking(entry.id)}
                   style={{ cursor: 'pointer' }}
+                  title="Swap for another recipe"
                 >
                   {entry.meal.title}
                 </div>
                 <div className="plan-meal-row">
                   <span className="plan-meal-kcal">{kcal} kcal</span>
-                  <PortionInput
-                    value={entry.portionMultiplier}
-                    entryId={entry.id}
-                    planId={planId}
-                    dayId={day.id}
-                    onChange={handleMultiplierChange}
-                  />
+                  <button
+                    className="plan-meal-edit"
+                    onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
+                    title="Edit ingredients"
+                  >
+                    <Icon name="edit" size={11} /> edit
+                  </button>
                 </div>
               </div>
             )
@@ -238,6 +257,32 @@ export function DayCard({ day, planId, targets, weekStart, onDayUpdate }: Props)
 
       {picking !== null && (
         <MealPicker onSelect={handlePick} onClose={() => setPicking(null)} />
+      )}
+
+      {expandedEntry && createPortal(
+        <div className="sheet-backdrop" onClick={e => { if (e.target === e.currentTarget) setExpanded(null) }}>
+          <div className="sheet">
+            <div className="sheet-head">
+              <h2 className="sheet-title">{expandedEntry.meal.title} — {DAY_ABBR[day.dayIndex]}</h2>
+              <button className="icon-btn" onClick={() => setExpanded(null)} title="Close">
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+            <div className="sheet-body">
+              <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>
+                Edits apply to this day only — the recipe and other days are untouched.
+              </p>
+              <IngredientEditor
+                value={parseIngredients(expandedEntry.ingredients)}
+                onChange={next => handleIngredientsChange(expandedEntry.id, next)}
+              />
+            </div>
+            <div className="sheet-foot">
+              <button className="btn btn-primary" onClick={() => setExpanded(null)}>Done</button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )

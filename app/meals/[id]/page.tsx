@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { BackLink } from '@/components/BackLink'
 import { prisma } from '@/lib/prisma'
-import { parseList } from '@/lib/recipe'
+import { parseList, parseIngredients } from '@/lib/recipe'
 import { Icon } from '@/components/Icon'
 import { MacroRow } from '@/components/meals/MacroRow'
 import { FavoriteButton } from '@/components/meals/FavoriteButton'
@@ -16,7 +16,7 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
   const meal = await prisma.meal.findUnique({ where: { id: mealId } })
   if (!meal) notFound()
 
-  const ingredients = parseList(meal.ingredients)
+  const ingredients = parseIngredients(meal.ingredients)
   const steps = parseList(meal.steps)
   const tags = meal.tag.split(',').map(t => t.trim()).filter(Boolean)
   const totalMinutes = meal.prepMinutes + meal.cookMinutes
@@ -64,7 +64,19 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
           <h2 className="recipe-panel-title">Ingredients</h2>
           {ingredients.length > 0 ? (
             <ul className="recipe-ingredients">
-              {ingredients.map((ing, i) => <li key={i}>{ing}</li>)}
+              {ingredients.map((ing, i) => {
+                const q = ing.quantity % 1 ? ing.quantity : Math.round(ing.quantity)
+                // Only prefix an amount when it's meaningful: with a unit, or a non-1 count.
+                const prefix = ing.unit ? `${q} ${ing.unit} ` : q !== 1 ? `${q}× ` : ''
+                return (
+                  <li key={i}>
+                    <span>{prefix}{ing.name}</span>
+                    {ing.calories > 0 && (
+                      <span className="recipe-ing-macros">{Math.round(ing.calories)} kcal</span>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           ) : (
             <p className="recipe-empty">No ingredients listed yet.</p>

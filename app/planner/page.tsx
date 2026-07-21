@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { WeeklyPlan } from '@/types'
+import { parseIngredients, sumIngredients } from '@/lib/recipe'
 import { WeekBoard } from '@/components/planner/WeekBoard'
 import { QuickFill } from '@/components/planner/QuickFill'
 import { useMacroTargets } from '@/lib/useMacroTargets'
@@ -65,7 +66,7 @@ export default function PlannerPage() {
   const daysPlanned = plan.days.filter(d => !d.isDismissed && d.meals.length > 0).length
   const totalKcal = plan.days.reduce((sum, d) => {
     if (d.isDismissed) return sum
-    return sum + d.meals.reduce((s, m) => s + m.meal.calories * m.portionMultiplier, 0)
+    return sum + d.meals.reduce((s, m) => s + sumIngredients(parseIngredients(m.ingredients)).calories, 0)
   }, 0)
 
   return (

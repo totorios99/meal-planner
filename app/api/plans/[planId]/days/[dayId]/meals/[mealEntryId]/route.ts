@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
+import { ingredientSchema } from '@/lib/mealSchema'
+
+const putSchema = z.object({ ingredients: z.array(ingredientSchema) })
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ mealEntryId: string }> }
 ) {
   const { mealEntryId } = await params
-  const body = await request.json()
+  const parsed = putSchema.safeParse(await request.json())
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues }, { status: 400 })
+  }
   const entry = await prisma.weeklyPlanMeal.update({
     where: { id: Number(mealEntryId) },
-    data: { portionMultiplier: Number(body.portionMultiplier) },
+    data: { ingredients: JSON.stringify(parsed.data.ingredients) },
     include: { meal: true }
   })
   return NextResponse.json(entry)

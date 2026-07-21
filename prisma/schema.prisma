@@ -19,7 +19,7 @@ model Meal {
   carbs       Float
   fats        Float
   imageUrl    String @default("")
-  ingredients String @default("[]") // JSON string[]
+  ingredients String @default("[]") // JSON Ingredient[] — see lib/recipe.ts; macros below are the cached sum
   steps       String @default("[]") // JSON string[]
   prepMinutes Int    @default(0)
   cookMinutes Int    @default(0)
@@ -55,11 +55,28 @@ model WeeklyPlanDay {
 }
 
 model WeeklyPlanMeal {
-  id                Int           @id @default(autoincrement())
-  weeklyPlanDayId   Int
-  weeklyPlanDay     WeeklyPlanDay @relation(fields: [weeklyPlanDayId], references: [id], onDelete: Cascade)
-  mealId            Int
-  meal              Meal          @relation(fields: [mealId], references: [id])
-  slotIndex         Int
-  portionMultiplier Float         @default(1.0)
+  id              Int           @id @default(autoincrement())
+  weeklyPlanDayId Int
+  weeklyPlanDay   WeeklyPlanDay @relation(fields: [weeklyPlanDayId], references: [id], onDelete: Cascade)
+  mealId          Int
+  meal            Meal          @relation(fields: [mealId], references: [id])
+  slotIndex       Int
+  ingredients     String        @default("[]") // JSON Ingredient[] — per-placement snapshot, edited independently of the Meal
+}
+
+// Personal ingredient library — pick-list that prefills macros; seeds a future food DB.
+// Macros are per 1 unit; line-items copy per-unit × quantity, so editing the library never
+// mutates existing recipe/placement snapshots (no FK back here by design).
+model Ingredient {
+  id        Int      @id @default(autoincrement())
+  name      String
+  unit      String   @default("")
+  calories  Float    @default(0)
+  protein   Float    @default(0)
+  carbs     Float    @default(0)
+  fats      Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, unit])
 }

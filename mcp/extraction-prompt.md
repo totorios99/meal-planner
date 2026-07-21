@@ -64,11 +64,20 @@ with header `x-api-key: {MISE_API_KEY}`.
   "fats": 0,
   "categories": ["Breakfast" | "Lunch" | "Dinner" | "Snack"],
   "tags": ["free-form tags, e.g. High protein"],
-  "ingredients": ["clean ingredient strings, at least 1 (required)"],
+  "ingredients": [
+    "a plain string, OR",
+    { "name": "brown rice", "quantity": 100, "unit": "g", "calories": 111, "protein": 3, "carbs": 23, "fats": 1 }
+  ],
   "steps": ["ordered cooking steps, at least 1 (required)"]
 }
 ```
 
-- `calories`/`protein`/`carbs`/`fats` are required numbers ≥ 0 (grams for macros, per serving)
+- `calories`/`protein`/`carbs`/`fats` (top level) are required numbers ≥ 0 (grams for macros, per serving)
+- `ingredients` items may be plain strings or structured objects. Include per-ingredient
+  macros (for the stated quantity) when you can derive them reliably — this lets the user
+  re-portion and swap ingredients with macros recalculating. If you cannot (e.g. video/photo
+  with no reliable amounts), send plain strings; Mise parks the top-level totals on one row.
+- Do NOT mix confident and guessed per-ingredient macros — if unsure for any item, send all
+  ingredients as plain strings and rely on the top-level totals.
 - `categories` become leading tags in Mise; `tags` follow them
 - Unknown optional fields: omit them, do not invent values

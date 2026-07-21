@@ -42,7 +42,8 @@ export async function POST(
           weeklyPlanDayId: targetDay.id,
           mealId: sourceMeal.mealId,
           slotIndex: sourceMeal.slotIndex,
-          portionMultiplier: sourceMeal.portionMultiplier,
+          // Carry the per-placement ingredient snapshot so the clone is independently editable
+          ingredients: sourceMeal.ingredients,
         }
       })
     }
