@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { BackLink } from '@/components/BackLink'
 import { prisma } from '@/lib/prisma'
-import { parseList } from '@/lib/recipe'
+import { parseList, parseRefs, refMacros, foodsMap } from '@/lib/recipe'
 import { Icon } from '@/components/Icon'
 import { MacroRow } from '@/components/meals/MacroRow'
 import { FavoriteButton } from '@/components/meals/FavoriteButton'
@@ -16,7 +16,11 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
   const meal = await prisma.meal.findUnique({ where: { id: mealId } })
   if (!meal) notFound()
 
-  const ingredients = parseList(meal.ingredients)
+  const fmap = foodsMap(await prisma.food.findMany())
+  const ingredients = parseRefs(meal.ingredients).map(ref => {
+    const food = fmap.get(ref.foodId)
+    return { ref, food, macros: refMacros(ref, food) }
+  })
   const steps = parseList(meal.steps)
   const tags = meal.tag.split(',').map(t => t.trim()).filter(Boolean)
   const totalMinutes = meal.prepMinutes + meal.cookMinutes
@@ -64,7 +68,23 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
           <h2 className="recipe-panel-title">Ingredients</h2>
           {ingredients.length > 0 ? (
             <ul className="recipe-ingredients">
-              {ingredients.map((ing, i) => <li key={i}>{ing}</li>)}
+              {ingredients.map(({ ref, food, macros }, i) => {
+                const name = food?.name ?? 'Unknown food'
+                const unit = ref.measure || food?.baseUnit || ''
+                const q = ref.quantity % 1 ? Math.round(ref.quantity * 100) / 100 : ref.quantity
+                // Show the unit only for weight/volume measures; count units (egg, clove…)
+                // would just duplicate the food name ("5 egg egg").
+                const MEASURED = ['g', 'kg', 'ml', 'l', 'oz', 'lb', 'cup', 'tbsp', 'tsp']
+                const prefix = MEASURED.includes(unit) ? `${q} ${unit} ` : `${q}× `
+                return (
+                  <li key={i}>
+                    <span>{prefix}{name}</span>
+                    {macros.calories > 0 && (
+                      <span className="recipe-ing-macros">{Math.round(macros.calories)} kcal</span>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           ) : (
             <p className="recipe-empty">No ingredients listed yet.</p>

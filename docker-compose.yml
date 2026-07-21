@@ -14,7 +14,7 @@ services:
       - MISE_API_KEY=${MISE_API_KEY:-}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/meals"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/meals"]
       interval: 30s
       timeout: 10s
       retries: 3

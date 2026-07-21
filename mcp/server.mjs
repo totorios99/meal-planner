@@ -267,6 +267,27 @@ server.registerTool('get_meal', {
   inputSchema: { id: z.number().int() },
 }, async ({ id }) => json(await api(`/api/meals/${id}`)))
 
+// Import ingredient (name-based). Per-ingredient macros OPTIONAL — when omitted the
+// server splits the top-level totals across the ingredients. The import route upserts a
+// Food per name, so agents never need foodIds when importing.
+const ingredientObj = z.object({
+  name: z.string().min(1),
+  quantity: z.number().min(0).optional().describe('Amount in `unit` (default 1)'),
+  unit: z.string().optional().describe('e.g. g, cup, egg'),
+  calories: z.number().min(0).optional().describe('kcal for this quantity'),
+  protein: z.number().min(0).optional(),
+  carbs: z.number().min(0).optional(),
+  fats: z.number().min(0).optional(),
+})
+
+// A meal/placement ingredient reference (macros come from the food). Get foodIds from
+// list_foods or the refs returned by get_meal / get_week_plan.
+const refObj = z.object({
+  foodId: z.number().int().positive(),
+  quantity: z.number().min(0),
+  measure: z.string().optional().describe('Measure unit; defaults to the food base unit'),
+})
+
 const importShape = {
   name: z.string().min(1).describe('Recipe title'),
   description: z.string().optional().describe('One-line summary'),
@@ -275,13 +296,14 @@ const importShape = {
   servings: z.number().int().min(1).optional().describe('Servings the recipe yields (default 1)'),
   prepMinutes: z.number().int().min(0).optional(),
   cookMinutes: z.number().int().min(0).optional(),
-  calories: z.number().min(0).describe('kcal per serving'),
-  protein: z.number().min(0).describe('grams per serving'),
-  carbs: z.number().min(0).describe('grams per serving'),
-  fats: z.number().min(0).describe('grams per serving'),
+  calories: z.number().min(0).describe('kcal per serving — used as a lump fallback if ingredients carry no macros'),
+  protein: z.number().min(0).describe('grams per serving — lump fallback'),
+  carbs: z.number().min(0).describe('grams per serving — lump fallback'),
+  fats: z.number().min(0).describe('grams per serving — lump fallback'),
   categories: z.array(z.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack'])).optional(),
   tags: z.array(z.string()).optional().describe('Free-form tags, e.g. "High protein"'),
-  ingredients: z.array(z.string()).min(1).describe('Clean ingredient strings, no serving prefixes'),
+  ingredients: z.array(z.union([z.string(), ingredientObj])).min(1)
+    .describe('Ingredients — a plain string, or {name, quantity, unit, calories, protein, carbs, fats}. Include per-ingredient macros when known so portions recalc.'),
   steps: z.array(z.string()).min(1).describe('Ordered cooking steps'),
 }
 
@@ -293,18 +315,14 @@ server.registerTool('import_meal', {
 
 server.registerTool('update_meal', {
   description:
-    'Replace a meal (full update — send every field). Fields: title, description, tag (comma-separated string), calories, protein, carbs, fats, imageUrl, ingredients (string[]), steps (string[]), prepMinutes, cookMinutes, servings.',
+    'Update a meal. Omit `ingredients` to leave them (and macros) unchanged and edit only the other fields. To change ingredients, send food refs (get foodIds from get_meal or list_foods). Macros are derived from the foods.',
   inputSchema: {
     id: z.number().int(),
     title: z.string().min(1),
     description: z.string().optional(),
     tag: z.string().optional().describe('Comma-separated tags, e.g. "Dinner, High protein"'),
-    calories: z.number().min(0),
-    protein: z.number().min(0),
-    carbs: z.number().min(0),
-    fats: z.number().min(0),
     imageUrl: z.string().optional(),
-    ingredients: z.array(z.string()).optional(),
+    ingredients: z.array(refObj).optional().describe('Food refs; omit to keep existing ingredients'),
     steps: z.array(z.string()).optional(),
     prepMinutes: z.number().int().min(0).optional(),
     cookMinutes: z.number().int().min(0).optional(),
@@ -326,18 +344,17 @@ server.registerTool('set_favorite', {
 
 server.registerTool('get_week_plan', {
   description:
-    'Get (or auto-create) the weekly plan. Pass weekStart as YYYY-MM-DD (a Monday, in the user\'s local timezone) — omitting it falls back to server UTC time, which can be off by a day. Response includes plan id and 7 days (dayIndex 0=Mon..6=Sun), each with its day id and meal entries (entry id, meal, slotIndex, portionMultiplier). Use those ids for the other plan tools.',
+    'Get (or auto-create) the weekly plan. Pass weekStart as YYYY-MM-DD (a Monday, in the user\'s local timezone) — omitting it falls back to server UTC time, which can be off by a day. Response includes plan id and 7 days (dayIndex 0=Mon..6=Sun), each with its day id and meal entries (entry id, meal, slotIndex, ingredients — the per-placement snapshot). Use those ids for the other plan tools.',
   inputSchema: { weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() },
 }, async ({ weekStart }) => json(await api(`/api/plans/active${weekStart ? `?weekStart=${weekStart}` : ''}`)))
 
 server.registerTool('add_meal_to_day', {
-  description: 'Add a meal to a plan day. Get planId/dayId from get_week_plan. slotIndex orders meals within the day (0-based, append = current meal count).',
+  description: 'Add a meal to a plan day. The placement copies the meal\'s ingredients as an editable snapshot (tweak it with edit_plan_meal). Get planId/dayId from get_week_plan. slotIndex orders meals within the day (0-based, append = current meal count).',
   inputSchema: {
     planId: z.number().int(),
     dayId: z.number().int(),
     mealId: z.number().int(),
     slotIndex: z.number().int().min(0),
-    portionMultiplier: z.number().positive().optional().describe('Portion scale, default 1.0'),
   },
 }, async ({ planId, dayId, ...body }) =>
   json(await api(`/api/plans/${planId}/days/${dayId}/meals`, { method: 'POST', body: JSON.stringify(body) })))
@@ -348,16 +365,38 @@ server.registerTool('remove_plan_meal', {
 }, async ({ planId, dayId, mealEntryId }) =>
   json(await api(`/api/plans/${planId}/days/${dayId}/meals/${mealEntryId}`, { method: 'DELETE' })))
 
-server.registerTool('set_portion', {
-  description: 'Change the portion multiplier of a plan meal entry.',
+server.registerTool('edit_plan_meal', {
+  description: 'Replace a plan meal entry\'s ingredient snapshot with food refs (per-placement — does not affect the cookbook meal or the same meal on other days). Macros come from the foods. Get foodIds from list_foods or the refs in get_week_plan. mealEntryId is the entry id from get_week_plan.',
   inputSchema: {
     planId: z.number().int(),
     dayId: z.number().int(),
     mealEntryId: z.number().int(),
-    portionMultiplier: z.number().positive(),
+    ingredients: z.array(refObj).describe('Full replacement list of food refs {foodId, quantity, measure}'),
   },
-}, async ({ planId, dayId, mealEntryId, portionMultiplier }) =>
-  json(await api(`/api/plans/${planId}/days/${dayId}/meals/${mealEntryId}`, { method: 'PUT', body: JSON.stringify({ portionMultiplier }) })))
+}, async ({ planId, dayId, mealEntryId, ingredients }) =>
+  json(await api(`/api/plans/${planId}/days/${dayId}/meals/${mealEntryId}`, { method: 'PUT', body: JSON.stringify({ ingredients }) })))
+
+// ── Foods (source of truth) ──
+
+server.registerTool('list_foods', {
+  description: 'List foods in the source-of-truth library (id, name, baseUnit, per-baseUnit macros, measures). Use the ids as foodId in edit_plan_meal / update_meal.',
+  inputSchema: { search: z.string().optional().describe('Filter by name substring') },
+}, async ({ search }) => json(await api(`/api/foods${search ? `?search=${encodeURIComponent(search)}` : ''}`)))
+
+server.registerTool('upsert_food', {
+  description: 'Create or update a food (the only place macros are authored). Macros are per 1 baseUnit. measures give conversions (perBase = base units in 1 of that measure, e.g. {unit:"cup", perBase:185}). Pass id to update, omit to create.',
+  inputSchema: {
+    id: z.number().int().optional(),
+    name: z.string().min(1),
+    baseUnit: z.string().optional().describe('e.g. g, ml, egg (default empty)'),
+    calories: z.number().min(0).optional(),
+    protein: z.number().min(0).optional(),
+    carbs: z.number().min(0).optional(),
+    fats: z.number().min(0).optional(),
+    measures: z.array(z.object({ unit: z.string().min(1), perBase: z.number().positive() })).optional(),
+  },
+}, async ({ id, ...body }) =>
+  json(await api(id ? `/api/foods/${id}` : '/api/foods', { method: id ? 'PUT' : 'POST', body: JSON.stringify(body) })))
 
 // ── Extraction prompt + schema ──
 

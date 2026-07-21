@@ -3,8 +3,10 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Meal } from '@/types'
 import { Icon } from '@/components/Icon'
-import { parseList } from '@/lib/recipe'
+import { parseList, parseRefs, sumRefs, foodsMap, type IngredientRef } from '@/lib/recipe'
 import { PhotoInput } from '@/components/meals/PhotoInput'
+import { FoodPicker } from '@/components/meals/FoodPicker'
+import type { FoodRow } from '@/types'
 
 interface Props {
   meal?: Meal | null
@@ -16,12 +18,7 @@ const EMPTY = {
   title: '',
   description: '',
   tag: '',
-  calories: '',
-  protein: '',
-  carbs: '',
-  fats: '',
   imageUrl: '',
-  ingredients: '',
   steps: '',
   prepMinutes: '',
   cookMinutes: '',
@@ -34,7 +31,15 @@ function toLines(v: string) {
 
 export function MealModal({ meal, onClose, onSaved }: Props) {
   const [form, setForm] = useState(EMPTY)
+  // Seed synchronously: FoodPicker reads its value once on mount, before effects run.
+  const [ingredients, setIngredients] = useState<IngredientRef[]>(() => meal ? parseRefs(meal.ingredients) : [])
+  const [foods, setFoods] = useState<FoodRow[]>([])
+  const [foodsLoaded, setFoodsLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/foods').then(r => r.json()).then(setFoods).catch(() => {}).finally(() => setFoodsLoaded(true))
+  }, [])
 
   useEffect(() => {
     if (meal) {
@@ -42,21 +47,20 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
         title: meal.title,
         description: meal.description,
         tag: meal.tag,
-        calories: String(meal.calories),
-        protein: String(meal.protein),
-        carbs: String(meal.carbs),
-        fats: String(meal.fats),
         imageUrl: meal.imageUrl,
-        ingredients: parseList(meal.ingredients).join('\n'),
         steps: parseList(meal.steps).join('\n'),
         prepMinutes: meal.prepMinutes ? String(meal.prepMinutes) : '',
         cookMinutes: meal.cookMinutes ? String(meal.cookMinutes) : '',
         servings: String(meal.servings),
       })
+      setIngredients(parseRefs(meal.ingredients))
     } else {
       setForm(EMPTY)
+      setIngredients([])
     }
   }, [meal])
+
+  const macros = sumRefs(ingredients, foodsMap(foods))
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -80,7 +84,7 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...form,
-        ingredients: toLines(form.ingredients),
+        ingredients,
         steps: toLines(form.steps),
         prepMinutes: form.prepMinutes || 0,
         cookMinutes: form.cookMinutes || 0,
@@ -145,58 +149,13 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
               )}
             </div>
 
-            <div className="field-grid-2">
-              <div className="field" style={{ marginBottom: 0 }}>
-                <label htmlFor="calories">Calories</label>
-                <input
-                  id="calories"
-                  required
-                  type="number"
-                  min="0"
-                  step="any"
-                  placeholder="0"
-                  value={form.calories}
-                  onChange={e => set('calories', e.target.value)}
-                />
-              </div>
-              <div className="field" style={{ marginBottom: 0 }}>
-                <label htmlFor="protein">Protein (g)</label>
-                <input
-                  id="protein"
-                  required
-                  type="number"
-                  min="0"
-                  step="any"
-                  placeholder="0"
-                  value={form.protein}
-                  onChange={e => set('protein', e.target.value)}
-                />
-              </div>
-              <div className="field" style={{ marginBottom: 0 }}>
-                <label htmlFor="carbs">Carbs (g)</label>
-                <input
-                  id="carbs"
-                  required
-                  type="number"
-                  min="0"
-                  step="any"
-                  placeholder="0"
-                  value={form.carbs}
-                  onChange={e => set('carbs', e.target.value)}
-                />
-              </div>
-              <div className="field" style={{ marginBottom: 0 }}>
-                <label htmlFor="fats">Fats (g)</label>
-                <input
-                  id="fats"
-                  required
-                  type="number"
-                  min="0"
-                  step="any"
-                  placeholder="0"
-                  value={form.fats}
-                  onChange={e => set('fats', e.target.value)}
-                />
+            <div className="field">
+              <label>Macros <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— summed from foods</span></label>
+              <div className="macro-readout">
+                <div><span>{Math.round(macros.calories)}</span><label>kcal</label></div>
+                <div><span>{Math.round(macros.protein)}</span><label>protein</label></div>
+                <div><span>{Math.round(macros.carbs)}</span><label>carbs</label></div>
+                <div><span>{Math.round(macros.fats)}</span><label>fats</label></div>
               </div>
             </div>
 
@@ -237,14 +196,8 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
             </div>
 
             <div className="field" style={{ marginTop: 14 }}>
-              <label htmlFor="ingredients">Ingredients <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— one per line</span></label>
-              <textarea
-                id="ingredients"
-                placeholder={'200g chicken breast\n100g rice\n1 tbsp olive oil'}
-                value={form.ingredients}
-                onChange={e => set('ingredients', e.target.value)}
-                style={{ resize: 'vertical', height: 96 }}
-              />
+              <label>Ingredients <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— pick foods; macros come from the Foods library</span></label>
+              <FoodPicker key={`${meal?.id ?? 'new'}-${foodsLoaded}`} value={ingredients} foods={foods} onChange={setIngredients} />
             </div>
 
             <div className="field">

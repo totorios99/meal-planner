@@ -8,7 +8,7 @@ export type Meal = {
   carbs: number
   fats: number
   imageUrl: string
-  ingredients: string // JSON-encoded string[] — use parseList()
+  ingredients: string // JSON-encoded IngredientRef[] — use parseRefs(); macros above are the cached sum over foods
   steps: string // JSON-encoded string[] — use parseList()
   prepMinutes: number
   cookMinutes: number
@@ -24,7 +24,19 @@ export type WeeklyPlanMeal = {
   mealId: number
   meal: Meal
   slotIndex: number
-  portionMultiplier: number
+  ingredients: string // JSON-encoded IngredientRef[] — per-placement, use parseRefs()
+}
+
+// Food row as returned by /api/foods (measures already parsed to an array).
+export type FoodRow = {
+  id: number
+  name: string
+  baseUnit: string
+  calories: number
+  protein: number
+  carbs: number
+  fats: number
+  measures: { unit: string; perBase: number }[]
 }
 
 export type WeeklyPlanDay = {

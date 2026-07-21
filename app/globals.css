@@ -1241,35 +1241,106 @@ input, select, textarea { font-family: inherit; color: inherit; }
 .plan-meal-remove:hover { background: var(--danger); }
 .plan-meal-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .plan-meal-kcal { font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; font-weight: 550; }
-.qty-stepper {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--stroke);
-  border-radius: var(--r-pill);
-  background: var(--well);
-  height: 24px;
-  overflow: hidden;
-}
-.qty-stepper button {
-  width: 22px;
-  height: 22px;
-  border: none;
-  background: transparent;
-  color: var(--ink-3);
-  font-size: 12px;
+
+/* Food picker — cookbook modal + planner placement. Macros read-only (from Foods). */
+.fp-editor { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; }
+.fp-head, .fp-row {
   display: grid;
-  place-items: center;
+  grid-template-columns: minmax(110px,1.4fr) 52px 72px minmax(120px,1.3fr) 22px;
+  gap: 6px;
+  align-items: center;
+  min-width: 360px;
 }
-.qty-stepper button:hover { background: rgba(255,255,255,.12); color: var(--ink); }
-.qty-stepper .qty-val {
-  min-width: 24px;
-  text-align: center;
-  font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--ink);
+.fp-head {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-4);
   padding: 0 2px;
 }
+.fp-row input, .fp-row select {
+  height: 30px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-sm);
+  background: var(--well);
+  color: var(--ink);
+  font-size: 12px;
+  padding: 0 6px;
+  min-width: 0;
+}
+.fp-row input:focus, .fp-row select:focus { outline: none; border-color: var(--accent); }
+.fp-qty { text-align: center; font-variant-numeric: tabular-nums; }
+.fp-qty::-webkit-outer-spin-button, .fp-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.fp-qty { -moz-appearance: textfield; appearance: textfield; }
+.fp-macros { font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-unmatched .fp-name { border-color: var(--danger); }
+.fp-unmatched .fp-macros { color: var(--danger); }
+.fp-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.ing-del {
+  width: 22px; height: 22px;
+  border: none; background: transparent;
+  color: var(--ink-4); cursor: pointer;
+  display: grid; place-items: center; border-radius: var(--r-sm);
+}
+.ing-del:hover { background: var(--bg-sunken); color: var(--danger); }
+.ing-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.ing-add {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1px dashed var(--stroke-hi); background: transparent;
+  border-radius: var(--r-sm); padding: 5px 10px;
+  color: var(--ink-3); font-size: 12px; cursor: pointer;
+}
+.ing-add:hover { color: var(--ink); border-color: var(--accent); }
+.ing-total { font-size: 11.5px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* Read-only macro summary (cookbook modal) — derived from ingredients */
+.macro-readout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.macro-readout > div {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 4px; border-radius: var(--r-sm); background: var(--bg-sunken);
+}
+.macro-readout span { font-size: 18px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.macro-readout label { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); }
+
+/* Planner placement — expandable ingredient editor */
+.plan-meal-edit {
+  border: none; background: transparent; cursor: pointer;
+  color: var(--ink-4); display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; padding: 2px 4px; border-radius: var(--r-sm);
+}
+.plan-meal-edit:hover { color: var(--ink-2); background: var(--bg-sunken); }
+
+/* Foods library page */
+.food-list { display: flex; flex-direction: column; gap: 6px; }
+.food-row {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; text-align: left; cursor: pointer;
+  background: var(--bg-elev); border: 1px solid var(--stroke);
+  border-radius: var(--r-md); padding: 12px 14px;
+}
+.food-row:hover { border-color: var(--accent); }
+.food-row-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.food-row-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+.food-row-macros { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.food-row-per { color: var(--ink-4); }
+.food-row-measures {
+  font-size: 11px; color: var(--ink-3); flex-shrink: 0;
+  padding: 2px 8px; background: var(--bg-sunken); border-radius: var(--r-pill);
+}
+.food-row-del { color: var(--ink-4); display: inline-flex; padding: 4px; border-radius: var(--r-sm); flex-shrink: 0; }
+.food-row-del:hover { color: var(--danger); background: var(--bg-sunken); }
+
+/* Measure editor row (FoodModal) */
+.measure-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.measure-row input:first-child { width: 90px; }
+.measure-row input[type="number"] { width: 90px; }
+.measure-row input {
+  height: 32px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: var(--well); color: var(--ink); font-size: 13px; padding: 0 8px;
+}
+.measure-row input:focus { outline: none; border-color: var(--accent); }
+.measure-eq { color: var(--ink-3); }
+.measure-unit { font-size: 12px; color: var(--ink-3); flex: 1; }
 .add-meal-btn {
   width: 100%;
   border: 1px dashed var(--stroke-hi);
@@ -1555,6 +1626,36 @@ input, select, textarea { font-family: inherit; color: inherit; }
   font-size: 11.5px;
 }
 .print-foot em { font-family: var(--display); font-style: italic; }
+
+.print-shopping { margin-top: 24px; padding-top: 16px; border-top: 1px solid #ECE8DE; break-inside: avoid; }
+.print-shopping h2 {
+  font-family: var(--display);
+  font-size: 18px;
+  color: #2E2A24;
+  margin: 0 0 12px;
+}
+.print-shopping-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  columns: 2;
+  column-gap: 32px;
+}
+.print-shopping-list li {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12.5px;
+  color: #3E3A33;
+  break-inside: avoid;
+}
+.print-shopping-list .qty {
+  min-width: 56px;
+  font-variant-numeric: tabular-nums;
+  color: #6B6357;
+  font-weight: 600;
+}
+.print-shopping-list .name { flex: 1; }
 
 /* === Bottom tab bar — hidden on desktop === */
 .tabbar { display: none; }
@@ -1867,6 +1968,7 @@ input, select, textarea { font-family: inherit; color: inherit; }
 }
 .recipe-ingredients li:last-child { border-bottom: none; padding-bottom: 0; }
 .recipe-ingredients li:first-child { padding-top: 0; }
+.recipe-ing-macros { margin-left: auto; color: var(--ink-4); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .recipe-steps {
   list-style: none;
   counter-reset: step;

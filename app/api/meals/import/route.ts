@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { importSchema, importToMealData } from '@/lib/mealSchema'
+import { importSchema } from '@/lib/mealSchema'
+import { importIngredientsToRefs } from '@/lib/foods'
 
 export async function POST(request: NextRequest) {
   const key = process.env.MISE_API_KEY
@@ -21,6 +22,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues }, { status: 400 })
   }
 
-  const meal = await prisma.meal.create({ data: importToMealData(parsed.data) })
+  const p = parsed.data
+  const { refs, macros } = await importIngredientsToRefs(p.ingredients, {
+    calories: p.calories, protein: p.protein, carbs: p.carbs, fats: p.fats,
+  })
+  const meal = await prisma.meal.create({
+    data: {
+      title: p.name,
+      description: p.description,
+      imageUrl: p.image,
+      tag: [...p.categories, ...p.tags].join(', '),
+      ingredients: JSON.stringify(refs),
+      steps: JSON.stringify(p.steps),
+      prepMinutes: p.prepMinutes,
+      cookMinutes: p.cookMinutes,
+      servings: p.servings,
+      ...macros,
+    },
+  })
   return NextResponse.json(meal, { status: 201 })
 }

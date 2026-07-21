@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import { WeeklyPlan, Meal } from '@/types'
+import { WeeklyPlan, Meal, FoodRow } from '@/types'
+import { parseRefs, sumRefs, foodsMap } from '@/lib/recipe'
 import { useMacroTargets } from '@/lib/useMacroTargets'
 import { MealCard } from '@/components/meals/MealCard'
 import { MealModal } from '@/components/meals/MealModal'
@@ -112,6 +113,7 @@ function MacroRows({ protein, carbs, fats, targets }: {
 export default function HomePage() {
   const [plan, setPlan] = useState<WeeklyPlan | null>(null)
   const [meals, setMeals] = useState<Meal[]>([])
+  const [foods, setFoods] = useState<FoodRow[]>([])
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
   const [showNewMeal, setShowNewMeal] = useState(false)
   const [showTargets, setShowTargets] = useState(false)
@@ -120,12 +122,14 @@ export default function HomePage() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [planRes, mealsRes] = await Promise.all([
+      const [planRes, mealsRes, foodsRes] = await Promise.all([
         fetch(`/api/plans/active?weekStart=${localMonday()}`),
         fetch('/api/meals'),
+        fetch('/api/foods'),
       ])
       if (planRes.ok) setPlan(await planRes.json())
       if (mealsRes.ok) setMeals(await mealsRes.json())
+      if (foodsRes.ok) setFoods(await foodsRes.json())
     } catch { /* silently degrade */ }
   }, [])
 
@@ -147,20 +151,24 @@ export default function HomePage() {
   const todayMeals = today?.meals ?? []
   const weekStart = plan ? new Date(plan.weekStart) : null
 
+  const fmap = foodsMap(foods)
   const daysOn = plan ? plan.days.filter(d => !d.isDismissed).length : 0
   const weekKcal = plan
-    ? plan.days.reduce((s, d) => s + (d.isDismissed ? 0 : d.meals.reduce((a, m) => a + m.meal.calories * m.portionMultiplier, 0)), 0)
+    ? plan.days.reduce((s, d) => s + (d.isDismissed ? 0 : d.meals.reduce((a, m) => a + sumRefs(parseRefs(m.ingredients), fmap).calories, 0)), 0)
     : 0
   const weekRange = weekStart
     ? `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${dayDate(weekStart, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${dayDate(weekStart, 6).getFullYear()}`
     : ''
 
-  const todayTotals = todayMeals.reduce((acc, wpm) => ({
-    calories: acc.calories + wpm.meal.calories * wpm.portionMultiplier,
-    protein:  acc.protein  + wpm.meal.protein  * wpm.portionMultiplier,
-    carbs:    acc.carbs    + wpm.meal.carbs    * wpm.portionMultiplier,
-    fats:     acc.fats     + wpm.meal.fats     * wpm.portionMultiplier,
-  }), { calories: 0, protein: 0, carbs: 0, fats: 0 })
+  const todayTotals = todayMeals.reduce((acc, wpm) => {
+    const m = sumRefs(parseRefs(wpm.ingredients), fmap)
+    return {
+      calories: acc.calories + m.calories,
+      protein:  acc.protein  + m.protein,
+      carbs:    acc.carbs    + m.carbs,
+      fats:     acc.fats     + m.fats,
+    }
+  }, { calories: 0, protein: 0, carbs: 0, fats: 0 })
 
   const now = new Date()
   const eyebrow = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -209,7 +217,9 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="today-meals">
-              {todayMeals.map(wpm => (
+              {todayMeals.map(wpm => {
+                const mac = sumRefs(parseRefs(wpm.ingredients), fmap)
+                return (
                 <div key={wpm.id} className="today-meal">
                   <div className="today-meal-thumb">
                     {wpm.meal.imageUrl && <img src={wpm.meal.imageUrl} alt={wpm.meal.title} />}
@@ -219,21 +229,22 @@ export default function HomePage() {
                     <div className="today-meal-meta">
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3F4FB2', display: 'inline-block' }} />
-                        {Math.round(wpm.meal.protein * wpm.portionMultiplier)}g
+                        {Math.round(mac.protein)}g
                       </span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C28A2C', display: 'inline-block' }} />
-                        {Math.round(wpm.meal.carbs * wpm.portionMultiplier)}g
+                        {Math.round(mac.carbs)}g
                       </span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#8C4A8A', display: 'inline-block' }} />
-                        {Math.round(wpm.meal.fats * wpm.portionMultiplier)}g
+                        {Math.round(mac.fats)}g
                       </span>
                     </div>
                   </div>
-                  <div className="today-meal-kcal">{Math.round(wpm.meal.calories * wpm.portionMultiplier)}</div>
+                  <div className="today-meal-kcal">{Math.round(mac.calories)}</div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
 
@@ -291,7 +302,7 @@ export default function HomePage() {
             {plan.days.map(day => {
               const date = dayDate(weekStart, day.dayIndex)
               const isToday = day.dayIndex === todayDayIndex()
-              const kcal = day.isDismissed ? 0 : day.meals.reduce((s, m) => s + m.meal.calories * m.portionMultiplier, 0)
+              const kcal = day.isDismissed ? 0 : day.meals.reduce((s, m) => s + sumRefs(parseRefs(m.ingredients), fmap).calories, 0)
               return (
                 <Link
                   key={day.id}

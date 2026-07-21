@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { PrintButton } from '@/components/print/PrintButton'
+import { parseRefs, sumRefs, foodsMap } from '@/lib/recipe'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,6 +43,8 @@ export default async function PrintPage() {
     )
   }
 
+  const fmap = foodsMap(await prisma.food.findMany())
+
   const weekStart = new Date(plan.weekStart)
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekEnd.getDate() + 6)
@@ -53,16 +56,38 @@ export default async function PrintPage() {
 
   const days = plan.days.map(day => {
     const totals = day.meals.reduce(
-      (acc, wpm) => ({
-        calories: acc.calories + wpm.meal.calories * wpm.portionMultiplier,
-        protein:  acc.protein  + wpm.meal.protein  * wpm.portionMultiplier,
-        carbs:    acc.carbs    + wpm.meal.carbs    * wpm.portionMultiplier,
-        fats:     acc.fats     + wpm.meal.fats     * wpm.portionMultiplier,
-      }),
+      (acc, wpm) => {
+        const m = sumRefs(parseRefs(wpm.ingredients), fmap)
+        return {
+          calories: acc.calories + m.calories,
+          protein:  acc.protein  + m.protein,
+          carbs:    acc.carbs    + m.carbs,
+          fats:     acc.fats     + m.fats,
+        }
+      },
       { calories: 0, protein: 0, carbs: 0, fats: 0 }
     )
     return { day, totals, isEmpty: day.meals.length === 0 }
   })
+
+  // Shopping list: aggregate refs across on-days, group by food + measure, sum quantities.
+  const shopping = new Map<string, { name: string; unit: string; quantity: number }>()
+  for (const day of plan.days) {
+    if (day.isDismissed) continue
+    for (const wpm of day.meals) {
+      for (const ref of parseRefs(wpm.ingredients)) {
+        const food = fmap.get(ref.foodId)
+        if (!food) continue
+        const unit = ref.measure || food.baseUnit
+        const key = `${food.name.toLowerCase()}|${unit.toLowerCase()}`
+        const existing = shopping.get(key)
+        if (existing) existing.quantity += ref.quantity
+        else shopping.set(key, { name: food.name, unit, quantity: ref.quantity })
+      }
+    }
+  }
+  const shoppingList = Array.from(shopping.values()).sort((a, b) => a.name.localeCompare(b.name))
+  const fmtQty = (q: number) => (Number.isInteger(q) ? String(q) : q.toFixed(1))
 
   return (
     <div className="print-shell">
@@ -111,22 +136,20 @@ export default async function PrintPage() {
                   </div>
                 ) : (
                   <>
-                    {day.meals.map(wpm => (
+                    {day.meals.map(wpm => {
+                      const m = sumRefs(parseRefs(wpm.ingredients), fmap)
+                      return (
                       <div key={wpm.id} className="print-meal">
-                        <div className="print-meal-name">
-                          {wpm.meal.title}
-                          {wpm.portionMultiplier !== 1 && (
-                            <span style={{ fontWeight: 400, color: '#98897A' }}> ×{wpm.portionMultiplier}</span>
-                          )}
-                        </div>
+                        <div className="print-meal-name">{wpm.meal.title}</div>
                         <div className="print-meal-macros">
-                          {Math.round(wpm.meal.calories * wpm.portionMultiplier)} kcal ·{' '}
-                          P {Math.round(wpm.meal.protein * wpm.portionMultiplier)}g ·{' '}
-                          C {Math.round(wpm.meal.carbs * wpm.portionMultiplier)}g ·{' '}
-                          F {Math.round(wpm.meal.fats * wpm.portionMultiplier)}g
+                          {Math.round(m.calories)} kcal ·{' '}
+                          P {Math.round(m.protein)}g ·{' '}
+                          C {Math.round(m.carbs)}g ·{' '}
+                          F {Math.round(m.fats)}g
                         </div>
                       </div>
-                    ))}
+                      )
+                    })}
                   </>
                 )}
 
@@ -150,9 +173,23 @@ export default async function PrintPage() {
           })}
         </div>
 
+        {shoppingList.length > 0 && (
+          <div className="print-shopping">
+            <h2>Shopping list</h2>
+            <ul className="print-shopping-list">
+              {shoppingList.map(item => (
+                <li key={`${item.name}|${item.unit}`}>
+                  <span className="qty">{item.quantity > 0 ? `${fmtQty(item.quantity)}${item.unit ? ' ' + item.unit : ''}` : ''}</span>
+                  <span className="name">{item.name}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="print-foot">
           <span><em>Mise</em> · Meal planner</span>
-          <span>For ingredients &amp; cooking instructions, see the app.</span>
+          <span>Adjust portions &amp; cooking steps in the app.</span>
         </div>
       </div>
     </div>

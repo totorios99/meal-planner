@@ -7,6 +7,7 @@ import { Icon } from '@/components/Icon'
 const LINKS = [
   { href: '/',        label: 'Home',     icon: 'home'     },
   { href: '/meals',   label: 'Cookbook', icon: 'book'     },
+  { href: '/foods',   label: 'Foods',    icon: 'flame'    },
   { href: '/planner', label: 'Planner',  icon: 'calendar' },
   { href: '/print',   label: 'Print',    icon: 'printer'  },
 ]
