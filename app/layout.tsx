@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono, Oswald } from 'next/font/google'
 import './globals.css'
 import { Nav } from '@/components/Nav'
 
@@ -13,11 +13,26 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
+// Condensed grotesque for the nutrition-facts panel — matches the dense,
+// bold, all-caps look of NOM-051 "Declaración Nutrimental" labels.
+const oswald = Oswald({
+  variable: '--font-oswald',
+  subsets: ['latin'],
+})
+
 export const metadata: Metadata = {
   title: 'Mise — Meal Planner',
   description: 'Your recipes, with macros.',
   // orange dev favicon so dev/prod tabs are distinguishable
-  icons: { icon: process.env.NODE_ENV === 'development' ? '/favicon-dev.ico' : '/favicon.ico' },
+  icons: {
+    icon: process.env.NODE_ENV === 'development' ? '/favicon-dev.ico' : '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Mise',
+  },
 }
 
 // resizes-content: on-screen keyboard shrinks the layout viewport instead of
@@ -27,6 +42,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   interactiveWidget: 'resizes-content',
+  themeColor: '#c17a52',
 }
 
 export default function RootLayout({
@@ -39,7 +55,7 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       data-wallpaper="mist"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${geistSans.variable} ${geistMono.variable} ${oswald.variable}`}
     >
       <head>
         <script
