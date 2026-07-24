@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
-import { foodInput, toFoodData, foodToJson } from '@/lib/foodSchema'
+import { foodInput, toFoodData, foodToJson, canonicalWarnings } from '@/lib/foodSchema'
 
-// Foods source of truth — the only place macros are authored.
+// Foods source of truth — the only place nutrients are authored.
 export async function GET(request: NextRequest) {
   const search = request.nextUrl.searchParams.get('search')?.trim()
   const foods = await prisma.food.findMany({
@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
   }
   try {
     const food = await prisma.food.create({ data: toFoodData(parsed.data) })
-    return NextResponse.json(foodToJson(food), { status: 201 })
+    const warnings = canonicalWarnings(parsed.data.nutrients)
+    return NextResponse.json({ ...foodToJson(food), ...(warnings.length ? { warnings } : {}) }, { status: 201 })
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       return NextResponse.json({ error: 'A food with that name already exists' }, { status: 409 })

@@ -36,6 +36,7 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
   const [foods, setFoods] = useState<FoodRow[]>([])
   const [foodsLoaded, setFoodsLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [ingredientsValid, setIngredientsValid] = useState(true)
 
   useEffect(() => {
     fetch('/api/foods').then(r => r.json()).then(setFoods).catch(() => {}).finally(() => setFoodsLoaded(true))
@@ -76,6 +77,7 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!ingredientsValid) return
     setSaving(true)
     const method = meal ? 'PUT' : 'POST'
     const url = meal ? `/api/meals/${meal.id}` : '/api/meals'
@@ -197,7 +199,7 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
 
             <div className="field" style={{ marginTop: 14 }}>
               <label>Ingredients <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— pick foods; macros come from the Foods library</span></label>
-              <FoodPicker key={`${meal?.id ?? 'new'}-${foodsLoaded}`} value={ingredients} foods={foods} onChange={setIngredients} />
+              <FoodPicker key={`${meal?.id ?? 'new'}-${foodsLoaded}`} value={ingredients} foods={foods} onChange={setIngredients} onValidChange={setIngredientsValid} />
             </div>
 
             <div className="field">
@@ -218,7 +220,8 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
+            <button type="submit" className="btn btn-primary" disabled={saving || !ingredientsValid}
+              title={!ingredientsValid ? 'Fix the highlighted ingredient row first' : undefined}>
               {saving ? 'Saving…' : meal ? 'Save changes' : 'Add meal'}
             </button>
           </div>

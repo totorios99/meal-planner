@@ -27,16 +27,16 @@ export type WeeklyPlanMeal = {
   ingredients: string // JSON-encoded IngredientRef[] — per-placement, use parseRefs()
 }
 
-// Food row as returned by /api/foods (measures already parsed to an array).
+// Food row as returned by /api/foods (measures/nutrients already parsed to arrays).
 export type FoodRow = {
   id: number
   name: string
   baseUnit: string
-  calories: number
-  protein: number
-  carbs: number
-  fats: number
+  imageUrl: string
+  isPlaceholder: boolean
+  nutrients: { key: string; label: string; unit: string; amount: number; group?: 'macro' | 'micro' | 'other' }[]
   measures: { unit: string; perBase: number }[]
+  warnings?: string[]
 }
 
 export type WeeklyPlanDay = {

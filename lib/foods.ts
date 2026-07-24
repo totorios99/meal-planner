@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { parseRefs, sumRefs, foodsMap, type Food, type IngredientRef, type Macros } from '@/lib/recipe'
+import { parseRefs, sumRefs, foodsMap, type Food, type IngredientRef, type Macros, type NutrientEntry } from '@/lib/recipe'
 import type { ImportIngredient } from '@/lib/mealSchema'
 
 function num(v: unknown): number { const n = Number(v); return Number.isFinite(n) ? n : 0 }
@@ -40,12 +40,14 @@ export async function importIngredientsToRefs(
     const baseUnit = (it.unit || '').trim() || 'unit'
     let food = await prisma.food.findUnique({ where: { name } })
     if (!food) {
+      const nutrients: NutrientEntry[] = [
+        { key: 'calories', label: 'Calories', unit: 'kcal', amount: m.calories / q, group: 'macro' },
+        { key: 'protein_g', label: 'Protein', unit: 'g', amount: m.protein / q, group: 'macro' },
+        { key: 'carbs_g', label: 'Carbs', unit: 'g', amount: m.carbs / q, group: 'macro' },
+        { key: 'fat_g', label: 'Fat', unit: 'g', amount: m.fats / q, group: 'macro' },
+      ]
       food = await prisma.food.create({
-        data: {
-          name, baseUnit,
-          calories: m.calories / q, protein: m.protein / q, carbs: m.carbs / q, fats: m.fats / q,
-          measures: '[]',
-        },
+        data: { name, baseUnit, nutrients: JSON.stringify(nutrients), measures: '[]' },
       })
     }
     refs.push({ foodId: food.id, quantity: q, measure: food.baseUnit || 'unit' })

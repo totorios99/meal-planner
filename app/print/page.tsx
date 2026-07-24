@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { PrintButton } from '@/components/print/PrintButton'
-import { parseRefs, sumRefs, foodsMap } from '@/lib/recipe'
+import { parseRefs, sumRefs, foodsMap, hasUnfilledIngredient } from '@/lib/recipe'
 
 export const dynamic = 'force-dynamic'
 
@@ -137,10 +137,15 @@ export default async function PrintPage() {
                 ) : (
                   <>
                     {day.meals.map(wpm => {
-                      const m = sumRefs(parseRefs(wpm.ingredients), fmap)
+                      const refs = parseRefs(wpm.ingredients)
+                      const m = sumRefs(refs, fmap)
+                      const needsInput = hasUnfilledIngredient(refs, fmap)
                       return (
                       <div key={wpm.id} className="print-meal">
-                        <div className="print-meal-name">{wpm.meal.title}</div>
+                        <div className="print-meal-name">
+                          {wpm.meal.title}
+                          {needsInput && <span className="print-meal-veg-warning">incomplete</span>}
+                        </div>
                         <div className="print-meal-macros">
                           {Math.round(m.calories)} kcal ·{' '}
                           P {Math.round(m.protein)}g ·{' '}

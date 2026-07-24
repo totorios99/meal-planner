@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { WeeklyPlan } from '@/types'
+import { Select } from '@/components/ui/Select'
 
 interface Props {
   onCloned: () => void
@@ -26,26 +27,24 @@ export function QuickFill({ onCloned }: Props) {
   return (
     <div className="quick-fill">
       <span className="quick-fill-label">Quick-fill from past week</span>
-      <select
+      <Select
         value={selected}
-        onChange={e => setSelected(e.target.value)}
+        onChange={setSelected}
         disabled={history.length === 0}
-      >
-        {history.length === 0
-          ? <option value="">— no past weeks yet —</option>
-          : <>
-              <option value="">— pick a week —</option>
-              {history.map(plan => {
+        options={history.length === 0
+          ? [{ value: '', label: '— no past weeks yet —' }]
+          : [
+              { value: '', label: '— pick a week —' },
+              ...history.map(plan => {
                 const d = new Date(plan.weekStart)
-                return (
-                  <option key={plan.id} value={plan.id}>
-                    Week of {d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </option>
-                )
-              })}
-            </>
+                return {
+                  value: String(plan.id),
+                  label: `Week of ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`,
+                }
+              }),
+            ]
         }
-      </select>
+      />
       <button
         className="btn btn-primary btn-sm"
         onClick={handleClone}

@@ -57,7 +57,7 @@ export function MealPicker({ onSelect, onClose }: Props) {
               <div className="sheet-meal-info">
                 <div className="sheet-meal-name">{meal.title}</div>
                 <div className="sheet-meal-meta">
-                  {meal.calories} kcal · P {meal.protein}g · C {meal.carbs}g · F {meal.fats}g
+                  {Math.round(meal.calories * 100) / 100} kcal · P {Math.round(meal.protein * 100) / 100}g · C {Math.round(meal.carbs * 100) / 100}g · F {Math.round(meal.fats * 100) / 100}g
                 </div>
               </div>
               <span style={{ color: 'var(--accent)', flexShrink: 0, display: 'flex' }}><Icon name="plus" size={16} /></span>

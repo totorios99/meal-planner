@@ -379,20 +379,30 @@ server.registerTool('edit_plan_meal', {
 // ── Foods (source of truth) ──
 
 server.registerTool('list_foods', {
-  description: 'List foods in the source-of-truth library (id, name, baseUnit, per-baseUnit macros, measures). Use the ids as foodId in edit_plan_meal / update_meal.',
+  description: 'List foods in the source-of-truth library (id, name, baseUnit, per-baseUnit nutrients, measures). Use the ids as foodId in edit_plan_meal / update_meal.',
   inputSchema: { search: z.string().optional().describe('Filter by name substring') },
 }, async ({ search }) => json(await api(`/api/foods${search ? `?search=${encodeURIComponent(search)}` : ''}`)))
 
+// One nutrient fact, per 1 baseUnit. key defaults to a slugified label when omitted, but the
+// 4 canonical keys below should be passed explicitly to match meal-card display exactly.
+const nutrientObj = z.object({
+  key: z.string().optional().describe('Machine key; omit to auto-derive from label. Use the exact canonical keys for the 4 core macros: calories, protein_g, carbs_g, fat_g.'),
+  label: z.string().min(1).describe('e.g. "Calories", "Cholesterol", "Creatine"'),
+  unit: z.string().optional().describe('e.g. kcal, g, mg, ug'),
+  amount: z.number().min(0),
+  group: z.enum(['macro', 'micro', 'other']).optional(),
+})
+
 server.registerTool('upsert_food', {
-  description: 'Create or update a food (the only place macros are authored). Macros are per 1 baseUnit. measures give conversions (perBase = base units in 1 of that measure, e.g. {unit:"cup", perBase:185}). Pass id to update, omit to create.',
+  description:
+    'Create or update a food (the only place nutrients are authored). Nutrients are a sparse/dynamic list, per 1 baseUnit — not just macros: include any micronutrients or compounds you have real data for (cholesterol_mg, vitamin_b12_ug, creatine_g, etc). Never invent a value for a nutrient you don\'t have data for; omit it instead. ALWAYS include the 4 canonical entries (key: calories/protein_g/carbs_g/fat_g) for any food meant to show on meal cards or count toward day totals — a missing canonical key silently reads as 0 there, not an error. measures give unit conversions (perBase = base units in 1 of that measure, e.g. {unit:"cup", perBase:185}). Pass id to update, omit to create. The response includes a `warnings` array if a canonical key is missing — check it. Set isPlaceholder:true for a generic stand-in food (e.g. "vegetables", "fruit") used by recipes like "Overnight Oats with Fruit" where the real ingredient is left to the user — it contributes 0 to macros and the app nudges the user to swap in something specific when the meal is planned.',
   inputSchema: {
     id: z.number().int().optional(),
-    name: z.string().min(1),
+    name: z.string().min(1).describe('First letter is auto-capitalized server-side; the rest of the casing is kept as typed'),
     baseUnit: z.string().optional().describe('e.g. g, ml, egg (default empty)'),
-    calories: z.number().min(0).optional(),
-    protein: z.number().min(0).optional(),
-    carbs: z.number().min(0).optional(),
-    fats: z.number().min(0).optional(),
+    imageUrl: z.string().optional().describe('A stable /api/images/… path from upload_photo/upload_frame, or a product photo URL'),
+    isPlaceholder: z.boolean().optional().describe('true for a generic stand-in (e.g. "vegetables", "fruit") instead of a real ingredient'),
+    nutrients: z.array(nutrientObj).optional(),
     measures: z.array(z.object({ unit: z.string().min(1), perBase: z.number().positive() })).optional(),
   },
 }, async ({ id, ...body }) =>
