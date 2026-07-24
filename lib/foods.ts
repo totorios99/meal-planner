@@ -4,6 +4,18 @@ import type { ImportIngredient } from '@/lib/mealSchema'
 
 function num(v: unknown): number { const n = Number(v); return Number.isFinite(n) ? n : 0 }
 
+// Case-insensitive name lookup — SQLite's default TEXT collation is case-sensitive, so a plain
+// findUnique({where:{name}}) misses "Egg" when asked for "egg" and silently creates a duplicate
+// food instead of reusing the source of truth. excludeId lets a rename check for conflicts
+// against every *other* food.
+export async function findFoodByName(name: string, excludeId?: number) {
+  const rows = excludeId == null
+    ? await prisma.$queryRaw<{ id: number }[]>`SELECT id FROM "Food" WHERE name = ${name} COLLATE NOCASE LIMIT 1`
+    : await prisma.$queryRaw<{ id: number }[]>`SELECT id FROM "Food" WHERE name = ${name} COLLATE NOCASE AND id != ${excludeId} LIMIT 1`
+  const row = rows[0]
+  return row ? prisma.food.findUnique({ where: { id: row.id } }) : null
+}
+
 // Load all foods as an id→Food map (measures parsed) for macro computation.
 export async function loadFoodsMap(): Promise<Map<number, Food>> {
   const foods = await prisma.food.findMany()
@@ -38,7 +50,7 @@ export async function importIngredientsToRefs(
       ? { calories: totals.calories / nn, protein: totals.protein / nn, carbs: totals.carbs / nn, fats: totals.fats / nn }
       : { calories: num(it.calories), protein: num(it.protein), carbs: num(it.carbs), fats: num(it.fats) }
     const baseUnit = (it.unit || '').trim() || 'unit'
-    let food = await prisma.food.findUnique({ where: { name } })
+    let food = await findFoodByName(name)
     if (!food) {
       const nutrients: NutrientEntry[] = [
         { key: 'calories', label: 'Calories', unit: 'kcal', amount: m.calories / q, group: 'macro' },

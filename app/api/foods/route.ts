@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { foodInput, toFoodData, foodToJson, canonicalWarnings } from '@/lib/foodSchema'
+import { findFoodByName } from '@/lib/foods'
 
 // Foods source of truth — the only place nutrients are authored.
 export async function GET(request: NextRequest) {
@@ -17,6 +18,9 @@ export async function POST(request: NextRequest) {
   const parsed = foodInput.safeParse(await request.json())
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues }, { status: 400 })
+  }
+  if (await findFoodByName(parsed.data.name)) {
+    return NextResponse.json({ error: 'A food with that name already exists' }, { status: 409 })
   }
   try {
     const food = await prisma.food.create({ data: toFoodData(parsed.data) })

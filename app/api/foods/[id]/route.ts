@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { foodInput, foodToJson, canonicalWarnings } from '@/lib/foodSchema'
-import { recomputeMealCache } from '@/lib/foods'
+import { recomputeMealCache, findFoodByName } from '@/lib/foods'
 import { parseRefs } from '@/lib/recipe'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -17,6 +17,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
   const d = parsed.data
   const has = (k: string) => raw != null && typeof raw === 'object' && k in raw
+  const foodId = Number(id)
+  if (has('name') && d.name && await findFoodByName(d.name, foodId)) {
+    return NextResponse.json({ error: 'A food with that name already exists' }, { status: 409 })
+  }
   const data: Record<string, unknown> = {}
   if (has('name')) data.name = d.name
   if (has('baseUnit')) data.baseUnit = d.baseUnit
@@ -26,7 +30,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (has('measures')) data.measures = JSON.stringify(d.measures ?? [])
 
   try {
-    const foodId = Number(id)
     const food = await prisma.food.update({ where: { id: foodId }, data })
     // Propagate: macros are derived, so refresh cached totals — but only when something that
     // affects them actually changed, and only on the meals that reference this food.
