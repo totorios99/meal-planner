@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { BackLink } from '@/components/BackLink'
 import { prisma } from '@/lib/prisma'
-import { parseList, parseRefs, refMacros, foodsMap } from '@/lib/recipe'
+import { parseList, parseRefs, refMacros, foodsMap, formatIngredientLine } from '@/lib/recipe'
 import { Icon } from '@/components/Icon'
 import { MacroRow } from '@/components/meals/MacroRow'
 import { FavoriteButton } from '@/components/meals/FavoriteButton'
@@ -71,14 +71,9 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
               {ingredients.map(({ ref, food, macros }, i) => {
                 const name = food?.name ?? 'Unknown food'
                 const unit = ref.measure || food?.baseUnit || ''
-                const q = ref.quantity % 1 ? Math.round(ref.quantity * 100) / 100 : ref.quantity
-                // Show the unit only for weight/volume measures; count units (egg, clove…)
-                // would just duplicate the food name ("5 egg egg").
-                const MEASURED = ['g', 'kg', 'ml', 'l', 'oz', 'lb', 'cup', 'tbsp', 'tsp']
-                const prefix = MEASURED.includes(unit) ? `${q} ${unit} ` : `${q}× `
                 return (
                   <li key={i}>
-                    <span>{prefix}{name}</span>
+                    <span>{formatIngredientLine(ref.quantity, unit, name)}</span>
                     {macros.calories > 0 && (
                       <span className="recipe-ing-macros">{Math.round(macros.calories)} kcal</span>
                     )}

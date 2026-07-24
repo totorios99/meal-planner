@@ -79,9 +79,18 @@ with header `x-api-key: {MISE_API_KEY}`.
   cannot (e.g. video/photo with no reliable amounts), send plain strings; Mise splits the
   top-level totals across the ingredients as a placeholder the user later refines.
 - If a food with the same name already exists, Mise references it and does NOT overwrite its
-  nutrients — the existing food stays the source of truth.
+  nutrients — the existing food stays the source of truth. Matching is case-insensitive
+  ("egg" reuses "Egg"), but NOT plural/singular or synonym-aware ("egg" vs "eggs" still fork
+  into two foods). Before naming an ingredient, call `list_foods` and reuse an existing name
+  verbatim (same wording/singular-plural) whenever it's the same real-world food — don't
+  invent a slightly different name for something already in the library.
 - `categories` become leading tags in Mise; `tags` follow them
 - Unknown optional fields: omit them, do not invent values
+- Informal small quantities (a pinch of salt, a dash, a splash) display better as their natural
+  unit than as a raw gram/ml decimal ("1 pinch Salt" reads better than "0.3 g Salt"). If the
+  food doesn't already have that measure, add it with `upsert_food` (`measures: [{unit, perBase}]`
+  — perBase is base-units per 1 of that measure) and reference the ingredient in that unit,
+  instead of defaulting everything to grams.
 
 ## Authoring foods directly (`upsert_food`)
 

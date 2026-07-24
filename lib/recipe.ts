@@ -134,6 +134,54 @@ export function measureFactor(food: Food, measure: string): number {
   return m ? m.perBase : 1
 }
 
+// Cooking fractions worth snapping a decimal quantity to for display — order doesn't matter,
+// closest match wins. Tolerance keeps e.g. 0.33333 (1/3 cup) and 0.34 (rounding drift) both
+// reading as "1/3" without also swallowing genuinely different quantities.
+const NICE_FRACTIONS: [number, string][] = [
+  [1 / 8, '1/8'], [1 / 4, '1/4'], [1 / 3, '1/3'], [3 / 8, '3/8'], [1 / 2, '1/2'],
+  [5 / 8, '5/8'], [2 / 3, '2/3'], [3 / 4, '3/4'], [7 / 8, '7/8'],
+]
+const FRACTION_TOLERANCE = 0.02
+
+// True metric/imperial precision units — nobody measures "1/3 g", so these always render as
+// plain decimals. Everything else (count units like "egg", spoon/cup units, informal ones like
+// "pinch") is a natural-language quantity where a cooking fraction reads better than a decimal.
+const DECIMAL_ONLY_UNITS = new Set(['g', 'kg', 'mg', 'ml', 'l', 'oz', 'lb'])
+
+// Quantity as shown to a user: plain rounded decimal for weight/volume units, snapped to the
+// nearest common cooking fraction (whole + fraction, e.g. "1 1/2") for everything else when
+// close enough, else a rounded decimal fallback. Never touches the stored ref.quantity — display
+// only, macro math always uses the raw number.
+export function formatQuantity(q: number, unit: string): string {
+  if (!(q > 0)) return '0'
+  const round2 = Math.round(q * 100) / 100
+  if (DECIMAL_ONLY_UNITS.has(unit.trim().toLowerCase())) return String(round2)
+
+  const whole = Math.floor(q)
+  const frac = q - whole
+  if (frac < FRACTION_TOLERANCE) return String(whole)
+  for (const [value, label] of NICE_FRACTIONS) {
+    if (Math.abs(frac - value) < FRACTION_TOLERANCE) {
+      return whole > 0 ? `${whole} ${label}` : label
+    }
+  }
+  return String(round2) // no nice fraction close enough — fall back to a decimal
+}
+
+// Formatted quantity + unit, omitting the unit when it just repeats the food's own name
+// ("1/2 egg" for food "Egg" would be redundant next to the name — caller drops it).
+export function formatQuantityWithUnit(quantity: number, unit: string, foodName: string): string {
+  const qty = formatQuantity(quantity, unit)
+  const redundant = unit.trim().toLowerCase() === foodName.trim().toLowerCase()
+  return redundant || !unit ? qty : `${qty} ${unit}`
+}
+
+// One ingredient line's full display text: quantity + unit + food name in one string, for
+// call sites that render it as a single span rather than separate qty/name columns.
+export function formatIngredientLine(quantity: number, unit: string, foodName: string): string {
+  return `${formatQuantityWithUnit(quantity, unit, foodName)} ${foodName}`
+}
+
 // Nutrients contributed by one ref, given its food — every entry's amount scaled by the
 // Scale Factor rule (quantity * measureFactor), applied generically instead of per-field.
 export function refNutrients(ref: IngredientRef, food: Food | undefined): NutrientEntry[] {

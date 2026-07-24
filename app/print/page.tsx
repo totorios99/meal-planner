@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { PrintButton } from '@/components/print/PrintButton'
-import { parseRefs, sumRefs, foodsMap, hasUnfilledIngredient } from '@/lib/recipe'
+import { parseRefs, sumRefs, foodsMap, hasUnfilledIngredient, formatQuantityWithUnit } from '@/lib/recipe'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,7 +87,6 @@ export default async function PrintPage() {
     }
   }
   const shoppingList = Array.from(shopping.values()).sort((a, b) => a.name.localeCompare(b.name))
-  const fmtQty = (q: number) => (Number.isInteger(q) ? String(q) : q.toFixed(1))
 
   return (
     <div className="print-shell">
@@ -184,7 +183,7 @@ export default async function PrintPage() {
             <ul className="print-shopping-list">
               {shoppingList.map(item => (
                 <li key={`${item.name}|${item.unit}`}>
-                  <span className="qty">{item.quantity > 0 ? `${fmtQty(item.quantity)}${item.unit ? ' ' + item.unit : ''}` : ''}</span>
+                  <span className="qty">{item.quantity > 0 ? formatQuantityWithUnit(item.quantity, item.unit, item.name) : ''}</span>
                   <span className="name">{item.name}</span>
                 </li>
               ))}
