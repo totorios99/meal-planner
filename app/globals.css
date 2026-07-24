@@ -1312,6 +1312,8 @@ input, textarea { font-family: inherit; color: inherit; }
   width: calc(100% - 32px);
   padding: 14px 14px 14px 16px;
   background: var(--bg-elev);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   border: 1px solid var(--warn);
   border-radius: var(--r-md);
   box-shadow: 0 8px 28px rgba(0,0,0,.28);
@@ -1407,6 +1409,7 @@ input, textarea { font-family: inherit; color: inherit; }
 .food-row-name { font-size: 14px; font-weight: 600; color: var(--ink); }
 .food-row-macros { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .food-row-per { color: var(--ink-4); }
+.food-row-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
 .food-row-measures {
   font-size: 11px; color: var(--ink-3); flex-shrink: 0;
   padding: 2px 8px; background: var(--bg-sunken); border-radius: var(--r-pill);
@@ -1848,7 +1851,7 @@ input, textarea { font-family: inherit; color: inherit; }
 
   .tabbar {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     position: fixed;
     left: 12px; right: 12px;
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
@@ -1932,6 +1935,15 @@ input, textarea { font-family: inherit; color: inherit; }
   .day-col { min-height: 0; }
   .quick-fill { flex-direction: column; align-items: stretch; }
   .quick-fill .ui-select-trigger { min-width: 0; width: 100%; }
+
+  /* Narrower columns so the ingredient row fits the sheet width instead of forcing a
+     horizontal scroll to reach the delete button. */
+  .fp-head, .fp-row {
+    grid-template-columns: minmax(0,1.3fr) 40px 56px minmax(0,1fr) 18px;
+    gap: 4px;
+    min-width: 0;
+  }
+  .fp-macros { font-size: 10px; }
 
   .print-toolbar { flex-direction: column; align-items: stretch; gap: 12px; }
   .print-toolbar .btn { flex: 1; justify-content: center; }

@@ -89,16 +89,20 @@ export default function FoodsPage() {
                   {Math.round(m.calories * factor * 100) / 100} kcal · {Math.round(m.protein * factor * 100) / 100}P {Math.round(m.carbs * factor * 100) / 100}C {Math.round(m.fats * factor * 100) / 100}F
                   <span className="food-row-per"> / {display}</span>
                 </span>
+                {(f.isPlaceholder || extraCount > 0 || f.measures.length > 0) && (
+                  <div className="food-row-badges">
+                    {f.isPlaceholder && (
+                      <span className="food-row-measures" title="Contributes 0 to macros — a stand-in the user fills in when planning">placeholder</span>
+                    )}
+                    {extraCount > 0 && (
+                      <span className="food-row-measures">+{extraCount} more nutrient{extraCount === 1 ? '' : 's'}</span>
+                    )}
+                    {f.measures.length > 0 && (
+                      <span className="food-row-measures">{f.measures.map(u => u.unit).join(', ')}</span>
+                    )}
+                  </div>
+                )}
               </div>
-              {f.isPlaceholder && (
-                <span className="food-row-measures" title="Contributes 0 to macros — a stand-in the user fills in when planning">placeholder</span>
-              )}
-              {extraCount > 0 && (
-                <span className="food-row-measures">+{extraCount} more nutrient{extraCount === 1 ? '' : 's'}</span>
-              )}
-              {f.measures.length > 0 && (
-                <span className="food-row-measures">{f.measures.map(u => u.unit).join(', ')}</span>
-              )}
               <span className="food-row-del" role="button" title="Delete"
                 onClick={e => { e.stopPropagation(); handleDelete(f) }}>
                 <Icon name="trash" size={14} />

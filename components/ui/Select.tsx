@@ -23,7 +23,14 @@ export function Select({ value, options, onChange, disabled, className }: Props)
 
   function reposition() {
     const r = triggerRef.current?.getBoundingClientRect()
-    if (r) setRect({ top: r.bottom + 4, left: r.left, width: r.width })
+    if (!r) return
+    // position:fixed tracks the visual viewport on mobile Safari, which drifts from the layout
+    // viewport (what getBoundingClientRect measures) whenever the browser chrome resizes —
+    // subtract that drift or the menu renders offset from the trigger.
+    const vv = window.visualViewport
+    const dx = vv ? vv.offsetLeft : 0
+    const dy = vv ? vv.offsetTop : 0
+    setRect({ top: r.bottom - dy + 4, left: r.left - dx, width: r.width })
   }
 
   useEffect(() => {
@@ -37,11 +44,15 @@ export function Select({ value, options, onChange, disabled, className }: Props)
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setOpen(false) }
     window.addEventListener('scroll', reposition, true)
     window.addEventListener('resize', reposition)
+    window.visualViewport?.addEventListener('resize', reposition)
+    window.visualViewport?.addEventListener('scroll', reposition)
     document.addEventListener('mousedown', onDocDown)
     document.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('scroll', reposition, true)
       window.removeEventListener('resize', reposition)
+      window.visualViewport?.removeEventListener('resize', reposition)
+      window.visualViewport?.removeEventListener('scroll', reposition)
       document.removeEventListener('mousedown', onDocDown)
       document.removeEventListener('keydown', onKey)
     }
