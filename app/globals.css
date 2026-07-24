@@ -72,6 +72,8 @@
   --bg: var(--wp-base);
   --bg-elev: rgba(255,255,255,.07);
   --bg-sunken: rgba(255,255,255,.04);
+  /* Opaque stock for the nutrition label (see .nutrition-card). */
+  --label-paper: #241e1c;
   --line: var(--stroke);
   --line-strong: var(--stroke-hi);
 }
@@ -127,6 +129,7 @@
 
   --bg-elev: rgba(255,255,255,.6);
   --bg-sunken: rgba(22,32,42,.05);
+  --label-paper: #e3e3e4;
 }
 [data-theme="light"] .wallpaper { filter: saturate(96%); }
 [data-theme="light"] .wallpaper::before {
@@ -1457,15 +1460,16 @@ input, textarea { font-family: inherit; color: inherit; }
   border: 2px solid var(--ink);
   border-radius: var(--r-sm);
   padding: 10px 12px 4px;
-  background: var(--bg-elev);
+  background: var(--label-paper);
 }
 .nutrition-sticky-head {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--bg-elev);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  /* Same opaque stock as the card. It previously re-declared the translucent --bg-elev,
+     which composited on top of the card's own copy and rendered the four macro rows as a
+     visibly whiter block than the micros scrolling beneath them. */
+  background: var(--label-paper);
 }
 .nutrition-title-bar {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
