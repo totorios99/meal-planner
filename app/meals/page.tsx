@@ -94,7 +94,7 @@ export default function CookbookPage() {
   }
 
   return (
-    <div className="page">
+    <main className="page">
       {/* Page header */}
       <div className="page-header">
         <div className="page-header-text">
@@ -119,6 +119,8 @@ export default function CookbookPage() {
         <div className="search">
           <Icon name="search" size={16} className="search-icon" />
           <input
+            type="search"
+            aria-label="Search meals, ingredients, tags"
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Search meals, ingredients, tags…"
@@ -178,6 +180,6 @@ export default function CookbookPage() {
           onSaved={fetchMeals}
         />
       )}
-    </div>
+    </main>
   )
 }

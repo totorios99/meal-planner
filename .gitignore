@@ -45,6 +45,9 @@ next-env.d.ts
 # database files
 db/*.db
 db/*.db-journal
+# pre-migration snapshots and pulled prod dumps — real user data, never commit
+db/*.bak-*
+db/backups/
 
 # user uploads
 /uploads

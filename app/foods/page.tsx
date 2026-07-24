@@ -40,7 +40,7 @@ export default function FoodsPage() {
   }
 
   return (
-    <div className="page">
+    <main className="page">
       <div className="page-header">
         <div className="page-header-text">
           <div className="page-eyebrow">
@@ -57,7 +57,8 @@ export default function FoodsPage() {
       <div className="toolbar">
         <div className="search">
           <Icon name="search" size={16} className="search-icon" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search foods…" />
+          <input type="search" aria-label="Search foods" value={q}
+            onChange={e => setQ(e.target.value)} placeholder="Search foods…" />
         </div>
       </div>
 
@@ -81,7 +82,9 @@ export default function FoodsPage() {
             return (
             <button key={f.id} className="food-row" onClick={() => openEdit(f)}>
               {f.imageUrl && (
-                <div className="today-meal-thumb"><img src={f.imageUrl} alt="" /></div>
+                <div className="today-meal-thumb">
+                  <img src={f.imageUrl} alt="" loading="lazy" decoding="async" />
+                </div>
               )}
               <div className="food-row-main">
                 <span className="food-row-name">{f.name}</span>
@@ -116,6 +119,6 @@ export default function FoodsPage() {
       {showModal && (
         <FoodModal food={editing} onClose={() => setShowModal(false)} onSaved={fetchFoods} />
       )}
-    </div>
+    </main>
   )
 }

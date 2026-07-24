@@ -184,7 +184,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="page">
+    <main className="page">
       {/* Header */}
       <div className="page-header">
         <div className="page-header-text">
@@ -211,9 +211,9 @@ export default function HomePage() {
               {today.justification || 'Off day'}
             </div>
           ) : todayMeals.length === 0 ? (
-            <div style={{ color: 'var(--ink-4)', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>
+            <div style={{ color: 'var(--ink-3)', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>
               No meals planned yet.{' '}
-              <Link href="/planner" style={{ color: 'var(--accent)' }}>Open planner →</Link>
+              <Link href="/planner" style={{ color: 'var(--accent-ink)' }}>Open planner →</Link>
             </div>
           ) : (
             <div className="today-meals">
@@ -391,6 +391,6 @@ export default function HomePage() {
       {showTargets && (
         <TargetsModal targets={targets} onSave={updateTargets} onClose={() => setShowTargets(false)} />
       )}
-    </div>
+    </main>
   )
 }

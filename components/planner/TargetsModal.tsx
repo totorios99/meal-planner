@@ -46,7 +46,7 @@ export function TargetsModal({ targets, onSave, onClose }: Props) {
           {FIELDS.map(f => (
             <div key={f.key} className="field" style={{ marginBottom: 14 }}>
               <label>
-                {f.label} <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>({f.unit})</span>
+                {f.label} <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>({f.unit})</span>
               </label>
               <input
                 type="number"

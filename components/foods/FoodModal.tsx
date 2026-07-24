@@ -75,6 +75,32 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
     setNutrients(rows => rows.map((r, i) => i === idx ? { ...r, ...patch } : r))
   }
 
+  function renderNutrientRow(r: NutrientRow, idx: number) {
+    const locked = isLocked(r)
+    return (
+      <div className={`nutrition-row group-${r.group}`} key={r.key ?? idx}>
+        {locked ? (
+          <span className="nutrition-row-label">{r.label}</span>
+        ) : (
+          <input className="nutrition-row-label" placeholder="e.g. Cholesterol" value={r.label}
+            onChange={e => setRow(idx, { label: e.target.value })} />
+        )}
+        <div className="nutrition-row-values">
+          <input type="number" min="0" step="any" placeholder="0" value={r.amount}
+            onChange={e => setRow(idx, { amount: e.target.value })} />
+          <input placeholder={locked ? r.unit : 'mg'} value={r.unit}
+            onChange={e => setRow(idx, { unit: e.target.value })} />
+          {!locked && (
+            <button type="button" className="ing-del" title="Remove"
+              onClick={() => setNutrients(rows => rows.filter((_, i) => i !== idx))}>
+              <Icon name="x" size={11} />
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
@@ -141,35 +167,17 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
 
             <div className="field" style={{ marginTop: 14 }}>
               <div className="nutrition-card">
-                <div className="nutrition-title-bar">
-                  <span className="nutrition-title">Nutrients</span>
-                  <span className="nutrition-title-unit">per {scale.display || form.baseUnit || 'unit'}</span>
-                </div>
-                {nutrients.map((r, idx) => {
-                  const locked = isLocked(r)
-                  return (
-                  <div className={`nutrition-row group-${r.group}`} key={r.key ?? idx}>
-                    {locked ? (
-                      <span className="nutrition-row-label">{r.label}</span>
-                    ) : (
-                      <input className="nutrition-row-label" placeholder="e.g. Cholesterol" value={r.label}
-                        onChange={e => setRow(idx, { label: e.target.value })} />
-                    )}
-                    <div className="nutrition-row-values">
-                      <input type="number" min="0" step="any" placeholder="0" value={r.amount}
-                        onChange={e => setRow(idx, { amount: e.target.value })} />
-                      <input placeholder={locked ? r.unit : 'mg'} value={r.unit}
-                        onChange={e => setRow(idx, { unit: e.target.value })} />
-                      {!locked && (
-                        <button type="button" className="ing-del" title="Remove"
-                          onClick={() => setNutrients(rows => rows.filter((_, i) => i !== idx))}>
-                          <Icon name="x" size={11} />
-                        </button>
-                      )}
-                    </div>
+                {/* Title + the 4 canonical macros stay pinned while a long micro/other list
+                    (e.g. Avocado's 16 extras) scrolls underneath — the headline numbers
+                    shouldn't scroll out of view just because the detail rows are long. */}
+                <div className="nutrition-sticky-head">
+                  <div className="nutrition-title-bar">
+                    <span className="nutrition-title">Nutrients</span>
+                    <span className="nutrition-title-unit">per {scale.display || form.baseUnit || 'unit'}</span>
                   </div>
-                  )
-                })}
+                  {nutrients.slice(0, CANONICAL_NUTRIENTS.length).map((r, idx) => renderNutrientRow(r, idx))}
+                </div>
+                {nutrients.slice(CANONICAL_NUTRIENTS.length).map((r, i) => renderNutrientRow(r, i + CANONICAL_NUTRIENTS.length))}
               </div>
               <button type="button" className="ing-add" style={{ marginTop: 6 }}
                 onClick={() => setNutrients(rows => [...rows, { label: '', unit: '', amount: '', group: 'other' }])}>

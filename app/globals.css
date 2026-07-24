@@ -31,7 +31,12 @@
   /* Accent — clay */
   --accent: #c98a63;
   --accent-2: #d6a07f;
-  --accent-grad: linear-gradient(140deg, #cf9069, #bd734f);
+  /* Every consumer of this ramp fills a surface that carries #fff text (primary button,
+     active chip, brand mark, quick-action tile). The old #cf9069→#bd734f stops put that
+     text at 2.68–3.67:1; these clear 4.5:1 (4.59 and 5.81) while holding the same hue and
+     the same light→dark direction. --accent itself is untouched — it tints borders, dots
+     and accent text, none of which reverse out in white. */
+  --accent-grad: linear-gradient(140deg, #ab6337, #945537);
   --accent-soft: rgba(201,138,99,.15);
   --accent-ink: #eccfba;
 
@@ -95,7 +100,10 @@
 
   --ink: #16202a;
   --ink-2: rgba(22,32,42,.82);
-  --ink-3: rgba(22,32,42,.60);
+  /* .66 is the measured floor for 4.5:1 against both the panel (#f6f8f9) and the page
+     (#dfe6eb) — ink-3 is the secondary *content* tier, so it has to clear AA by definition.
+     ink-4 stays below it as the decorative/disabled tier and is never used for real text. */
+  --ink-3: rgba(22,32,42,.66);
   --ink-4: rgba(22,32,42,.42);
 
   --kcal: #16202a;
@@ -194,11 +202,6 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 .ui-select-option:hover { background: var(--bg-sunken); }
 .ui-select-option.selected { color: var(--accent); font-weight: 600; }
-/* iOS auto-zooms (and never reverts) on focus of any control < 16px.
-   Bump to 16px on touch devices only so desktop sizing is untouched. */
-@media (pointer: coarse) {
-  input, textarea { font-size: 16px; }
-}
 
 .mono { font-family: var(--mono); }
 .num { font-variant-numeric: tabular-nums; }
@@ -240,6 +243,13 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 @media (prefers-reduced-motion: reduce) {
   .meal-grid > *, .recipe-page, .fav-btn.is-fav svg, .shimmer { animation: none; }
+  /* Modal/menu/alert entrances translate and scale, which is exactly the vestibular trigger
+     this query exists for. Drop the movement but keep the elements themselves — a sheet that
+     never appears is worse than one that appears instantly. The shimmer above keeps its
+     `animation: none` (it's a loading placeholder, not a state change). */
+  .sheet, .sheet-backdrop, .ui-select-menu, .fixed-alert, .meal-menu { animation: none; }
+  /* Hover/press feedback stays, but instant — these communicate state, not decoration. */
+  .btn:active, .meal-card:hover, .plan-meal { transition-duration: .01ms; }
 }
 
 /* === Top Nav === */
@@ -364,9 +374,9 @@ input, textarea { font-family: inherit; color: inherit; }
 .btn-primary {
   background: var(--accent-grad);
   color: #fff;
-  box-shadow: var(--inset-hi), 0 10px 24px -10px rgba(201,138,99,.6);
+  box-shadow: var(--inset-hi), 0 10px 24px -10px rgba(148,85,55,.55);
 }
-.btn-primary:hover { filter: brightness(1.05); box-shadow: var(--inset-hi), 0 14px 30px -10px rgba(201,138,99,.7); }
+.btn-primary:hover { filter: brightness(1.08); box-shadow: var(--inset-hi), 0 14px 30px -10px rgba(148,85,55,.65); }
 .btn-ghost {
   background: var(--glass-fill);
   color: var(--ink);
@@ -569,7 +579,9 @@ input, textarea { font-family: inherit; color: inherit; }
   max-width: calc(100% - 24px);
 }
 .meal-tag {
-  background: rgba(0,0,0,.4);
+  /* Tags sit on arbitrary user photos. At .4 white text drops to ~2.8:1 over a bright/white
+     product shot; .55 holds 4.76:1 even against pure white, and matches .meal-tag-more. */
+  background: rgba(0,0,0,.55);
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -625,7 +637,8 @@ input, textarea { font-family: inherit; color: inherit; }
   font-weight: 600;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--ink-4);
+  /* Names which macro each number is — content, not decoration, so it clears AA. */
+  color: var(--ink-3);
   display: flex;
   align-items: center;
 }
@@ -713,7 +726,7 @@ input, textarea { font-family: inherit; color: inherit; }
   background: var(--accent-grad);
   color: #fff;
   border-color: transparent;
-  box-shadow: var(--inset-hi), 0 8px 20px -8px rgba(201,138,99,.6);
+  box-shadow: var(--inset-hi), 0 8px 20px -8px rgba(148,85,55,.55);
 }
 
 /* === Meal grid === */
@@ -779,6 +792,7 @@ input, textarea { font-family: inherit; color: inherit; }
 .sheet-body {
   padding: 4px 24px 20px;
   max-height: 60vh;
+  max-height: 60dvh;
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--stroke-hi) transparent;
@@ -870,6 +884,10 @@ input, textarea { font-family: inherit; color: inherit; }
   gap: 24px;
   margin-bottom: 32px;
 }
+/* Grid items default to min-width:auto, so a long meal title or macro row sets a min-content
+   floor wider than the track and pushes the document sideways at narrow widths (338px at a
+   320px viewport). Let them shrink; their own children already ellipsize or wrap. */
+.home-grid > * { min-width: 0; }
 .today-card {
   border-radius: var(--r-xl);
   padding: 26px;
@@ -1078,7 +1096,7 @@ input, textarea { font-family: inherit; color: inherit; }
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  box-shadow: var(--inset-hi), 0 8px 18px -8px rgba(201,138,99,.6);
+  box-shadow: var(--inset-hi), 0 8px 18px -8px rgba(148,85,55,.55);
 }
 .qa-text { min-width: 0; }
 .qa-title { font-size: 15px; font-weight: 500; color: var(--ink); letter-spacing: -.005em; }
@@ -1391,7 +1409,7 @@ input, textarea { font-family: inherit; color: inherit; }
 /* Planner placement — expandable ingredient editor */
 .plan-meal-edit {
   border: none; background: transparent; cursor: pointer;
-  color: var(--ink-4); display: inline-flex; align-items: center; gap: 3px;
+  color: var(--ink-3); display: inline-flex; align-items: center; gap: 3px;
   font-size: 11px; padding: 2px 4px; border-radius: var(--r-sm);
 }
 .plan-meal-edit:hover { color: var(--ink-2); background: var(--bg-sunken); }
@@ -1408,7 +1426,7 @@ input, textarea { font-family: inherit; color: inherit; }
 .food-row-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .food-row-name { font-size: 14px; font-weight: 600; color: var(--ink); }
 .food-row-macros { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.food-row-per { color: var(--ink-4); }
+.food-row-per { color: var(--ink-3); }
 .food-row-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
 .food-row-measures {
   font-size: 11px; color: var(--ink-3); flex-shrink: 0;
@@ -1440,6 +1458,14 @@ input, textarea { font-family: inherit; color: inherit; }
   border-radius: var(--r-sm);
   padding: 10px 12px 4px;
   background: var(--bg-elev);
+}
+.nutrition-sticky-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-elev);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
 }
 .nutrition-title-bar {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
@@ -1491,6 +1517,23 @@ input, textarea { font-family: inherit; color: inherit; }
 /* Top-level macros: bold, full size, no indent — the label's "headline" rows. */
 .nutrition-row.group-macro { font-size: 16px; font-weight: 700; }
 .nutrition-row.group-macro .nutrition-row-values input[type="number"] { font-size: 16px; }
+
+/* Calories is always the first row (CANONICAL_NUTRIENTS order) — the one number glanced at
+   more than all the others combined earns its own weight and rule, like a real label's energy
+   line sitting apart from the macro list under it. */
+.nutrition-title-bar + .nutrition-row {
+  font-size: 20px;
+  border-bottom-width: 2px;
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+}
+.nutrition-title-bar + .nutrition-row .nutrition-row-values input[type="number"] { font-size: 20px; }
+
+/* When micros follow, thicken the last macro row's rule into a section break instead of adding
+   a second border under it (which doubled-up as two thin lines with no gap between them). */
+.nutrition-row.group-macro:has(+ .nutrition-row:not(.group-macro)) {
+  border-bottom-width: 2px;
+}
 
 /* Micro/other nutrients: indented sub-items, smaller, lighter weight — the label's detail rows. */
 .nutrition-row.group-micro, .nutrition-row.group-other {
@@ -1729,8 +1772,8 @@ input, textarea { font-family: inherit; color: inherit; }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .03em;
-  color: #B5651D;
-  border: 1px solid #B5651D;
+  color: #a55c1a;
+  border: 1px solid #a55c1a;
   border-radius: 999px;
   vertical-align: 1px;
 }
@@ -1773,7 +1816,7 @@ input, textarea { font-family: inherit; color: inherit; }
   justify-content: center;
   font-family: var(--display);
   font-style: italic;
-  color: #98897A;
+  color: #7a6d5f;
   font-size: 15px;
   text-align: center;
 }
@@ -1844,7 +1887,13 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 
 @media (max-width: 768px) {
-  .nav { position: absolute; top: 12px; left: 12px; right: 12px; padding: 0; }
+  .nav {
+    position: absolute;
+    top: 12px;
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    padding: 0;
+  }
   .nav-inner { padding: 5px 16px; gap: 12px; }
   .nav-links { display: none; }
   .icon-btn { width: 44px; height: 44px; border-radius: 12px; }
@@ -1853,7 +1902,8 @@ input, textarea { font-family: inherit; color: inherit; }
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     position: fixed;
-    left: 12px; right: 12px;
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     z-index: 40;
     background: var(--panel);
@@ -1888,11 +1938,18 @@ input, textarea { font-family: inherit; color: inherit; }
 
   .app { padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
 
-  .page { padding: 94px 16px 40px; }
-  .print-shell { padding: 20px 16px 40px; }
+  .page {
+    padding: 94px calc(16px + env(safe-area-inset-right, 0px)) 40px calc(16px + env(safe-area-inset-left, 0px));
+  }
+  .print-shell {
+    padding: 20px calc(16px + env(safe-area-inset-right, 0px)) 40px calc(16px + env(safe-area-inset-left, 0px));
+  }
   .page-header { flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 12px; }
   .page-title { font-size: 32px; }
   .page-header .btn { flex: 1; justify-content: center; }
+  /* The planner's week-nav + Targets pair is flex-shrink:0 inline, so below ~360px it runs
+     3px past the viewport. Let the action row wrap rather than forcing a document scroll. */
+  .page-header > div { flex-wrap: wrap; }
 
   .home-grid { gap: 16px; margin-bottom: 20px; }
   .today-card, .macros-block { padding: 20px; border-radius: 16px; }
@@ -1922,7 +1979,22 @@ input, textarea { font-family: inherit; color: inherit; }
   .meal-desc { display: none; }
   .toolbar { gap: 10px; }
   .search { max-width: none; }
-  .chips { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; scrollbar-width: none; }
+  /* The filter rows scroll sideways on mobile with the scrollbar hidden, so a chip clipped at
+     the right edge read as broken rather than as "there's more". Bleed the row into the page
+     gutter and fade its trailing edge — the cut now looks deliberate and hints at the scroll.
+     mask-image degrades gracefully: unsupported browsers just get the plain clip back. */
+  .chips {
+    width: auto;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    margin-inline: calc(-16px - env(safe-area-inset-left, 0px)) calc(-16px - env(safe-area-inset-right, 0px));
+    padding-inline: calc(16px + env(safe-area-inset-left, 0px)) calc(16px + env(safe-area-inset-right, 0px));
+    scroll-padding-inline: 16px;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  }
   .chips::-webkit-scrollbar { display: none; }
   .chip { white-space: nowrap; }
   .meal-menu-btn { opacity: 1; }
@@ -1970,9 +2042,10 @@ input, textarea { font-family: inherit; color: inherit; }
     max-width: none;
     border-radius: 18px 18px 0 0;
     max-height: 88vh;
+    max-height: 88dvh;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  .sheet-body { max-height: 70vh; }
+  .sheet-body { max-height: 70vh; max-height: 70dvh; }
 }
 
 @media (max-width: 720px) {
@@ -2032,7 +2105,7 @@ input, textarea { font-family: inherit; color: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--ink-3);
   text-decoration: none;
@@ -2067,7 +2140,7 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 .recipe-title {
   font-family: var(--display);
-  font-size: 38px;
+  font-size: 2.375rem;
   line-height: 1.05;
   letter-spacing: -0.03em;
   font-weight: 700;
@@ -2077,7 +2150,7 @@ input, textarea { font-family: inherit; color: inherit; }
 .recipe-desc {
   margin-top: 8px;
   color: var(--ink-2);
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 450;
 }
 .recipe-meta {
@@ -2095,7 +2168,7 @@ input, textarea { font-family: inherit; color: inherit; }
   border-radius: var(--r-pill);
   border: 1px solid var(--stroke);
   background: var(--glass-fill);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--ink-2);
 }
@@ -2117,7 +2190,7 @@ input, textarea { font-family: inherit; color: inherit; }
   padding: 20px 22px;
 }
 .recipe-panel-title {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -2131,7 +2204,7 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 .recipe-ingredients li {
   padding: 9px 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--ink-2);
   border-bottom: 1px solid var(--hair);
   display: flex;
@@ -2148,7 +2221,9 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 .recipe-ingredients li:last-child { border-bottom: none; padding-bottom: 0; }
 .recipe-ingredients li:first-child { padding-top: 0; }
-.recipe-ing-macros { margin-left: auto; color: var(--ink-4); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Per-ingredient kcal is data the page exists to show, not a decorative annotation — it reads
+   from the AA-clearing content tier, not ink-4. */
+.recipe-ing-macros { margin-left: auto; color: var(--ink-3); font-size: 0.78rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .recipe-steps {
   list-style: none;
   counter-reset: step;
@@ -2160,7 +2235,7 @@ input, textarea { font-family: inherit; color: inherit; }
   display: flex;
   gap: 14px;
   padding: 12px 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.55;
   color: var(--ink-2);
   border-bottom: 1px solid var(--hair);
@@ -2175,13 +2250,13 @@ input, textarea { font-family: inherit; color: inherit; }
   border-radius: 50%;
   background: var(--accent-soft);
   color: var(--accent-ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .recipe-steps li:last-child { border-bottom: none; padding-bottom: 0; }
 .recipe-steps li:first-child { padding-top: 0; }
-.recipe-empty { color: var(--ink-4); font-size: 14px; margin: 0; }
+.recipe-empty { color: var(--ink-3); font-size: 0.875rem; margin: 0; }
 
 /* ── Photo upload + adjust ── */
 .photo-preview {
@@ -2239,10 +2314,27 @@ input, textarea { font-family: inherit; color: inherit; }
 
 /* after the base rules above so the mobile padding wins the cascade */
 @media (max-width: 768px) {
-  .recipe-page { padding: 94px 16px calc(100px + env(safe-area-inset-bottom, 0px)); }
+  .recipe-page {
+    padding: 94px calc(16px + env(safe-area-inset-right, 0px))
+             calc(100px + env(safe-area-inset-bottom, 0px))
+             calc(16px + env(safe-area-inset-left, 0px));
+  }
   .recipe-columns { grid-template-columns: 1fr; }
   .recipe-hero { height: 200px; }
-  .recipe-title { font-size: 30px; }
+  .recipe-title { font-size: 1.875rem; }
+}
+
+/* WCAG 2.5.8 target size on touch. The back link and favourite toggle are this page's only
+   two controls, and mobile is where it's actually read — grow the hit area without moving
+   anything visually: the link keeps its text size and gains vertical padding, the button
+   grows to 44px. Desktop pointer sizing is untouched. */
+@media (pointer: coarse) {
+  .recipe-back {
+    min-height: 44px;
+    padding: 8px 10px 8px 0;
+    margin-bottom: 10px;
+  }
+  .recipe-head .fav-btn { width: 44px; height: 44px; }
 }
 
 @media print {
@@ -2251,4 +2343,64 @@ input, textarea { font-family: inherit; color: inherit; }
   body, html { background: #fff; }
   .print-shell { padding: 0; display: flex; justify-content: center; }
   .print-paper { border: none; box-shadow: none; padding: 24px; margin: 0 auto; width: 100%; }
+}
+
+/* ── Touch target floor (WCAG 2.5.8) ──────────────────────────────────────────
+   These controls are deliberately small: they sit inside dense meal cards, plan
+   slots and food rows where a 44px button would wreck the composition. So the
+   *hit area* grows instead of the artwork — a centred pseudo-element pads each
+   one out to 44×44 on touch pointers only, leaving desktop and every pixel of
+   the visual design exactly as-is. */
+@media (pointer: coarse) {
+  .meal-menu-btn, .fav-btn, .off-toggle, .plan-meal-edit, .food-row-del, .ing-del {
+    position: relative;
+  }
+  .meal-menu-btn::after,
+  .fav-btn::after,
+  .off-toggle::after,
+  .plan-meal-remove::after,
+  .plan-meal-edit::after,
+  .food-row-del::after,
+  .ing-del::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+  /* The remove button only fades in on hover/focus on desktop; on touch there is no
+     hover, so keep it permanently visible or its enlarged target is unreachable. */
+  .plan-meal-remove, .meal-menu-btn { opacity: 1; }
+}
+
+/* ── iOS focus-zoom guard ─────────────────────────────────────────────────────
+   Safari zooms the visual viewport whenever a focused control is under 16px, and
+   never zooms back out — that's what put the meal picker's results behind the
+   keyboard and pushed its "+" off to the right, needing a horizontal pan to reach.
+   The old bare `input, textarea` rule sat near the top of this file with
+   specificity 0-0-1, so every later `.class input` rule (14px search, 13px measure
+   row…) beat it and the guard never actually applied. It lives at the end now, at
+   matching specificity, so it wins on touch only — desktop sizing is untouched. */
+@media (pointer: coarse) {
+  input, textarea, select,
+  .search input,
+  .field input, .field textarea, .field select,
+  .fp-row input, .fp-row .ui-select-trigger,
+  .measure-row input,
+  .nutrition-card .nutrition-row-label,
+  .nutrition-card .nutrition-row-values input,
+  .day-note-input, .off-placeholder-input {
+    font-size: 16px;
+  }
+  /* Calories stays the label's headline number — already above the zoom floor. */
+  .nutrition-title-bar + .nutrition-row .nutrition-row-values input[type="number"] {
+    font-size: 20px;
+  }
+  /* The value/unit columns were sized for 13-14px text; at the 16px floor "kcal" no longer
+     fits its 44px box and an input clips its own overflow silently (no scrollbar, no ellipsis
+     — the glyphs just disappear at the card's edge). Widen both columns to match the type. */
+  .nutrition-card .nutrition-row-values input[type="number"] { width: 62px; }
+  .nutrition-card .nutrition-row-values input:not([type="number"]) { width: 52px; }
 }

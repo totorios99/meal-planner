@@ -57,12 +57,12 @@ export default function PlannerPage() {
   const { weekStart, weekEnd } = getWeekBounds(weekOffset)
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--ink-4)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--ink-3)' }}>
       Loading planner…
     </div>
   )
   if (!plan) return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 240, gap: 12, color: 'var(--ink-4)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 240, gap: 12, color: 'var(--ink-3)' }}>
       <span>Could not load planner.</span>
       <button className="btn btn-ghost btn-sm" onClick={fetchPlan}>Retry</button>
     </div>
@@ -76,7 +76,7 @@ export default function PlannerPage() {
   }, 0)
 
   return (
-    <div className="page" style={{ maxWidth: 1480 }}>
+    <main className="page" style={{ maxWidth: 1480 }}>
       <div className="page-header">
         <div className="page-header-text">
           <div className="page-eyebrow">Weekly planner</div>
@@ -108,6 +108,6 @@ export default function PlannerPage() {
       {showTargets && (
         <TargetsModal targets={targets} onSave={updateTargets} onClose={() => setShowTargets(false)} />
       )}
-    </div>
+    </main>
   )
 }

@@ -42,6 +42,12 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   interactiveWidget: 'resizes-content',
+  // The stylesheet already positions the tab bar, sheets and page padding off
+  // env(safe-area-inset-*), but those only resolve to real values under
+  // viewport-fit: cover — without it iOS insets the viewport itself and every
+  // env() reads 0, so the tab bar sat in the home-indicator strip once the app
+  // was installed to the Home Screen.
+  viewportFit: 'cover',
   themeColor: '#c17a52',
 }
 

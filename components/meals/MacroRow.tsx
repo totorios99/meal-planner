@@ -25,7 +25,7 @@ export function MacroRow(macros: Props) {
             <span className="macro-full">{m.label}</span><span className="macro-abbr">{m.abbr}</span>
           </span>
           <span className="macro-chip-value num">
-            {Math.round(macros[m.key])}<span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 1 }}>g</span>
+            {Math.round(macros[m.key])}<span style={{ color: 'var(--ink-3)', fontSize: 11, marginLeft: 1 }}>g</span>
           </span>
         </div>
       ))}

@@ -256,7 +256,7 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
           <div className="day-note">
             {!showNote && !hasNote ? (
               <button
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-4)', fontSize: 12, fontStyle: 'italic', padding: 0 }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 12, fontStyle: 'italic', padding: 0 }}
                 onClick={() => setShowNote(true)}
               >
                 + Add note

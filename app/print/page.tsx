@@ -35,11 +35,11 @@ export default async function PrintPage() {
 
   if (!plan) {
     return (
-      <div className="print-shell">
+      <main className="print-shell">
         <div className="print-paper" style={{ padding: '48px', textAlign: 'center', color: 'var(--ink-3)' }}>
-          No active plan. <Link href="/planner" style={{ color: 'var(--accent)' }}>Go to planner →</Link>
+          No active plan. <Link href="/planner" style={{ color: 'var(--accent-ink)' }}>Go to planner →</Link>
         </div>
-      </div>
+      </main>
     )
   }
 
@@ -89,7 +89,7 @@ export default async function PrintPage() {
   const shoppingList = Array.from(shopping.values()).sort((a, b) => a.name.localeCompare(b.name))
 
   return (
-    <div className="print-shell">
+    <main className="print-shell">
       {/* Screen-only toolbar */}
       <div className="print-toolbar">
         <div className="print-toolbar-info">
@@ -196,6 +196,6 @@ export default async function PrintPage() {
           <span>Adjust portions &amp; cooking steps in the app.</span>
         </div>
       </div>
-    </div>
+    </main>
   )
 }

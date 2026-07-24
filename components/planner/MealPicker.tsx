@@ -33,6 +33,8 @@ export function MealPicker({ onSelect, onClose }: Props) {
             <Icon name="search" size={15} className="search-icon" />
             <input
               autoFocus
+              type="search"
+              aria-label="Search meals"
               placeholder="Search meals…"
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -41,7 +43,7 @@ export function MealPicker({ onSelect, onClose }: Props) {
         </div>
         <div className="sheet-body" style={{ padding: '0 8px 12px' }}>
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ink-4)', fontSize: 13 }}>
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ink-3)', fontSize: 13 }}>
               No meals found
             </div>
           ) : filtered.map(meal => (
@@ -56,8 +58,11 @@ export function MealPicker({ onSelect, onClose }: Props) {
               </div>
               <div className="sheet-meal-info">
                 <div className="sheet-meal-name">{meal.title}</div>
+                {/* Whole numbers, matching MacroRow and the recipe page — the 2dp variant this
+                    used to render ("796.98 kcal · P 40.34g …") wrapped to a second line on a
+                    phone without telling the user anything the rounded figure doesn't. */}
                 <div className="sheet-meal-meta">
-                  {Math.round(meal.calories * 100) / 100} kcal · P {Math.round(meal.protein * 100) / 100}g · C {Math.round(meal.carbs * 100) / 100}g · F {Math.round(meal.fats * 100) / 100}g
+                  {Math.round(meal.calories)} kcal · P {Math.round(meal.protein)}g · C {Math.round(meal.carbs)}g · F {Math.round(meal.fats)}g
                 </div>
               </div>
               <span style={{ color: 'var(--accent)', flexShrink: 0, display: 'flex' }}><Icon name="plus" size={16} /></span>
