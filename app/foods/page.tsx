@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { FoodRow } from '@/types'
 import { FoodModal } from '@/components/foods/FoodModal'
 import { Icon } from '@/components/Icon'
+import { coreMacros, pieceMeasure } from '@/lib/recipe'
 
 export default function FoodsPage() {
   const [foods, setFoods] = useState<FoodRow[] | null>(null)
@@ -73,24 +74,38 @@ export default function FoodsPage() {
         </div>
       ) : (
         <div className="food-list">
-          {filtered.map(f => (
+          {filtered.map(f => {
+            const m = coreMacros(f.nutrients)
+            const { factor, display } = pieceMeasure(f.baseUnit, f.measures)
+            const extraCount = f.nutrients.filter(n => n.group !== 'macro').length
+            return (
             <button key={f.id} className="food-row" onClick={() => openEdit(f)}>
+              {f.imageUrl && (
+                <div className="today-meal-thumb"><img src={f.imageUrl} alt="" /></div>
+              )}
               <div className="food-row-main">
                 <span className="food-row-name">{f.name}</span>
                 <span className="food-row-macros">
-                  {Math.round(f.calories * 100) / 100} kcal · {Math.round(f.protein * 100) / 100}P {Math.round(f.carbs * 100) / 100}C {Math.round(f.fats * 100) / 100}F
-                  <span className="food-row-per"> / {f.baseUnit || 'unit'}</span>
+                  {Math.round(m.calories * factor * 100) / 100} kcal · {Math.round(m.protein * factor * 100) / 100}P {Math.round(m.carbs * factor * 100) / 100}C {Math.round(m.fats * factor * 100) / 100}F
+                  <span className="food-row-per"> / {display}</span>
                 </span>
               </div>
+              {f.isPlaceholder && (
+                <span className="food-row-measures" title="Contributes 0 to macros — a stand-in the user fills in when planning">placeholder</span>
+              )}
+              {extraCount > 0 && (
+                <span className="food-row-measures">+{extraCount} more nutrient{extraCount === 1 ? '' : 's'}</span>
+              )}
               {f.measures.length > 0 && (
-                <span className="food-row-measures">{f.measures.map(m => m.unit).join(', ')}</span>
+                <span className="food-row-measures">{f.measures.map(u => u.unit).join(', ')}</span>
               )}
               <span className="food-row-del" role="button" title="Delete"
                 onClick={e => { e.stopPropagation(); handleDelete(f) }}>
                 <Icon name="trash" size={14} />
               </span>
             </button>
-          ))}
+            )
+          })}
         </div>
       )}
 

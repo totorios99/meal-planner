@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { Icon } from '@/components/Icon'
+import { Select } from '@/components/ui/Select'
 import { foodsMap, refMacros, sumRefs, type IngredientRef, type Macros } from '@/lib/recipe'
 import type { FoodRow } from '@/types'
 
@@ -8,6 +9,7 @@ interface Props {
   value: IngredientRef[]
   foods: FoodRow[]
   onChange: (next: IngredientRef[]) => void
+  onValidChange?: (valid: boolean) => void
 }
 
 // Editing model: quantity as a string so decimals type cleanly; name is the typeahead draft.
@@ -17,10 +19,10 @@ function n(s: string): number { const v = Number(s); return Number.isFinite(v) ?
 
 // Macros are DERIVED from the picked food — never typed here. You pick a food, a measure,
 // and a quantity; the Foods section is the only place macros are authored.
-export function FoodPicker({ value, foods, onChange }: Props) {
+export function FoodPicker({ value, foods, onChange, onValidChange }: Props) {
   const map = useMemo(() => foodsMap(foods), [foods])
   const [rows, setRows] = useState<Row[]>(() =>
-    value.map(r => ({ foodId: r.foodId, name: map.get(r.foodId)?.name ?? '', quantity: String(r.quantity), measure: r.measure }))
+    value.map(r => ({ foodId: r.foodId, name: map.get(r.foodId)?.name ?? '', quantity: r.foodId ? String(r.quantity) : '', measure: r.measure }))
   )
 
   function commit(next: Row[]) {
@@ -28,6 +30,9 @@ export function FoodPicker({ value, foods, onChange }: Props) {
     onChange(
       next.filter(r => r.foodId > 0).map(r => ({ foodId: r.foodId, quantity: n(r.quantity) || 0, measure: r.measure }))
     )
+    // A row with typed text that never resolved (typo, or blocked as a duplicate) would
+    // otherwise be silently dropped from the saved ingredients — block saving instead.
+    onValidChange?.(next.every(r => r.foodId > 0 || r.name.trim().length === 0))
   }
 
   function setRow(idx: number, patch: Partial<Row>) {
@@ -37,8 +42,22 @@ export function FoodPicker({ value, foods, onChange }: Props) {
   // Resolve the typed name to a food on change; default the measure to the food's base unit.
   function onNameChange(idx: number, name: string) {
     const food = foods.find(f => f.name.toLowerCase() === name.trim().toLowerCase())
-    if (food) setRow(idx, { name, foodId: food.id, measure: rows[idx].measure || food.baseUnit || 'unit' })
-    else setRow(idx, { name, foodId: 0 })
+    if (!food) { setRow(idx, { name, foodId: 0 }); return }
+    if (rows.some((r, i) => i !== idx && r.foodId === food.id)) {
+      // Already in the list — block the resolve instead of silently double-counting the food.
+      setRow(idx, { name, foodId: 0 })
+      return
+    }
+    // A measure carried over from whatever food was previously in this row (e.g. "1/3") may not
+    // exist on the newly picked food — keep it only if it's still valid, else fall back to base.
+    const prevMeasure = rows[idx].measure
+    const measureStillValid = !prevMeasure || prevMeasure === food.baseUnit || food.measures.some(m => m.unit === prevMeasure)
+    setRow(idx, {
+      name,
+      foodId: food.id,
+      measure: measureStillValid ? (prevMeasure || food.baseUnit || 'unit') : (food.baseUnit || 'unit'),
+      quantity: rows[idx].quantity.trim() ? rows[idx].quantity : '1',
+    })
   }
 
   function measureOptions(foodId: number, current: string): string[] {
@@ -73,10 +92,12 @@ export function FoodPicker({ value, foods, onChange }: Props) {
       {rows.map((r, idx) => {
         const m = rowMacros(r)
         const opts = measureOptions(r.foodId, r.measure)
+        const trimmedName = r.name.trim().toLowerCase()
+        const duplicate = !r.foodId && trimmedName.length > 0 && foods.some(f => f.name.toLowerCase() === trimmedName)
         // A name typed with no matching food won't be saved — flag it instead of dropping silently.
-        const unmatched = !r.foodId && r.name.trim().length > 0
+        const unmatched = !r.foodId && r.name.trim().length > 0 && !duplicate
         return (
-          <div className={`fp-row${unmatched ? ' fp-unmatched' : ''}`} key={idx}>
+          <div className={`fp-row${unmatched || duplicate ? ' fp-unmatched' : ''}`} key={idx}>
             <input
               className="fp-name" list="food-options" placeholder="search food…"
               value={r.name} onChange={e => onNameChange(idx, e.target.value)}
@@ -85,18 +106,16 @@ export function FoodPicker({ value, foods, onChange }: Props) {
               className="fp-qty" type="number" min="0" step="any" placeholder="1"
               value={r.quantity} onChange={e => setRow(idx, { quantity: e.target.value })}
             />
-            <select
+            <Select
               className="fp-measure" value={r.measure}
-              onChange={e => setRow(idx, { measure: e.target.value })}
+              onChange={v => setRow(idx, { measure: v })}
               disabled={!r.foodId}
-            >
-              {opts.length === 0 && <option value="">—</option>}
-              {opts.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
-            <span className="fp-macros" title={unmatched ? 'No such food — add it in the Foods section first' : 'Derived from the food — edit in Foods'}>
+              options={opts.length === 0 ? [{ value: '', label: '—' }] : opts.map(u => ({ value: u, label: u }))}
+            />
+            <span className="fp-macros" title={duplicate ? 'Already in this list' : unmatched ? 'No such food — add it in the Foods section first' : 'Derived from the food — edit in Foods'}>
               {r.foodId
                 ? `${Math.round(m.calories)} kcal · ${Math.round(m.protein)}P ${Math.round(m.carbs)}C ${Math.round(m.fats)}F`
-                : unmatched ? 'not in Foods' : 'pick a food'}
+                : duplicate ? 'already added' : unmatched ? 'not in Foods' : 'pick a food'}
             </span>
             <button type="button" className="ing-del" title="Remove" onClick={() => commit(rows.filter((_, i) => i !== idx))}>
               <Icon name="x" size={11} />

@@ -15,7 +15,9 @@ export async function POST(request: NextRequest) {
   if (file.size > MAX_BYTES) {
     return NextResponse.json({ error: 'Image too large (max 5MB)' }, { status: 413 })
   }
-  const name = `${Date.now().toString(36)}${randomBytes(4).toString('hex')}.jpg`
+  // PNG preserves transparency (product-shot cutouts); everything else is stored as jpg.
+  const ext = file.type === 'image/png' ? 'png' : 'jpg'
+  const name = `${Date.now().toString(36)}${randomBytes(4).toString('hex')}.${ext}`
   const dir = imageDir()
   await mkdir(dir, { recursive: true })
   await writeFile(join(dir, name), Buffer.from(await file.arrayBuffer()))

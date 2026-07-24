@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from '@/components/Icon'
+import { CANONICAL_NUTRIENTS, pieceMeasure } from '@/lib/recipe'
 import type { FoodRow } from '@/types'
 
 interface Props {
@@ -10,31 +11,54 @@ interface Props {
   onSaved: () => void
 }
 
+type Group = 'macro' | 'micro' | 'other'
+// The 4 core macros meal cards/day totals/print rely on — locked derives from key so it can't
+// drift out of sync (only CANONICAL_NUTRIENTS rows are ever constructed with a key set).
+type NutrientRow = { key?: string; label: string; unit: string; amount: string; group: Group }
 type MeasureRow = { unit: string; perBase: string }
 
-const EMPTY = { name: '', baseUnit: '', calories: '', protein: '', carbs: '', fats: '' }
+const CANONICAL_KEYS = new Set(CANONICAL_NUTRIENTS.map(c => c.key))
+const isLocked = (r: NutrientRow) => !!r.key && CANONICAL_KEYS.has(r.key)
+
+// Editing still writes/reads per-1-baseUnit under the hood, but showing e.g. "0.89 kcal" for a
+// banana reads as noise — rows are seeded and submitted in whatever piece unit the food actually
+// has (banana, cookie, egg…), converted at the two edges only (seed-in, submit-out) so typing a
+// decimal never fights a live round-trip conversion on every keystroke.
+function round(v: number): number { return Math.round(v * 1e6) / 1e6 }
+
+function scaleFor(food?: FoodRow | null): { factor: number; label: string; display: string } {
+  return food ? pieceMeasure(food.baseUnit, food.measures) : { factor: 1, label: '', display: '' }
+}
+
+function seedRows(food?: FoodRow | null): NutrientRow[] {
+  const { factor } = scaleFor(food)
+  const byKey = new Map((food?.nutrients ?? []).map(n => [n.key, n]))
+  const canonicalRows: NutrientRow[] = CANONICAL_NUTRIENTS.map(c => {
+    const existing = byKey.get(c.key)
+    return { key: c.key, label: c.label, unit: existing?.unit || c.unit, amount: existing ? String(round(existing.amount * factor)) : '', group: 'macro' }
+  })
+  const extraRows: NutrientRow[] = (food?.nutrients ?? [])
+    .filter(n => !CANONICAL_KEYS.has(n.key))
+    .map(n => ({ key: n.key, label: n.label, unit: n.unit, amount: String(round(n.amount * factor)), group: n.group ?? 'other' }))
+  return [...canonicalRows, ...extraRows]
+}
+
+const EMPTY = { name: '', baseUnit: '', isPlaceholder: false }
 
 export function FoodModal({ food, onClose, onSaved }: Props) {
   const [form, setForm] = useState(EMPTY)
+  const [nutrients, setNutrients] = useState<NutrientRow[]>(() => seedRows(food))
   const [measures, setMeasures] = useState<MeasureRow[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [warnings, setWarnings] = useState<string[]>([])
+  const scale = scaleFor(food)
 
   useEffect(() => {
-    if (food) {
-      setForm({
-        name: food.name,
-        baseUnit: food.baseUnit,
-        calories: String(food.calories),
-        protein: String(food.protein),
-        carbs: String(food.carbs),
-        fats: String(food.fats),
-      })
-      setMeasures(food.measures.map(m => ({ unit: m.unit, perBase: String(m.perBase) })))
-    } else {
-      setForm(EMPTY)
-      setMeasures([])
-    }
+    setForm(food ? { name: food.name, baseUnit: food.baseUnit, isPlaceholder: food.isPlaceholder } : EMPTY)
+    setNutrients(seedRows(food))
+    setMeasures(food ? food.measures.map(m => ({ unit: m.unit, perBase: String(m.perBase) })) : [])
+    setWarnings([])
   }, [food])
 
   useEffect(() => {
@@ -43,8 +67,12 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  function set(field: keyof typeof EMPTY, value: string) {
+  function set(field: 'name' | 'baseUnit', value: string) {
     setForm(f => ({ ...f, [field]: value }))
+  }
+
+  function setRow(idx: number, patch: Partial<NutrientRow>) {
+    setNutrients(rows => rows.map((r, i) => i === idx ? { ...r, ...patch } : r))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -53,6 +81,15 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
     setError(null)
     const body = {
       ...form,
+      nutrients: nutrients
+        .filter(r => isLocked(r) || r.label.trim().length > 0)
+        .map(r => ({
+          key: isLocked(r) ? r.key : undefined,
+          label: r.label.trim(),
+          unit: r.unit.trim(),
+          amount: (Number(r.amount) || 0) / scale.factor,
+          group: r.group,
+        })),
       measures: measures
         .map(m => ({ unit: m.unit.trim(), perBase: Number(m.perBase) }))
         .filter(m => m.unit && m.perBase > 0),
@@ -68,13 +105,17 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
       setError(typeof b?.error === 'string' ? b.error : 'Could not save food')
       return
     }
+    const saved = await res.json().catch(() => null)
+    // The food is already persisted at this point regardless of warnings — refresh the parent
+    // list now so it isn't stale if the user dismisses via Escape/X/Cancel/backdrop instead of
+    // the inline warning banner below.
     onSaved()
+    if (Array.isArray(saved?.warnings) && saved.warnings.length) {
+      setWarnings(saved.warnings)
+      return
+    }
     onClose()
   }
-
-  const macroFields: [keyof typeof EMPTY, string][] = [
-    ['calories', 'Calories'], ['protein', 'Protein (g)'], ['carbs', 'Carbs (g)'], ['fats', 'Fats (g)'],
-  ]
 
   return createPortal(
     <div className="sheet-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -99,16 +140,41 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
             </div>
 
             <div className="field" style={{ marginTop: 14 }}>
-              <label>Macros <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— per 1 {form.baseUnit || 'unit'}</span></label>
-              <div className="field-grid-2">
-                {macroFields.map(([f, label]) => (
-                  <div className="field" style={{ marginBottom: 0 }} key={f}>
-                    <label htmlFor={`food-${f}`} style={{ fontSize: 11 }}>{label}</label>
-                    <input id={`food-${f}`} type="number" min="0" step="any" placeholder="0"
-                      value={form[f]} onChange={e => set(f, e.target.value)} />
+              <div className="nutrition-card">
+                <div className="nutrition-title-bar">
+                  <span className="nutrition-title">Nutrients</span>
+                  <span className="nutrition-title-unit">per {scale.display || form.baseUnit || 'unit'}</span>
+                </div>
+                {nutrients.map((r, idx) => {
+                  const locked = isLocked(r)
+                  return (
+                  <div className={`nutrition-row group-${r.group}`} key={r.key ?? idx}>
+                    {locked ? (
+                      <span className="nutrition-row-label">{r.label}</span>
+                    ) : (
+                      <input className="nutrition-row-label" placeholder="e.g. Cholesterol" value={r.label}
+                        onChange={e => setRow(idx, { label: e.target.value })} />
+                    )}
+                    <div className="nutrition-row-values">
+                      <input type="number" min="0" step="any" placeholder="0" value={r.amount}
+                        onChange={e => setRow(idx, { amount: e.target.value })} />
+                      <input placeholder={locked ? r.unit : 'mg'} value={r.unit}
+                        onChange={e => setRow(idx, { unit: e.target.value })} />
+                      {!locked && (
+                        <button type="button" className="ing-del" title="Remove"
+                          onClick={() => setNutrients(rows => rows.filter((_, i) => i !== idx))}>
+                          <Icon name="x" size={11} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
+              <button type="button" className="ing-add" style={{ marginTop: 6 }}
+                onClick={() => setNutrients(rows => [...rows, { label: '', unit: '', amount: '', group: 'other' }])}>
+                <Icon name="plus" size={12} /> Add nutrient
+              </button>
             </div>
 
             <div className="field" style={{ marginTop: 14 }}>
@@ -133,6 +199,12 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
               </button>
             </div>
 
+            {warnings.length > 0 && (
+              <p style={{ color: 'var(--warning, #b8860b)', fontSize: 13, marginTop: 12 }}>
+                Saved, but: {warnings.join('; ')}. <button type="button" className="btn btn-ghost btn-sm"
+                  onClick={onClose}>Dismiss</button>
+              </p>
+            )}
             {error && <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 12 }}>{error}</p>}
           </div>
           <div className="sheet-foot">

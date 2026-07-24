@@ -5,14 +5,15 @@ import { imageDir } from '@/lib/images'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ name: string }> }) {
   const { name } = await params
-  if (!/^[a-z0-9]+\.jpg$/.test(name)) {
+  const match = /^[a-z0-9]+\.(jpg|png)$/.exec(name)
+  if (!match) {
     return NextResponse.json({ error: 'Bad name' }, { status: 400 })
   }
   try {
     const buf = await readFile(join(imageDir(), name))
     return new NextResponse(new Uint8Array(buf), {
       headers: {
-        'Content-Type': 'image/jpeg',
+        'Content-Type': match[1] === 'png' ? 'image/png' : 'image/jpeg',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     })

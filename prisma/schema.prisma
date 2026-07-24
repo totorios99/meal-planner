@@ -64,18 +64,21 @@ model WeeklyPlanMeal {
   ingredients     String        @default("[]") // JSON IngredientRef[] {foodId,quantity,measure} — per-placement, edited independently
 }
 
-// Food source of truth. Macros are per 1 baseUnit; measures give conversion factors
-// (perBase = base units in 1 of that measure, e.g. rice cup -> 185 g). Meals reference
-// foods by id, so correcting a food propagates to every meal/plan that uses it.
+// Food source of truth. Nutrients are per 1 baseUnit, sparse/dynamic (see lib/recipe.ts
+// NutrientEntry — canonical keys calories/protein_g/carbs_g/fat_g plus any micros/compounds).
+// measures give conversion factors (perBase = base units in 1 of that measure, e.g. rice
+// cup -> 185 g). Meals reference foods by id, so correcting a food propagates everywhere.
 model Food {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  baseUnit  String   @default("")
-  calories  Float    @default(0)
-  protein   Float    @default(0)
-  carbs     Float    @default(0)
-  fats      Float    @default(0)
-  measures  String   @default("[]") // JSON [{unit, perBase}]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  baseUnit      String   @default("")
+  nutrients     String   @default("[]") // JSON NutrientEntry[]
+  measures      String   @default("[]") // JSON [{unit, perBase}]
+  imageUrl      String   @default("")
+  // A stand-in for "whatever the user actually has" (e.g. "vegetables", "fruit") rather than a
+  // real food — contributes 0 to every meal's macros regardless of quantity, and any placement
+  // referencing it surfaces a warning asking the user to swap in a specific ingredient.
+  isPlaceholder Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

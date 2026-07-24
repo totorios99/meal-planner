@@ -5,7 +5,7 @@ import { WeeklyPlanDay, WeeklyPlanMeal, Meal, FoodRow } from '@/types'
 import { DayAnalytics } from './DayAnalytics'
 import { MealPicker } from './MealPicker'
 import { FoodPicker } from '@/components/meals/FoodPicker'
-import { parseRefs, sumRefs, foodsMap, type IngredientRef } from '@/lib/recipe'
+import { parseRefs, sumRefs, foodsMap, hasUnfilledIngredient, type IngredientRef } from '@/lib/recipe'
 import { MacroTargets } from '@/lib/useMacroTargets'
 import { Icon } from '@/components/Icon'
 
@@ -30,6 +30,8 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dropIdx, setDropIdx] = useState<number | null>(null)
   const saveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
+  const [banner, setBanner] = useState<{ entryId: number; warnings: string[] } | null>(null)
+  const [ingredientsValid, setIngredientsValid] = useState(true)
 
   const [wy, wm, wd] = weekStart.split('T')[0].split('-').map(Number)
   const date = new Date(wy, wm - 1, wd + day.dayIndex)
@@ -68,8 +70,9 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mealId: meal.id, slotIndex: sortedMeals.length })
       })
-      const entry: WeeklyPlanMeal = await res.json()
+      const { warnings, ...entry } = await res.json() as WeeklyPlanMeal & { warnings?: string[] }
       onDayUpdate({ ...day, meals: [...day.meals, entry] })
+      if (warnings?.length) setBanner({ entryId: entry.id, warnings })
     } else if (typeof picking === 'number') {
       const existing = day.meals.find(m => m.id === picking)
       await fetch(`/api/plans/${planId}/days/${day.id}/meals/${picking}`, { method: 'DELETE' })
@@ -78,8 +81,9 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mealId: meal.id, slotIndex: existing?.slotIndex ?? sortedMeals.length })
       })
-      const entry: WeeklyPlanMeal = await res.json()
+      const { warnings, ...entry } = await res.json() as WeeklyPlanMeal & { warnings?: string[] }
       onDayUpdate({ ...day, meals: [...day.meals.filter(m => m.id !== picking), entry] })
+      if (warnings?.length) setBanner({ entryId: entry.id, warnings })
     }
     setPicking(null)
   }
@@ -152,6 +156,11 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
   const hasNote = noteDraft.trim().length > 0
   const expandedEntry = expanded !== null ? day.meals.find(m => m.id === expanded) : undefined
 
+  // Auto-dismiss the one-time banner once its meal no longer has an unfilled ingredient —
+  // no need to wait for a manual dismiss if the user already fixed it.
+  const bannerEntry = banner ? day.meals.find(m => m.id === banner.entryId) : undefined
+  const showBanner = !!banner && !!bannerEntry && hasUnfilledIngredient(parseRefs(bannerEntry.ingredients), fmap)
+
   return (
     <div className={`day-col${day.isDismissed ? ' off' : ''}${isToday ? ' today' : ''}`}>
       <div className="day-head">
@@ -182,7 +191,9 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
       ) : (
         <div className="day-body">
           {sortedMeals.map((entry, i) => {
-            const kcal = Math.round(sumRefs(parseRefs(entry.ingredients), fmap).calories)
+            const refs = parseRefs(entry.ingredients)
+            const kcal = Math.round(sumRefs(refs, fmap).calories)
+            const needsInput = hasUnfilledIngredient(refs, fmap)
             const isDragging = dragIdx === i
             const isDropTarget = dropIdx === i && dragIdx !== i
             return (
@@ -210,12 +221,20 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
                   title="Swap for another recipe"
                 >
                   {entry.meal.title}
+                  {needsInput && (
+                    <span
+                      className="plan-meal-veg-warning"
+                      title="This meal has an unfilled ingredient — tap edit to add it"
+                    >
+                      <Icon name="warning" size={12} />
+                    </span>
+                  )}
                 </div>
                 <div className="plan-meal-row">
                   <span className="plan-meal-kcal">{kcal} kcal</span>
                   <button
                     className="plan-meal-edit"
-                    onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
+                    onClick={() => { setExpanded(expanded === entry.id ? null : entry.id); setIngredientsValid(true) }}
                     title="Edit ingredients"
                   >
                     <Icon name="edit" size={11} /> edit
@@ -279,12 +298,30 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
                 value={parseRefs(expandedEntry.ingredients)}
                 foods={foods}
                 onChange={next => handleIngredientsChange(expandedEntry.id, next)}
+                onValidChange={setIngredientsValid}
               />
             </div>
             <div className="sheet-foot">
-              <button className="btn btn-primary" onClick={() => setExpanded(null)}>Done</button>
+              <button className="btn btn-primary" disabled={!ingredientsValid}
+                title={!ingredientsValid ? 'Fix the highlighted ingredient row first' : undefined}
+                onClick={() => { setExpanded(null); setIngredientsValid(true) }}>
+                Done
+              </button>
             </div>
           </div>
+        </div>,
+        document.body
+      )}
+
+      {showBanner && banner && createPortal(
+        <div className="fixed-alert">
+          <Icon name="warning" size={16} />
+          <div className="fixed-alert-body">
+            {banner.warnings.map((w, i) => <p key={i}>{w}</p>)}
+          </div>
+          <button className="icon-btn" onClick={() => setBanner(null)} title="Dismiss">
+            <Icon name="x" size={14} />
+          </button>
         </div>,
         document.body
       )}
