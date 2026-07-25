@@ -219,15 +219,15 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
                 </button>
                 <div
                   className="plan-meal-name"
-                  onClick={() => setPicking(entry.id)}
+                  onClick={() => { setExpanded(expanded === entry.id ? null : entry.id); setIngredientsValid(true) }}
                   style={{ cursor: 'pointer' }}
-                  title={`${entry.meal.title} — click to swap`}
+                  title={`${entry.meal.title} — click to edit ingredients`}
                 >
                   {entry.meal.title}
                   {needsInput && (
                     <span
                       className="plan-meal-veg-warning"
-                      title="This meal has an unfilled ingredient — tap edit to add it"
+                      title="This meal has an unfilled ingredient — tap the meal to add it"
                     >
                       <Icon name="warning" size={12} />
                     </span>
@@ -237,10 +237,10 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
                   <span className="plan-meal-kcal">{kcal} kcal</span>
                   <button
                     className="plan-meal-edit"
-                    onClick={() => { setExpanded(expanded === entry.id ? null : entry.id); setIngredientsValid(true) }}
-                    title="Edit ingredients"
+                    onClick={() => setPicking(entry.id)}
+                    title="Swap meal"
                   >
-                    <Icon name="edit" size={11} /> edit
+                    <Icon name="swap" size={11} /> swap
                   </button>
                 </div>
               </div>
