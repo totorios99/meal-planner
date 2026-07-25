@@ -31,8 +31,10 @@ export function WeekBoard({ plan, targets, foods, fullTitles, onPlanUpdate }: Pr
     const today = gridRef.current?.querySelector('.day-col.today')
     if (!today) return // a past/future week has no today — leave the view at the top
     const top = today.getBoundingClientRect().top + window.scrollY
-    // Clear the floating nav pill (~94px) so the day header isn't tucked under it.
-    window.scrollTo({ top: Math.max(0, top - 94), behavior: 'auto' })
+    // Clear the floating nav pill so the day header isn't tucked under it. Measure it rather
+    // than hardcoding 94px — its top offset grows by the safe-area inset on notched phones.
+    const navBottom = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 82
+    window.scrollTo({ top: Math.max(0, top - navBottom - 12), behavior: 'auto' })
   }, [plan.id])
 
   function handleDayUpdate(updatedDay: WeeklyPlanDay) {

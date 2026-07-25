@@ -1303,6 +1303,13 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 .plan-meal-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .plan-meal-name {
+  /* It's a <button> so it's keyboard-reachable; strip the native chrome. */
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
   font-size: 13px;
   font-weight: 650;
   color: var(--ink);
@@ -1343,7 +1350,7 @@ input, textarea { font-family: inherit; color: inherit; }
    no auto-timeout, unlike a toast. */
 .fixed-alert {
   position: fixed;
-  top: 78px;
+  top: calc(78px + env(safe-area-inset-top, 0px));
   left: 50%;
   transform: translateX(-50%);
   z-index: 200;
@@ -1915,7 +1922,7 @@ input, textarea { font-family: inherit; color: inherit; }
 @media (max-width: 768px) {
   .nav {
     position: absolute;
-    top: 12px;
+    top: calc(12px + env(safe-area-inset-top, 0px));
     left: calc(12px + env(safe-area-inset-left, 0px));
     right: calc(12px + env(safe-area-inset-right, 0px));
     padding: 0;
@@ -1930,7 +1937,9 @@ input, textarea { font-family: inherit; color: inherit; }
     position: fixed;
     left: calc(12px + env(safe-area-inset-left, 0px));
     right: calc(12px + env(safe-area-inset-right, 0px));
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    /* The home-indicator strip IS the gap on notched phones — max(), not sum, or the bar
+       sits 34px too high. 12px floor keeps Android/non-notch looking unchanged. */
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
     z-index: 40;
     background: var(--panel);
     backdrop-filter: blur(var(--glass-blur)) saturate(170%);
@@ -1965,7 +1974,7 @@ input, textarea { font-family: inherit; color: inherit; }
   .app { padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
 
   .page {
-    padding: 94px calc(16px + env(safe-area-inset-right, 0px)) 40px calc(16px + env(safe-area-inset-left, 0px));
+    padding: calc(94px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) 40px calc(16px + env(safe-area-inset-left, 0px));
   }
   .print-shell {
     padding: 20px calc(16px + env(safe-area-inset-right, 0px)) 40px calc(16px + env(safe-area-inset-left, 0px));
@@ -2342,7 +2351,7 @@ input, textarea { font-family: inherit; color: inherit; }
 /* after the base rules above so the mobile padding wins the cascade */
 @media (max-width: 768px) {
   .recipe-page {
-    padding: 94px calc(16px + env(safe-area-inset-right, 0px))
+    padding: calc(94px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px))
              calc(100px + env(safe-area-inset-bottom, 0px))
              calc(16px + env(safe-area-inset-left, 0px));
   }

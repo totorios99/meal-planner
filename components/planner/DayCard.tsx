@@ -217,10 +217,10 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
                 >
                   <Icon name="x" size={10} />
                 </button>
-                <div
+                <button
+                  type="button"
                   className="plan-meal-name"
                   onClick={() => { setExpanded(expanded === entry.id ? null : entry.id); setIngredientsValid(true) }}
-                  style={{ cursor: 'pointer' }}
                   title={`${entry.meal.title} — click to edit ingredients`}
                 >
                   {entry.meal.title}
@@ -232,7 +232,7 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
                       <Icon name="warning" size={12} />
                     </span>
                   )}
-                </div>
+                </button>
                 <div className="plan-meal-row">
                   <span className="plan-meal-kcal">{kcal} kcal</span>
                   <button
