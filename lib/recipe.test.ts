@@ -3,7 +3,7 @@
 import assert from 'node:assert'
 import {
   parseRefs, parseNutrients, refMacros, refNutrients, measureFactor, sumRefs, sumNutrients,
-  nutrientsForRefs, coreMacros, foodsMap, type Food, type NutrientEntry,
+  nutrientsForRefs, coreMacros, foodsMap, formatIngredientLine, type Food, type NutrientEntry,
 } from './recipe.ts'
 
 const riceNutrients: NutrientEntry[] = [
@@ -79,3 +79,13 @@ assert.strictEqual(m2.get(1)!.measures[0].perBase, 185)
 assert.strictEqual(m2.get(1)!.nutrients.find(n => n.key === 'calories')!.amount, 1.3)
 
 console.log('food/ref helpers: all checks passed')
+
+// The unit is dropped when the food name already ends in it, so an ingredient line reads
+// "5 Oreo cookie" rather than "5 cookie Oreo cookie".
+assert.strictEqual(formatIngredientLine(5, 'cookie', 'Oreo cookie'), '5 Oreo cookie')
+assert.strictEqual(formatIngredientLine(5, 'tortilla', 'Corn tortilla'), '5 Corn tortilla')
+assert.strictEqual(formatIngredientLine(1, 'leaf', 'Bay leaf'), '1 Bay leaf')
+assert.strictEqual(formatIngredientLine(0.5, 'egg', 'Egg'), '1/2 Egg')
+// but a genuinely different unit is kept
+assert.strictEqual(formatIngredientLine(2, 'tbsp', 'Olive oil'), '2 tbsp Olive oil')
+assert.strictEqual(formatIngredientLine(79, 'g', 'Banana'), '79 g Banana')

@@ -172,8 +172,13 @@ export function formatQuantity(q: number, unit: string): string {
 // ("1/2 egg" for food "Egg" would be redundant next to the name — caller drops it).
 export function formatQuantityWithUnit(quantity: number, unit: string, foodName: string): string {
   const qty = formatQuantity(quantity, unit)
-  const redundant = unit.trim().toLowerCase() === foodName.trim().toLowerCase()
-  return redundant || !unit ? qty : `${qty} ${unit}`
+  const u = unit.trim().toLowerCase()
+  const n = foodName.trim().toLowerCase()
+  // The unit is redundant when the food name already ends in it — either as the whole name
+  // ("egg" for Egg) or as its last word ("cookie" for Oreo cookie, "tortilla" for Corn
+  // tortilla, "leaf" for Bay leaf), which otherwise printed "5 cookie Oreo cookie".
+  const redundant = !!u && (n === u || n.endsWith(` ${u}`) || n.endsWith(` ${u}s`))
+  return redundant || !u ? qty : `${qty} ${unit}`
 }
 
 // One ingredient line's full display text: quantity + unit + food name in one string, for
