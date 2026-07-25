@@ -1265,9 +1265,10 @@ input, textarea { font-family: inherit; color: inherit; }
   border: 1px solid var(--stroke);
   border-radius: var(--r-sm);
   padding: 9px 11px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+  /* thumb | text — the thumb spans both text rows, so the pill keeps its old height. */
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 2px 9px;
   position: relative;
   box-shadow: var(--inset-hi);
   cursor: grab;
@@ -1277,26 +1278,44 @@ input, textarea { font-family: inherit; color: inherit; }
 .plan-meal.dragging { opacity: 0.4; }
 .plan-meal.drop-target { border-color: var(--accent); box-shadow: var(--inset-hi), 0 0 0 2px rgba(201,138,99,.4); }
 .plan-meal-drag {
+  /* Over the thumb's top-left on hover — the thumb took the old gutter. */
   position: absolute;
-  top: 50%;
-  left: 4px;
-  transform: translateY(-50%);
-  color: var(--ink-4);
+  top: 11px;
+  left: 13px;
+  background: rgba(0,0,0,.45);
+  border-radius: 4px;
+  padding: 1px;
+  color: #fff;
   opacity: 0;
   cursor: grab;
   transition: opacity .15s;
   display: flex;
 }
 .plan-meal:hover .plan-meal-drag { opacity: 1; }
+.plan-meal-thumb {
+  grid-row: span 2;
+  width: 38px;
+  height: 38px;
+  align-self: center;
+  border-radius: 8px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+.plan-meal-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .plan-meal-name {
-  padding-left: 16px;
   font-size: 13px;
   font-weight: 650;
   color: var(--ink);
   letter-spacing: -.01em;
   padding-right: 16px;
   line-height: 1.25;
+  /* Long titles used to stretch the pill; clamp at 2 lines, full name via .expanded / tooltip. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
+.planner-grid.full-titles .plan-meal-name { -webkit-line-clamp: unset; }
 .plan-meal-remove {
   position: absolute;
   top: 5px;
@@ -1305,6 +1324,8 @@ input, textarea { font-family: inherit; color: inherit; }
   height: 20px;
   display: grid;
   place-items: center;
+  padding: 0;   /* UA button padding pushed the glyph off-centre */
+  line-height: 0;
   border: 0;
   background: rgba(0,0,0,.18);
   color: #fff;
@@ -1599,7 +1620,8 @@ input, textarea { font-family: inherit; color: inherit; }
   flex-direction: column;
   gap: 6px;
 }
-.day-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+/* One column on desktop/iPad — two columns clipped the wider "protein"/"fats" values. */
+.day-totals { display: grid; grid-template-columns: 1fr; gap: 4px 12px; }
 .day-total { display: flex; align-items: center; gap: 6px; font-size: 11px; }
 .day-total-label { color: var(--ink-3); font-weight: 600; letter-spacing: .02em; }
 .day-total-val { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 650; color: var(--ink); }
@@ -1976,6 +1998,7 @@ input, textarea { font-family: inherit; color: inherit; }
   .qa-card { padding: 16px 18px; }
 
   .meal-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .day-totals { grid-template-columns: 1fr 1fr; }
   .macro-full { display: none; }
   .macro-abbr { display: inline; }
   .meal-card-body { padding: 10px 12px 12px; gap: 6px; }

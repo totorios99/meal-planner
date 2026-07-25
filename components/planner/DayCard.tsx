@@ -207,6 +207,9 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
                 onDragEnd={onDragEnd}
               >
                 <span className="plan-meal-drag"><Icon name="drag" size={12} /></span>
+                <div className="plan-meal-thumb">
+                  {entry.meal.imageUrl && <img src={entry.meal.imageUrl} alt="" />}
+                </div>
                 <button
                   className="plan-meal-remove"
                   onClick={() => handleRemove(entry.id)}
@@ -218,7 +221,7 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
                   className="plan-meal-name"
                   onClick={() => setPicking(entry.id)}
                   style={{ cursor: 'pointer' }}
-                  title="Swap for another recipe"
+                  title={`${entry.meal.title} — click to swap`}
                 >
                   {entry.meal.title}
                   {needsInput && (

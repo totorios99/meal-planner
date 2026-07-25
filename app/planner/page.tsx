@@ -32,6 +32,18 @@ export default function PlannerPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const { targets, updateTargets } = useMacroTargets()
   const [showTargets, setShowTargets] = useState(false)
+  const [fullTitles, setFullTitles] = useState(false)
+
+  useEffect(() => {
+    setFullTitles(localStorage.getItem('meal-planner-full-titles') === '1')
+  }, [])
+
+  function toggleFullTitles() {
+    setFullTitles(v => {
+      localStorage.setItem('meal-planner-full-titles', v ? '0' : '1')
+      return !v
+    })
+  }
 
   useEffect(() => {
     fetch('/api/foods').then(r => r.json()).then(setFoods).catch(() => {})
@@ -96,6 +108,17 @@ export default function PlannerPage() {
               <Icon name="chev-right" size={14} />
             </button>
           </div>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={toggleFullTitles}
+            aria-pressed={fullTitles}
+            title={fullTitles ? 'Shorten long meal titles' : 'Show full meal titles'}
+          >
+            <span style={{ display: 'flex', transform: fullTitles ? 'rotate(180deg)' : undefined }}>
+              <Icon name="chev-down" size={14} />
+            </span>
+            Titles
+          </button>
           <button className="btn btn-ghost btn-sm" onClick={() => setShowTargets(true)}>
             <Icon name="settings" size={14} /> Targets
           </button>
@@ -103,7 +126,7 @@ export default function PlannerPage() {
       </div>
 
       <QuickFill onCloned={fetchPlan} />
-      <WeekBoard plan={plan} targets={targets} foods={foods} onPlanUpdate={setPlan} />
+      <WeekBoard plan={plan} targets={targets} foods={foods} fullTitles={fullTitles} onPlanUpdate={setPlan} />
 
       {showTargets && (
         <TargetsModal targets={targets} onSave={updateTargets} onClose={() => setShowTargets(false)} />

@@ -9,10 +9,11 @@ export type MacroTargets = {
 }
 
 const DEFAULTS: MacroTargets = {
-  calories: 2000,
-  protein: 150,
-  carbs: 200,
-  fats: 65,
+  // Slight surplus for muscle gain: 2440 kcal (160/270/80 = 640+1080+720)
+  calories: 2450,
+  protein: 160,
+  carbs: 270,
+  fats: 80,
 }
 
 const STORAGE_KEY = 'meal-planner-macro-targets'

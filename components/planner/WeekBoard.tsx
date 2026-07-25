@@ -8,10 +8,11 @@ interface Props {
   plan: WeeklyPlan
   targets: MacroTargets
   foods: FoodRow[]
+  fullTitles: boolean
   onPlanUpdate: (plan: WeeklyPlan) => void
 }
 
-export function WeekBoard({ plan, targets, foods, onPlanUpdate }: Props) {
+export function WeekBoard({ plan, targets, foods, fullTitles, onPlanUpdate }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
   const landedOnToday = useRef(false)
 
@@ -39,7 +40,7 @@ export function WeekBoard({ plan, targets, foods, onPlanUpdate }: Props) {
   }
 
   return (
-    <div className="planner-grid" ref={gridRef}>
+    <div className={`planner-grid${fullTitles ? ' full-titles' : ''}`} ref={gridRef}>
       {plan.days.map(day => (
         <DayCard
           key={day.id}
