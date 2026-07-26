@@ -13,8 +13,15 @@ export function MealPicker({ onSelect, onClose }: Props) {
   const [meals, setMeals] = useState<Meal[]>([])
   const [search, setSearch] = useState('')
 
+  const [failed, setFailed] = useState(false)
+
   useEffect(() => {
-    fetch('/api/meals').then(r => r.json()).then(setMeals)
+    // Guarded: an unchecked .json() used to put {error} in state and blank the sheet when
+    // `meals.filter` threw on it.
+    fetch('/api/meals')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(String(r.status))))
+      .then(data => setMeals(Array.isArray(data) ? data : []))
+      .catch(() => setFailed(true))
   }, [])
 
   const filtered = meals.filter(m =>
@@ -44,7 +51,7 @@ export function MealPicker({ onSelect, onClose }: Props) {
         <div className="sheet-body" style={{ padding: '0 8px 12px' }}>
           {filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ink-3)', fontSize: 13 }}>
-              No meals found
+              {failed ? 'Could not load meals. Close and try again.' : 'No meals found'}
             </div>
           ) : filtered.map(meal => (
             <button

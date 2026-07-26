@@ -1,11 +1,12 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { WeeklyPlanDay, WeeklyPlanMeal, Meal, FoodRow } from '@/types'
 import { DayAnalytics } from './DayAnalytics'
 import { MealPicker } from './MealPicker'
 import { FoodPicker } from '@/components/meals/FoodPicker'
-import { parseRefs, sumRefs, foodsMap, hasUnfilledIngredient, type IngredientRef } from '@/lib/recipe'
+import { parseRefs, sumRefs, sumEntries, foodsMap, hasUnfilledIngredient, type IngredientRef } from '@/lib/recipe'
+import { localDate } from '@/lib/date'
 import { MacroTargets } from '@/lib/useMacroTargets'
 import { Icon } from '@/components/Icon'
 
@@ -29,68 +30,86 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
   const [expanded, setExpanded] = useState<number | null>(null)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dropIdx, setDropIdx] = useState<number | null>(null)
-  const saveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
+  // Pending debounced ingredient saves — the payload is kept alongside the timer so an
+  // unmount can still flush it (see the effect below).
+  const saveTimers = useRef<Record<number, { timer: ReturnType<typeof setTimeout>; refs: IngredientRef[] }>>({})
   const [banner, setBanner] = useState<{ entryId: number; warnings: string[] } | null>(null)
   const [ingredientsValid, setIngredientsValid] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const [wy, wm, wd] = weekStart.split('T')[0].split('-').map(Number)
-  const date = new Date(wy, wm - 1, wd + day.dayIndex)
+  const date = localDate(weekStart, day.dayIndex)
   const isToday = date.toDateString() === new Date().toDateString()
 
   const sortedMeals = [...day.meals].sort((a, b) => a.slotIndex - b.slotIndex)
 
+  // Every mutation below goes through this. Without it a 500 put the API's `{error: "…"}`
+  // straight into day state, and the next render threw on `day.meals` being undefined —
+  // one failed request white-screened the whole planner.
+  async function send<T>(url: string, init: RequestInit): Promise<T | null> {
+    try {
+      const res = await fetch(url, init)
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setError(typeof body?.error === 'string' ? body.error : 'Could not save that change. Try again.')
+        return null
+      }
+      return await res.json().catch(() => null) as T | null
+    } catch {
+      setError('Network error — that change was not saved.')
+      return null
+    }
+  }
+
   async function toggleOff() {
     const body: Record<string, unknown> = { isDismissed: !day.isDismissed }
     if (day.isDismissed) body.justification = ''
-    const res = await fetch(`/api/plans/${planId}/days/${day.id}`, {
+    const updated = await send<WeeklyPlanDay>(`/api/plans/${planId}/days/${day.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     })
-    const updated = await res.json()
+    if (!updated) return
     if (day.isDismissed) setNoteDraft('')
     onDayUpdate(updated)
   }
 
   async function saveNote() {
     if (noteDraft === day.justification) return
-    const res = await fetch(`/api/plans/${planId}/days/${day.id}`, {
+    const updated = await send<WeeklyPlanDay>(`/api/plans/${planId}/days/${day.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ justification: noteDraft })
     })
-    const updated = await res.json()
+    if (!updated) return
     onDayUpdate({ ...updated, meals: day.meals })
   }
 
   async function handlePick(meal: Meal) {
-    if (picking === 'add') {
-      const res = await fetch(`/api/plans/${planId}/days/${day.id}/meals`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mealId: meal.id, slotIndex: sortedMeals.length })
-      })
-      const { warnings, ...entry } = await res.json() as WeeklyPlanMeal & { warnings?: string[] }
-      onDayUpdate({ ...day, meals: [...day.meals, entry] })
-      if (warnings?.length) setBanner({ entryId: entry.id, warnings })
-    } else if (typeof picking === 'number') {
-      const existing = day.meals.find(m => m.id === picking)
-      await fetch(`/api/plans/${planId}/days/${day.id}/meals/${picking}`, { method: 'DELETE' })
-      const res = await fetch(`/api/plans/${planId}/days/${day.id}/meals`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mealId: meal.id, slotIndex: existing?.slotIndex ?? sortedMeals.length })
-      })
-      const { warnings, ...entry } = await res.json() as WeeklyPlanMeal & { warnings?: string[] }
-      onDayUpdate({ ...day, meals: [...day.meals.filter(m => m.id !== picking), entry] })
-      if (warnings?.length) setBanner({ entryId: entry.id, warnings })
-    }
+    const replacing = typeof picking === 'number' ? day.meals.find(m => m.id === picking) : undefined
     setPicking(null)
+    // Add the replacement BEFORE removing the old entry — the reverse order used to delete
+    // first, so a failed POST left the slot empty with nothing to undo it.
+    const created = await send<WeeklyPlanMeal & { warnings?: string[] }>(
+      `/api/plans/${planId}/days/${day.id}/meals`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mealId: meal.id, slotIndex: replacing?.slotIndex ?? sortedMeals.length })
+      }
+    )
+    if (!created) return
+    const { warnings, ...entry } = created
+    if (replacing) {
+      const removed = await send(`/api/plans/${planId}/days/${day.id}/meals/${replacing.id}`, { method: 'DELETE' })
+      // A failed delete leaves both in the slot rather than losing the new one — visible, fixable.
+      if (removed === null) return onDayUpdate({ ...day, meals: [...day.meals, entry] })
+    }
+    onDayUpdate({ ...day, meals: [...day.meals.filter(m => m.id !== replacing?.id), entry] })
+    if (warnings?.length) setBanner({ entryId: entry.id, warnings })
   }
 
   async function handleRemove(entryId: number) {
-    const res = await fetch(`/api/plans/${planId}/days/${day.id}/meals/${entryId}`, { method: 'DELETE' })
-    if (!res.ok) return
+    if (await send(`/api/plans/${planId}/days/${day.id}/meals/${entryId}`, { method: 'DELETE' }) === null) return
     onDayUpdate({ ...day, meals: day.meals.filter(m => m.id !== entryId) })
   }
 
@@ -98,15 +117,38 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
   function handleIngredientsChange(entryId: number, next: IngredientRef[]) {
     const json = JSON.stringify(next)
     onDayUpdate({ ...day, meals: day.meals.map(m => m.id === entryId ? { ...m, ingredients: json } : m) })
-    clearTimeout(saveTimers.current[entryId])
-    saveTimers.current[entryId] = setTimeout(() => {
-      fetch(`/api/plans/${planId}/days/${day.id}/meals/${entryId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingredients: next })
-      })
-    }, 600)
+    clearTimeout(saveTimers.current[entryId]?.timer)
+    saveTimers.current[entryId] = {
+      refs: next,
+      timer: setTimeout(() => {
+        delete saveTimers.current[entryId]
+        send(`/api/plans/${planId}/days/${day.id}/meals/${entryId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ingredients: next })
+        })
+      }, 600)
+    }
   }
+
+  // Flush pending ingredient saves on unmount — navigating away inside the 600ms debounce
+  // used to drop the edit silently while the UI had already shown it applied. keepalive lets
+  // the request outlive the page.
+  useEffect(() => {
+    const pending = saveTimers.current
+    const url = (entryId: string) => `/api/plans/${planId}/days/${day.id}/meals/${entryId}`
+    return () => {
+      for (const [entryId, p] of Object.entries(pending)) {
+        clearTimeout(p.timer)
+        fetch(url(entryId), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ingredients: p.refs }),
+          keepalive: true,
+        }).catch(() => {})
+      }
+    }
+  }, [planId, day.id])
 
   async function handleReorder(fromIdx: number, toIdx: number) {
     const reordered = [...sortedMeals]
@@ -114,7 +156,7 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
     reordered.splice(toIdx, 0, moved)
     const updated = reordered.map((m, i) => ({ ...m, slotIndex: i }))
     onDayUpdate({ ...day, meals: updated })
-    await fetch(`/api/plans/${planId}/days/${day.id}/meals/reorder`, {
+    await send(`/api/plans/${planId}/days/${day.id}/meals/reorder`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated.map(m => ({ id: m.id, slotIndex: m.slotIndex })))
@@ -143,15 +185,7 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
     setDropIdx(null)
   }
 
-  const totals = day.meals.reduce((acc, wpm) => {
-    const m = sumRefs(parseRefs(wpm.ingredients), fmap)
-    return {
-      calories: acc.calories + m.calories,
-      protein:  acc.protein  + m.protein,
-      carbs:    acc.carbs    + m.carbs,
-      fats:     acc.fats     + m.fats,
-    }
-  }, { calories: 0, protein: 0, carbs: 0, fats: 0 })
+  const totals = sumEntries(day.meals, fmap)
 
   const hasNote = noteDraft.trim().length > 0
   const expandedEntry = expanded !== null ? day.meals.find(m => m.id === expanded) : undefined
@@ -312,6 +346,17 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
               </button>
             </div>
           </div>
+        </div>,
+        document.body
+      )}
+
+      {error && createPortal(
+        <div className="fixed-alert" role="alert">
+          <Icon name="warning" size={16} />
+          <div className="fixed-alert-body"><p>{error}</p></div>
+          <button className="icon-btn" onClick={() => setError(null)} title="Dismiss">
+            <Icon name="x" size={14} />
+          </button>
         </div>,
         document.body
       )}

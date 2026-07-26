@@ -241,6 +241,21 @@ export function sumRefs(refs: IngredientRef[], foodsById: Map<number, Food>): Ma
   return coreMacros(nutrientsForRefs(refs, foodsById))
 }
 
+// Day/week totals: the core 4 summed across planner entries (or meals), whose `ingredients`
+// is the JSON-encoded ref string. The identical reduce used to be copy-pasted in the home
+// page, the planner page, and DayCard.
+export function sumEntries(entries: { ingredients: string }[], foodsById: Map<number, Food>): Macros {
+  return entries.reduce<Macros>((acc, e) => {
+    const m = sumRefs(parseRefs(e.ingredients), foodsById)
+    return {
+      calories: acc.calories + m.calories,
+      protein:  acc.protein  + m.protein,
+      carbs:    acc.carbs    + m.carbs,
+      fats:     acc.fats     + m.fats,
+    }
+  }, { calories: 0, protein: 0, carbs: 0, fats: 0 })
+}
+
 // Full nutrient breakdown for a set of refs (macros + micros + anything else) — for display
 // where granular detail is wanted, not just the core 4.
 export function nutrientsForRefs(refs: IngredientRef[], foodsById: Map<number, Food>): NutrientEntry[] {

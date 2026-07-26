@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { WeeklyPlan } from '@/types'
 import { Select } from '@/components/ui/Select'
+import { localDate } from '@/lib/date'
 
 interface Props {
   onCloned: () => void
@@ -13,15 +14,26 @@ export function QuickFill({ onCloned }: Props) {
   const [cloning, setCloning] = useState(false)
 
   useEffect(() => {
-    fetch('/api/plans/history').then(r => r.json()).then(setHistory)
+    // An unchecked .json() used to land {error} in `history`, and .map threw on it.
+    fetch('/api/plans/history')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(String(r.status))))
+      .then(data => setHistory(Array.isArray(data) ? data : []))
+      .catch(() => setHistory([]))
   }, [])
 
   async function handleClone() {
     if (!selected) return
     setCloning(true)
-    await fetch(`/api/plans/${selected}/clone`, { method: 'POST' })
-    setCloning(false)
-    onCloned()
+    try {
+      const res = await fetch(`/api/plans/${selected}/clone`, { method: 'POST' })
+      if (!res.ok) throw new Error(String(res.status))
+      onCloned()
+    } catch {
+      // Nothing was copied, so there's no partial state to undo — just say so.
+      alert('Could not copy that week. Try again.')
+    } finally {
+      setCloning(false)
+    }
   }
 
   return (
@@ -36,7 +48,7 @@ export function QuickFill({ onCloned }: Props) {
           : [
               { value: '', label: '— pick a week —' },
               ...history.map(plan => {
-                const d = new Date(plan.weekStart)
+                const d = localDate(plan.weekStart)
                 return {
                   value: String(plan.id),
                   label: `Week of ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`,

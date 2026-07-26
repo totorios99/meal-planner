@@ -20,11 +20,20 @@ export function FavoriteButton({ mealId, isFavorite, onToggled }: Props) {
     if (busy) return
     setBusy(true)
     setError(null)
-    const res = await fetch(`/api/meals/${mealId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isFavorite: !fav }),
-    })
+    // try/finally, not a bare await: a dropped connection rejects here, and without it
+    // setBusy(false) never ran — the button stayed disabled until a page reload.
+    let res: Response
+    try {
+      res = await fetch(`/api/meals/${mealId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isFavorite: !fav }),
+      })
+    } catch {
+      setBusy(false)
+      setError('Network error — favourite not updated.')
+      return
+    }
     setBusy(false)
     if (res.ok) {
       setFav(!fav)

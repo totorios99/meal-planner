@@ -23,9 +23,18 @@ export function useMacroTargets() {
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      try { setTargets(JSON.parse(stored)) } catch {}
-    }
+    if (!stored) return
+    try {
+      // Validate the shape, don't just parse it: a value written before a key was renamed
+      // leaves that macro undefined, and every DayAnalytics bar then renders NaN% with no
+      // way back short of clearing site data. Fall back per-key instead.
+      const raw = JSON.parse(stored) as Partial<Record<keyof MacroTargets, unknown>>
+      const next = { ...DEFAULTS }
+      for (const k of Object.keys(DEFAULTS) as (keyof MacroTargets)[]) {
+        if (typeof raw?.[k] === 'number' && Number.isFinite(raw[k])) next[k] = raw[k] as number
+      }
+      setTargets(next)
+    } catch {}
   }, [])
 
   function updateTargets(next: MacroTargets) {

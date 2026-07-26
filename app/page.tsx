@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { WeeklyPlan, Meal, FoodRow } from '@/types'
-import { parseRefs, sumRefs, foodsMap } from '@/lib/recipe'
+import { parseRefs, sumRefs, sumEntries, foodsMap } from '@/lib/recipe'
+import { localDate } from '@/lib/date'
 import { useMacroTargets } from '@/lib/useMacroTargets'
 import { MealCard } from '@/components/meals/MealCard'
 import { MealModal } from '@/components/meals/MealModal'
@@ -149,26 +150,20 @@ export default function HomePage() {
 
   const today = plan?.days.find(d => d.dayIndex === todayDayIndex())
   const todayMeals = today?.meals ?? []
-  const weekStart = plan ? new Date(plan.weekStart) : null
+  // localDate, not new Date(): weekStart is stored as a UTC timestamp and rendering it
+  // directly labels the week a day early for anyone west of UTC (AGENTS.md, timezones).
+  const weekStart = plan ? localDate(plan.weekStart) : null
 
   const fmap = foodsMap(foods)
   const daysOn = plan ? plan.days.filter(d => !d.isDismissed).length : 0
   const weekKcal = plan
-    ? plan.days.reduce((s, d) => s + (d.isDismissed ? 0 : d.meals.reduce((a, m) => a + sumRefs(parseRefs(m.ingredients), fmap).calories, 0)), 0)
+    ? plan.days.reduce((s, d) => s + (d.isDismissed ? 0 : sumEntries(d.meals, fmap).calories), 0)
     : 0
   const weekRange = weekStart
     ? `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${dayDate(weekStart, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${dayDate(weekStart, 6).getFullYear()}`
     : ''
 
-  const todayTotals = todayMeals.reduce((acc, wpm) => {
-    const m = sumRefs(parseRefs(wpm.ingredients), fmap)
-    return {
-      calories: acc.calories + m.calories,
-      protein:  acc.protein  + m.protein,
-      carbs:    acc.carbs    + m.carbs,
-      fats:     acc.fats     + m.fats,
-    }
-  }, { calories: 0, protein: 0, carbs: 0, fats: 0 })
+  const todayTotals = sumEntries(todayMeals, fmap)
 
   const now = new Date()
   const eyebrow = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })

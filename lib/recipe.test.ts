@@ -3,8 +3,10 @@
 import assert from 'node:assert'
 import {
   parseRefs, parseNutrients, refMacros, refNutrients, measureFactor, sumRefs, sumNutrients,
-  nutrientsForRefs, coreMacros, foodsMap, formatIngredientLine, type Food, type NutrientEntry,
+  nutrientsForRefs, coreMacros, foodsMap, formatIngredientLine, sumEntries,
+  type Food, type NutrientEntry,
 } from './recipe.ts'
+import { localDate, toDateParam } from './date.ts'
 
 const riceNutrients: NutrientEntry[] = [
   { key: 'calories', label: 'Calories', unit: 'kcal', amount: 1.3, group: 'macro' },
@@ -89,3 +91,26 @@ assert.strictEqual(formatIngredientLine(0.5, 'egg', 'Egg'), '1/2 Egg')
 // but a genuinely different unit is kept
 assert.strictEqual(formatIngredientLine(2, 'tbsp', 'Olive oil'), '2 tbsp Olive oil')
 assert.strictEqual(formatIngredientLine(79, 'g', 'Banana'), '79 g Banana')
+
+// sumEntries adds the core 4 across entries and ignores unparseable ingredient blobs.
+const entryFoods = foodsMap([{ id: 1, name: 'rice', baseUnit: 'g', nutrients: JSON.stringify(riceNutrients), measures: '[]' }])
+const twoEntries = sumEntries(
+  [{ ingredients: '[{"foodId":1,"quantity":100,"measure":"g"}]' },
+   { ingredients: '[{"foodId":1,"quantity":50,"measure":"g"}]' }],
+  entryFoods
+)
+assert.strictEqual(Math.round(twoEntries.calories), 195) // 1.3 kcal/g * 150 g
+assert.strictEqual(Math.round(twoEntries.carbs), 42)
+assert.strictEqual(sumEntries([], entryFoods).calories, 0)
+assert.strictEqual(sumEntries([{ ingredients: 'not json' }], entryFoods).calories, 0)
+
+// localDate rebuilds the stored UTC weekStart at LOCAL midnight — a plain new Date() on the
+// same string renders the previous day for anyone west of UTC.
+const ws = localDate('2026-07-27T06:00:00.000Z')
+assert.strictEqual(ws.getDate(), 27)
+assert.strictEqual(ws.getMonth(), 6)
+assert.strictEqual(localDate('2026-07-27T06:00:00.000Z', 6).getDate(), 2) // +6 days rolls into Aug
+assert.strictEqual(localDate('2026-07-27T06:00:00.000Z', 6).getMonth(), 7)
+assert.strictEqual(toDateParam(ws), '2026-07-27')
+
+console.log('sumEntries / localDate: all checks passed')
