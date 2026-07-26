@@ -78,8 +78,19 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 ## Git & SSH
 
 - Remote: `git@github.com:totorios99/meal-planner.git` (SSH)
-- Push requires SSH agent running: `eval (ssh-agent -c) && ssh-add ~/.ssh/id_ed25519`
-- Agent does not persist across terminal sessions — re-run before pushing
+- A `ssh-agent` systemd **user** service holds the key at a stable socket,
+  `/run/user/1000/ssh-agent.socket`, which `~/.claude/settings.json` exports as `SSH_AUTH_SOCK`.
+  So `git push` normally just works from a session — no `eval (ssh-agent -c)` dance.
+  (The old advice failed because each terminal span up its own agent at a random socket path,
+  and a session inherited whichever one happened to be dead.)
+- Key is passphrase-protected, so it must be added **once per boot**, from a terminal that can
+  prompt: `ssh-add ~/.ssh/id_ed25519`. `AddKeysToAgent yes` in `~/.ssh/config` means any manual
+  ssh/git operation does this for you.
+- If a push fails with "correct access rights", check `ssh-add -l` first:
+  - `The agent has no identities` → the once-per-boot `ssh-add` hasn't happened. Ask the user to
+    run it (`! ssh-add ~/.ssh/id_ed25519`); a non-interactive shell cannot prompt for the
+    passphrase and dies with `ssh_askpass: … No such file or directory`.
+  - `Error connecting to agent` → the service is down: `systemctl --user status ssh-agent`
 
 ## Companion app — Forma
 
