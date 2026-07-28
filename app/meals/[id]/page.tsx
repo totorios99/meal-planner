@@ -1,26 +1,42 @@
 import { notFound } from 'next/navigation'
 import { BackLink } from '@/components/BackLink'
 import { prisma } from '@/lib/prisma'
-import { parseList, parseRefs, refMacros, foodsMap, formatIngredientLine } from '@/lib/recipe'
+import { parseList, parseRefs, refMacros, sumRefs, foodsMap, formatIngredientLine } from '@/lib/recipe'
 import { Icon } from '@/components/Icon'
 import { MacroRow } from '@/components/meals/MacroRow'
 import { FavoriteButton } from '@/components/meals/FavoriteButton'
 
 export const dynamic = 'force-dynamic'
 
-export default async function MealPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function MealPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ pm?: string }>
+}) {
   const { id } = await params
+  const { pm } = await searchParams
   const mealId = Number(id)
   if (!Number.isInteger(mealId)) notFound()
 
   const meal = await prisma.meal.findUnique({ where: { id: mealId } })
   if (!meal) notFound()
 
+  // ?pm=<WeeklyPlanMeal.id> renders this recipe with that placement's edited portions
+  const planMealId = Number(pm)
+  const placement = Number.isInteger(planMealId)
+    ? await prisma.weeklyPlanMeal.findUnique({ where: { id: planMealId } })
+    : null
+  const fromPlan = placement?.mealId === meal.id
+  const refs = parseRefs(fromPlan ? placement!.ingredients : meal.ingredients)
+
   const fmap = foodsMap(await prisma.food.findMany())
-  const ingredients = parseRefs(meal.ingredients).map(ref => {
+  const ingredients = refs.map(ref => {
     const food = fmap.get(ref.foodId)
     return { ref, food, macros: refMacros(ref, food) }
   })
+  const totals = fromPlan ? sumRefs(refs, fmap) : meal
   const steps = parseList(meal.steps)
   const tags = meal.tag.split(',').map(t => t.trim()).filter(Boolean)
   const totalMinutes = meal.prepMinutes + meal.cookMinutes
@@ -42,6 +58,8 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
         )}
       </div>
 
+      {fromPlan && <p className="page-eyebrow">Portions from your plan</p>}
+
       <div className="recipe-head">
         <h1 className="recipe-title">{meal.title}</h1>
         <FavoriteButton mealId={meal.id} isFavorite={meal.isFavorite} />
@@ -61,7 +79,7 @@ export default async function MealPage({ params }: { params: Promise<{ id: strin
         <span className="recipe-meta-item"><Icon name="users" size={14} /> {meal.servings} {meal.servings === 1 ? 'serving' : 'servings'}</span>
       </div>
 
-      <MacroRow calories={meal.calories} protein={meal.protein} carbs={meal.carbs} fats={meal.fats} />
+      <MacroRow calories={totals.calories} protein={totals.protein} carbs={totals.carbs} fats={totals.fats} />
 
       <div className="recipe-columns">
         <section className="recipe-panel">

@@ -215,7 +215,7 @@ export default function HomePage() {
               {todayMeals.map(wpm => {
                 const mac = sumRefs(parseRefs(wpm.ingredients), fmap)
                 return (
-                <div key={wpm.id} className="today-meal">
+                <Link key={wpm.id} href={`/meals/${wpm.mealId}?pm=${wpm.id}`} className="today-meal">
                   <div className="today-meal-thumb">
                     {wpm.meal.imageUrl && <img src={wpm.meal.imageUrl} alt={wpm.meal.title} />}
                   </div>
@@ -237,7 +237,7 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div className="today-meal-kcal">{Math.round(mac.calories)}</div>
-                </div>
+                </Link>
                 )
               })}
             </div>

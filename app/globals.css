@@ -924,6 +924,8 @@ input, textarea { font-family: inherit; color: inherit; }
   border: 1px solid var(--stroke);
   box-shadow: var(--inset-hi);
   transition: transform .15s, filter .15s;
+  text-decoration: none;
+  color: inherit;
 }
 .today-meal:hover { transform: translateY(-1px); filter: brightness(1.04); }
 .today-meal-thumb {
