@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { parseRefs, sumRefs, foodsMap, type Food, type IngredientRef, type Macros, type NutrientEntry } from '@/lib/recipe'
+import { parseMeasures, parseRefs, sumRefs, foodsMap, type Food, type IngredientRef, type Macros, type NutrientEntry } from '@/lib/recipe'
 import type { ImportIngredient } from '@/lib/mealSchema'
 
 function num(v: unknown): number { const n = Number(v); return Number.isFinite(n) ? n : 0 }
@@ -34,7 +34,7 @@ export async function macrosForRefs(ingredientsJson: string) {
 export async function importIngredientsToRefs(
   raw: (string | ImportIngredient)[],
   totals: Macros,
-): Promise<{ refs: IngredientRef[]; macros: Macros }> {
+): Promise<{ refs: IngredientRef[]; macros: Macros; warnings: string[] }> {
   const items: ImportIngredient[] = raw.map(i =>
     typeof i === 'string' ? { name: i, unit: '', quantity: 1 } : i
   )
@@ -42,6 +42,7 @@ export async function importIngredientsToRefs(
   const evenSplit = provided <= 0
   const nn = items.length || 1
   const refs: IngredientRef[] = []
+  const warnings: string[] = []
   for (const it of items) {
     const name = it.name.trim()
     if (!name) continue
@@ -62,10 +63,39 @@ export async function importIngredientsToRefs(
         data: { name, baseUnit, nutrients: JSON.stringify(nutrients), measures: '[]' },
       })
     }
-    refs.push({ foodId: food.id, quantity: q, measure: food.baseUnit || 'unit' })
+    refs.push({ foodId: food.id, quantity: q, measure: resolveMeasure(food, it.unit, name, warnings) })
   }
   const map = await loadFoodsMap()
-  return { refs, macros: sumRefs(refs, map) }
+  return { refs, macros: sumRefs(refs, map), warnings }
+}
+
+// Which measure to store a ref in. The unit the caller sent has to be honoured or the quantity
+// changes meaning: "2 shots" of a food whose baseUnit is ml became 2 ml — an espresso reduced to
+// two drops — because this used to always store the baseUnit. An unknown unit still falls back to
+// the baseUnit (nothing better exists) but says so, since the number is then being reinterpreted.
+function resolveMeasure(
+  food: { baseUnit: string; measures: string },
+  unit: string | undefined,
+  name: string,
+  warnings: string[],
+): string {
+  const base = food.baseUnit || 'unit'
+  const want = (unit ?? '').trim().toLowerCase()
+  if (!want || want === base.toLowerCase()) return base
+
+  const measures = parseMeasures(food.measures)
+  // Match a declared measure, tolerating the plural an agent naturally writes ("2 shots").
+  const hit = measures.find(m => {
+    const u = m.unit.trim().toLowerCase()
+    return u === want || `${u}s` === want || u === `${want}s`
+  })
+  if (hit) return hit.unit
+
+  warnings.push(
+    `"${name}": unit "${unit}" is not a measure on that food, so the quantity was read as ${base}. ` +
+    `Add the measure with upsert_food (measures: [{unit, perBase}]) and re-import, or send the amount in ${base}.`
+  )
+  return base
 }
 
 // Recompute the cached macro columns on meals from the current foods. Meal macros are

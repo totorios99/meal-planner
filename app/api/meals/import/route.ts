@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { stageLabel } from '@/lib/recipe'
 import { importSchema } from '@/lib/mealSchema'
 import { importIngredientsToRefs } from '@/lib/foods'
+
+// One stage per step, no timer, no ingredient span: the chart degrades to a plain ladder, which
+// is the honest fallback when nobody has said which step consumes what.
+function ladderFromSteps(steps: string[]) {
+  return steps.map((step, i) => ({
+    name: stageLabel(step),
+    detail: step.trim(),
+    timing: '',
+    seconds: 0,
+    slot: i,
+    from: 0,
+    to: -1,
+  }))
+}
 
 export async function POST(request: NextRequest) {
   const key = process.env.MISE_API_KEY
@@ -23,7 +38,7 @@ export async function POST(request: NextRequest) {
   }
 
   const p = parsed.data
-  const { refs, macros } = await importIngredientsToRefs(p.ingredients, {
+  const { refs, macros, warnings } = await importIngredientsToRefs(p.ingredients, {
     calories: p.calories, protein: p.protein, carbs: p.carbs, fats: p.fats,
   })
   const meal = await prisma.meal.create({
@@ -34,12 +49,15 @@ export async function POST(request: NextRequest) {
       tag: [...p.categories, ...p.tags].join(', '),
       ingredients: JSON.stringify(refs),
       steps: JSON.stringify(p.steps),
-      stages: JSON.stringify(p.stages),
+      // An import that didn't work out the chart still gets the step ladder the backfill migration
+      // gave every older meal — otherwise cook mode greets a brand-new recipe with an empty state.
+      stages: JSON.stringify(p.stages.length > 0 ? p.stages : ladderFromSteps(p.steps)),
       prepMinutes: p.prepMinutes,
       cookMinutes: p.cookMinutes,
       servings: p.servings,
       ...macros,
     },
   })
-  return NextResponse.json(meal, { status: 201 })
+  // Warnings, not errors: the meal is saved, but the agent needs to know a unit was reinterpreted.
+  return NextResponse.json(warnings.length > 0 ? { ...meal, warnings } : meal, { status: 201 })
 }
