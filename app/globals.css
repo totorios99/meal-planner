@@ -2693,11 +2693,12 @@ input, textarea { font-family: inherit; color: inherit; }
   font-weight: 450;
   color: var(--ink-2);
 }
+/* Tint only, no weight change: bolding a long ingredient name re-wraps its row, which grows the
+   grid and moves the very card being hovered — the same feedback loop the rail's fixed height
+   exists to prevent. The accent fill and the accent-ink quantity carry the emphasis. */
 .cook-ing.is-now .cook-ing-qty { color: var(--accent-ink); }
-.cook-ing.is-now .cook-ing-name { font-weight: 600; }
 .cook-ing.is-now {
   background: var(--accent-soft);
-  font-weight: 600;
   color: var(--accent-ink);
 }
 .cook-ing.is-used {
@@ -2771,7 +2772,11 @@ input, textarea { font-family: inherit; color: inherit; }
 .cook-rail {
   margin-bottom: 12px;
   padding: 14px 16px;
-  min-height: 78px;
+  /* Fixed, not min-height: this box sits above the chart, so any growth on hover moves the cards
+     underneath it. Tall enough for a label plus three lines at this measure; the rare longer
+     instruction scrolls rather than resizing the page. */
+  height: 118px;
+  overflow-y: auto;
   border: 1px solid var(--hair);
   border-radius: var(--r-md);
   background: var(--bg-sunken);

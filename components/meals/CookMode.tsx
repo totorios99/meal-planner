@@ -230,7 +230,6 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
   // same paragraph sat in both places at once.
   const previewed = peek >= 0 ? stages[peek] : undefined
   const railStage = previewed && !(cooking && previewed.slot === slot) ? previewed : undefined
-  const railOpen = !cooking || !!railStage
 
   const mm = Math.floor(remaining / 60)
   const ss = String(remaining % 60).padStart(2, '0')
@@ -510,23 +509,30 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
         </div>
       )}
 
-      {railOpen && (
-        <div className={`cook-rail${railStage ? ' is-filled' : ''}`}>
-          {railStage ? (
-            <>
-              <span className="cook-rail-label">
-                {/* While cooking, say plainly that this is not the step on the heat. */}
-                {cooking && <b>Step {railStage.slot + 1}</b>}
-                {railStage.name}
-                {railStage.timing ? <em>{railStage.timing}</em> : null}
-              </span>
-              <p className="cook-rail-text">{railStage.detail || 'No further detail for this stage.'}</p>
-            </>
-          ) : (
-            <p className="cook-rail-text">Hover or focus a stage to read its instruction.</p>
-          )}
-        </div>
-      )}
+      {/* Always rendered at a fixed height, filled or not. Growing it on hover pushed the very
+          card being hovered downwards — a cursor near a card's top edge fell outside it, which
+          ended the hover, which shrank this box, which slid the card back under the cursor, many
+          times a second. A preview must never move the thing being previewed. */}
+      <div className={`cook-rail${railStage ? ' is-filled' : ''}`}>
+        {railStage ? (
+          <>
+            <span className="cook-rail-label">
+              {/* While cooking, say plainly that this is not the step on the heat. */}
+              {cooking && <b>Step {railStage.slot + 1}</b>}
+              {railStage.name}
+              {railStage.timing ? <em>{railStage.timing}</em> : null}
+            </span>
+            <p className="cook-rail-text">{railStage.detail || 'No further detail for this stage.'}</p>
+          </>
+        ) : (
+          <p className="cook-rail-text">
+            {cooking
+              ? 'Hover a stage to look ahead without leaving this step.'
+              : 'Hover or focus a stage to read its instruction.'}
+          </p>
+        )}
+      </div>
+
       {chart}
       {slotList}
 
