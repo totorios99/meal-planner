@@ -66,7 +66,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var p=localStorage.getItem('theme-pref')||'system';var d=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);var e=document.documentElement;e.setAttribute('data-theme',d?'dark':'light');e.classList.toggle('dark',d);}catch(_){}})();`,
+            __html: `(function(){try{var e=document.documentElement;var p=localStorage.getItem('theme-pref')||'system';var d=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);e.setAttribute('data-theme',d?'dark':'light');e.classList.toggle('dark',d);var v=localStorage.getItem('meal-planner-recipe-view');if(v==='list'||v==='chart')e.setAttribute('data-recipe-view',v);}catch(_){}})();`,
           }}
         />
       </head>

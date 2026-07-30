@@ -1,10 +1,12 @@
 import { notFound } from 'next/navigation'
 import { BackLink } from '@/components/BackLink'
 import { prisma } from '@/lib/prisma'
-import { parseList, parseRefs, refMacros, sumRefs, foodsMap, formatIngredientLine } from '@/lib/recipe'
+import { parseList, parseRefs, parseStages, refMacros, sumRefs, foodsMap, formatIngredientLine } from '@/lib/recipe'
 import { Icon } from '@/components/Icon'
 import { MacroRow } from '@/components/meals/MacroRow'
 import { FavoriteButton } from '@/components/meals/FavoriteButton'
+import { CookMode } from '@/components/meals/CookMode'
+import { RecipeBody } from '@/components/meals/RecipeBody'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,6 +40,7 @@ export default async function MealPage({
   })
   const totals = fromPlan ? sumRefs(refs, fmap) : meal
   const steps = parseList(meal.steps)
+  const stages = parseStages(meal.stages)
   const tags = meal.tag.split(',').map(t => t.trim()).filter(Boolean)
   const totalMinutes = meal.prepMinutes + meal.cookMinutes
 
@@ -81,40 +84,55 @@ export default async function MealPage({
 
       <MacroRow calories={totals.calories} protein={totals.protein} carbs={totals.carbs} fats={totals.fats} />
 
-      <div className="recipe-columns">
-        <section className="recipe-panel">
-          <h2 className="recipe-panel-title">Ingredients</h2>
-          {ingredients.length > 0 ? (
-            <ul className="recipe-ingredients">
-              {ingredients.map(({ ref, food, macros }, i) => {
-                const name = food?.name ?? 'Unknown food'
-                const unit = ref.measure || food?.baseUnit || ''
-                return (
-                  <li key={i}>
-                    <span>{formatIngredientLine(ref.quantity, unit, name)}</span>
-                    {macros.calories > 0 && (
-                      <span className="recipe-ing-macros">{Math.round(macros.calories)} kcal</span>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          ) : (
-            <p className="recipe-empty">No ingredients listed yet.</p>
-          )}
-        </section>
+      <RecipeBody
+        chart={
+          <CookMode
+            stages={stages}
+            servings={meal.servings}
+            ingredients={ingredients.map(({ ref, food }) => ({
+              quantity: ref.quantity,
+              unit: ref.measure || food?.baseUnit || '',
+              name: food?.name ?? 'Unknown food',
+            }))}
+          />
+        }
+        list={
+          <div className="recipe-columns">
+            <section className="recipe-panel">
+              <h2 className="recipe-panel-title">Ingredients</h2>
+              {ingredients.length > 0 ? (
+                <ul className="recipe-ingredients">
+                  {ingredients.map(({ ref, food, macros }, i) => {
+                    const name = food?.name ?? 'Unknown food'
+                    const unit = ref.measure || food?.baseUnit || ''
+                    return (
+                      <li key={i}>
+                        <span>{formatIngredientLine(ref.quantity, unit, name)}</span>
+                        {macros.calories > 0 && (
+                          <span className="recipe-ing-macros">{Math.round(macros.calories)} kcal</span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <p className="recipe-empty">No ingredients listed yet.</p>
+              )}
+            </section>
 
-        <section className="recipe-panel recipe-panel-steps">
-          <h2 className="recipe-panel-title">Steps</h2>
-          {steps.length > 0 ? (
-            <ol className="recipe-steps">
-              {steps.map((step, i) => <li key={i}>{step}</li>)}
-            </ol>
-          ) : (
-            <p className="recipe-empty">No steps listed yet.</p>
-          )}
-        </section>
-      </div>
+            <section className="recipe-panel recipe-panel-steps">
+              <h2 className="recipe-panel-title">Steps</h2>
+              {steps.length > 0 ? (
+                <ol className="recipe-steps">
+                  {steps.map((step, i) => <li key={i}>{step}</li>)}
+                </ol>
+              ) : (
+                <p className="recipe-empty">No steps listed yet.</p>
+              )}
+            </section>
+          </div>
+        }
+      />
     </main>
   )
 }

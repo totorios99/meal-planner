@@ -288,6 +288,18 @@ const refObj = z.object({
   measure: z.string().optional().describe('Measure unit; defaults to the food base unit'),
 })
 
+const stageObj = z.object({
+  name: z.string().min(1).describe('SHORT card label, a few words — e.g. "Scrape, lid on, simmer". Not the full instruction.'),
+  detail: z.string().optional().describe('The full instruction for this stage, shown when the cook hovers or reaches it. Usually the matching entry from `steps`.'),
+  timing: z.string().optional().describe('Display copy for the duration, e.g. "25–30 min"'),
+  hint: z.string().optional().describe('Optional cue, e.g. "medium-low · thickened"'),
+  seconds: z.number().int().min(0).optional().describe('Countdown length; 0 or omitted = no timer'),
+  slot: z.number().int().min(0).describe('Time slot — two stages with the SAME slot run in parallel'),
+  from: z.number().int().min(0).optional().describe('First ingredient index (0-based) this stage consumes'),
+  to: z.number().int().min(-1).optional().describe('Last ingredient index, inclusive; omit for a stage that consumes nothing'),
+  meanwhile: z.boolean().optional().describe('Unattended companion of a parallel slot; never owns the slot timer'),
+})
+
 const importShape = {
   name: z.string().min(1).describe('Recipe title'),
   description: z.string().optional().describe('One-line summary'),
@@ -305,6 +317,8 @@ const importShape = {
   ingredients: z.array(z.union([z.string(), ingredientObj])).min(1)
     .describe('Ingredients — a plain string, or {name, quantity, unit, calories, protein, carbs, fats}. Include per-ingredient macros when known so portions recalc.'),
   steps: z.array(z.string()).min(1).describe('Ordered cooking steps'),
+  stages: z.array(stageObj).optional()
+    .describe('Optional cook-mode chart: which ingredients each stage consumes, how long it runs, and which stages overlap (same slot). Omit and Mise falls back to one stage per step.'),
 }
 
 server.registerTool('import_meal', {
@@ -324,6 +338,7 @@ server.registerTool('update_meal', {
     imageUrl: z.string().optional(),
     ingredients: z.array(refObj).optional().describe('Food refs; omit to keep existing ingredients'),
     steps: z.array(z.string()).optional(),
+    stages: z.array(stageObj).optional().describe('Cook-mode stages; omit to keep existing'),
     prepMinutes: z.number().int().min(0).optional(),
     cookMinutes: z.number().int().min(0).optional(),
     servings: z.number().int().min(1).optional(),

@@ -28,6 +28,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (has(k)) data[k] = d[k]
   }
   if (has('steps')) data.steps = JSON.stringify(d.steps ?? [])
+  if (has('stages')) data.stages = JSON.stringify(d.stages ?? [])
   if (has('ingredients')) {
     data.ingredients = JSON.stringify(d.ingredients ?? [])
     Object.assign(data, await macrosForRefs(data.ingredients as string))

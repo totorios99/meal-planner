@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       tag: [...p.categories, ...p.tags].join(', '),
       ingredients: JSON.stringify(refs),
       steps: JSON.stringify(p.steps),
+      stages: JSON.stringify(p.stages),
       prepMinutes: p.prepMinutes,
       cookMinutes: p.cookMinutes,
       servings: p.servings,

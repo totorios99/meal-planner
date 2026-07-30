@@ -127,6 +127,176 @@ export function parseRefs(s: string): IngredientRef[] {
   }
 }
 
+// One cooking stage of the cook-mode chart. `slot` is the time slot: stages sharing a slot run
+// in parallel, and the slot's timer is max(seconds) across them. `from`/`to` is the inclusive
+// ingredient index range the stage consumes — from > to (e.g. to: -1) means "no ingredients",
+// which is how step-backfilled meals degenerate to a plain ladder. Grid geometry is always
+// derived (row = from+1 / to+2, column = slot+2), never stored.
+export type Stage = {
+  name: string
+  detail?: string
+  timing: string
+  hint?: string
+  seconds: number
+  slot: number
+  from: number
+  to: number
+  meanwhile?: boolean
+}
+
+// stages live in a String column as JSON — same shape-guard treatment as parseRefs, [] on
+// failure. A stage with no name is dropped: it would render an unlabelled block nobody can act
+// on. Indices are floored/clamped here so downstream grid math never sees a fractional row.
+export function parseStages(s: string): Stage[] {
+  try {
+    const v = JSON.parse(s)
+    if (!Array.isArray(v)) return []
+    return v.map(st => ({
+      name: String(st?.name ?? '').trim(),
+      detail: String(st?.detail ?? '').trim() || undefined,
+      timing: String(st?.timing ?? ''),
+      hint: st?.hint ? String(st.hint) : undefined,
+      seconds: Math.max(0, Math.round(num(st?.seconds))),
+      slot: Math.max(0, Math.floor(num(st?.slot))),
+      from: Math.max(0, Math.floor(num(st?.from))),
+      // Missing `to` means no ingredient span, not row 0 — num() would give 0 and paint a block
+      // over the first ingredient.
+      to: typeof st?.to === 'number' ? Math.floor(st.to) : -1,
+      meanwhile: st?.meanwhile === true || undefined,
+    })).filter(st => st.name)
+  } catch {
+    return []
+  }
+}
+
+// Time slots the chart has: slots are 0-based and dense enough that the highest one defines the
+// column count (an unused middle slot just renders an empty column).
+export function slotCount(stages: Stage[]): number {
+  return stages.length ? Math.max(...stages.map(s => s.slot)) + 1 : 0
+}
+
+// The slot's countdown is the LONGEST stage in it — a parallel `meanwhile` stage must not cut
+// the slot short, and a slot of only untimed stages gets 0 ("no timer").
+export function slotSeconds(stages: Stage[], slot: number): number {
+  return Math.max(0, ...stages.filter(s => s.slot === slot).map(s => s.seconds))
+}
+
+// The slot an ingredient goes in: the FIRST one that consumes it. Stage ranges may overlap (an
+// ingredient added in one stage and crushed in the next), and the earliest use is when it enters
+// the pot. -1 = no stage claims it.
+export function slotOfIngredient(stages: Stage[], index: number): number {
+  let owner = -1
+  for (const s of stages) {
+    if (s.to < s.from || index < s.from || index > s.to) continue
+    if (owner === -1 || s.slot < owner) owner = s.slot
+  }
+  return owner
+}
+
+// A stage card is a chart cell a few words wide; the full instruction belongs behind hover/focus.
+// This derives the card label from an instruction: the part before a leading "Label: …" colon when
+// there is one, else the first clause, else a word-boundary truncation.
+const LABEL_MAX = 46
+export function stageLabel(instruction: string): string {
+  const text = instruction.trim()
+  if (text.length <= LABEL_MAX) return text
+
+  const colon = text.indexOf(':')
+  if (colon > 0 && colon <= LABEL_MAX) return text.slice(0, colon).trim()
+
+  const clause = text.search(/[,.;—]/)
+  if (clause > 0 && clause <= LABEL_MAX) return text.slice(0, clause).trim()
+
+  const cut = text.lastIndexOf(' ', LABEL_MAX)
+  return `${text.slice(0, cut > 0 ? cut : LABEL_MAX).trim()}…`
+}
+
+// Authoring format for the stages textarea in MealModal, one stage per line:
+//
+//   Soften the onion | 5–6 min | 330s | slot 0 | ing 0-1 | medium-high
+//   Warm the pita | | 0s | slot 3 | ing 13 | meanwhile
+//
+// Only the name is required. Field 1 is the display timing; every later field is matched by
+// keyword rather than position (`330s`, `slot 0`, `ing 0-1`, `meanwhile`, `> full instruction`),
+// so the author can drop or reorder the ones they don't need — anything else becomes the hint.
+export function parseStageLines(text: string): Stage[] {
+  return text.split('\n').map(line => {
+    const [rawName, rawTiming, ...rest] = line.split('|').map(s => s.trim())
+    const stage: Stage = {
+      name: rawName ?? '',
+      timing: rawTiming ?? '',
+      seconds: 0,
+      slot: 0,
+      from: 0,
+      to: -1,
+    }
+    for (const field of rest) {
+      if (!field) continue
+      const secs = /^(\d+)\s*s$/i.exec(field)
+      const slot = /^slot\s+(\d+)$/i.exec(field)
+      const ing = /^ing\s+(\d+)(?:\s*-\s*(\d+))?$/i.exec(field)
+      if (field.startsWith('>')) stage.detail = field.slice(1).trim() || undefined
+      else if (secs) stage.seconds = Number(secs[1])
+      else if (slot) stage.slot = Number(slot[1])
+      else if (ing) {
+        stage.from = Number(ing[1])
+        stage.to = ing[2] === undefined ? Number(ing[1]) : Number(ing[2])
+      } else if (/^meanwhile$/i.test(field)) stage.meanwhile = true
+      else stage.hint = field
+    }
+    return stage
+  }).filter(st => st.name)
+}
+
+// Inverse of parseStageLines, for seeding the textarea from a saved meal. Empty fields are kept
+// as `| |` so the timing column stays in the position the parser expects.
+export function stageLines(stages: Stage[]): string {
+  return stages.map(st => {
+    const parts = [st.name, st.timing, `${st.seconds}s`, `slot ${st.slot}`]
+    if (st.to >= st.from) parts.push(st.from === st.to ? `ing ${st.from}` : `ing ${st.from}-${st.to}`)
+    if (st.hint) parts.push(st.hint)
+    if (st.meanwhile) parts.push('meanwhile')
+    if (st.detail) parts.push(`> ${st.detail}`)
+    return parts.join(' | ')
+  }).join('\n')
+}
+
+// Weight/volume conversions for the US/Metric toggle, as metric-per-US-unit ratios. Count and
+// informal units (piece, can, clove, pinch, egg…) have no metric equivalent and pass through
+// untouched — this is display only, macro math always uses the stored ref.
+const US_TO_METRIC: Record<string, { unit: string; factor: number }> = {
+  oz: { unit: 'g', factor: 28.3495 },
+  lb: { unit: 'g', factor: 453.592 },
+  cup: { unit: 'ml', factor: 236.588 },
+  tbsp: { unit: 'ml', factor: 14.7868 },
+  tsp: { unit: 'ml', factor: 4.92892 },
+  'fl oz': { unit: 'ml', factor: 29.5735 },
+  qt: { unit: 'l', factor: 0.946353 },
+}
+// Not the inverse table: going metric→US collapses cup/tbsp/tsp/fl oz into one choice per
+// metric unit (grams read as oz, millilitres as fl oz), since there's no way to recover which
+// spoon the author meant.
+const METRIC_TO_US: Record<string, { unit: string; factor: number }> = {
+  g: { unit: 'oz', factor: 1 / 28.3495 },
+  kg: { unit: 'lb', factor: 2.20462 },
+  mg: { unit: 'oz', factor: 1 / 28349.5 },
+  ml: { unit: 'fl oz', factor: 1 / 29.5735 },
+  l: { unit: 'qt', factor: 1.05669 },
+}
+
+// Same amount expressed in the other measurement system. Unknown/count units are returned
+// unchanged (with their original unit string), so callers can convert unconditionally.
+export function convertUnit(
+  quantity: number,
+  unit: string,
+  system: 'US' | 'Metric'
+): { quantity: number; unit: string } {
+  const u = unit.trim().toLowerCase()
+  const table = system === 'Metric' ? US_TO_METRIC : METRIC_TO_US
+  const hit = table[u]
+  return hit ? { quantity: quantity * hit.factor, unit: hit.unit } : { quantity, unit }
+}
+
 // Base units in 1 of `measure`. Base unit (or unknown measure) → 1.
 export function measureFactor(food: Food, measure: string): number {
   if (!measure || measure === food.baseUnit) return 1

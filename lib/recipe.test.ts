@@ -4,6 +4,8 @@ import assert from 'node:assert'
 import {
   parseRefs, parseNutrients, refMacros, refNutrients, measureFactor, sumRefs, sumNutrients,
   nutrientsForRefs, coreMacros, foodsMap, formatIngredientLine, sumEntries,
+  parseStages, parseStageLines, stageLines, convertUnit, slotCount, slotSeconds, slotOfIngredient,
+  stageLabel,
   type Food, type NutrientEntry,
 } from './recipe.ts'
 import { localDate, toDateParam } from './date.ts'
@@ -114,3 +116,95 @@ assert.strictEqual(localDate('2026-07-27T06:00:00.000Z', 6).getMonth(), 7)
 assert.strictEqual(toDateParam(ws), '2026-07-27')
 
 console.log('sumEntries / localDate: all checks passed')
+
+// ── Cook mode: stages + unit conversion ───────────────────────────────────────
+
+// parseStages guards the shape. A missing `to` must mean "no ingredient span" (-1), not row 0 —
+// defaulting it to 0 would paint every un-authored stage over the first ingredient.
+assert.deepStrictEqual(parseStages('[{"name":"Simmer","slot":2,"seconds":90,"from":3,"to":5}]'), [
+  { name: 'Simmer', detail: undefined, timing: '', hint: undefined, seconds: 90, slot: 2, from: 3, to: 5, meanwhile: undefined },
+])
+assert.strictEqual(parseStages('[{"name":"Step one"}]')[0].to, -1)
+assert.strictEqual(parseStages('[{"name":""},{"name":"  "}]').length, 0) // unnamed stages dropped
+assert.strictEqual(parseStages('not json').length, 0)
+assert.strictEqual(parseStages('{"name":"x"}').length, 0) // object, not array
+assert.strictEqual(parseStages('[{"name":"x","slot":-4,"seconds":-9}]')[0].slot, 0) // clamped
+assert.strictEqual(parseStages('[{"name":"x","meanwhile":true}]')[0].meanwhile, true)
+
+// The textarea format: name and timing are positional, everything after is keyword-matched, so
+// the author can drop or reorder fields.
+const authored = parseStageLines([
+  'Soften the onion | 5–6 min | 330s | slot 0 | ing 0-1',
+  'Warm the pita |  | 0s | slot 1 | ing 6 | meanwhile',
+  'Serve | | | slot 2 | medium-low · thickened',
+  '   ', // blank lines ignored
+].join('\n'))
+assert.strictEqual(authored.length, 3)
+assert.deepStrictEqual(authored[0], { name: 'Soften the onion', timing: '5–6 min', seconds: 330, slot: 0, from: 0, to: 1 })
+assert.strictEqual(authored[1].meanwhile, true)
+assert.strictEqual(authored[1].from, 6)
+assert.strictEqual(authored[1].to, 6) // single index spans one row
+assert.strictEqual(authored[2].hint, 'medium-low · thickened')
+assert.strictEqual(authored[2].to, -1) // no `ing` field → no span
+
+// Round-trip through the serializer the editor seeds from.
+assert.deepStrictEqual(parseStageLines(stageLines(authored)), authored)
+
+// convertUnit: weight/volume both ways, count units untouched.
+assert.strictEqual(Math.round(convertUnit(2, 'cup', 'Metric').quantity), 473)
+assert.strictEqual(convertUnit(2, 'cup', 'Metric').unit, 'ml')
+assert.strictEqual(Math.round(convertUnit(1, 'lb', 'Metric').quantity), 454)
+assert.strictEqual(Math.round(convertUnit(425, 'g', 'US').quantity), 15) // the "15 oz can" case
+assert.strictEqual(convertUnit(425, 'g', 'US').unit, 'oz')
+assert.deepStrictEqual(convertUnit(3, 'egg', 'Metric'), { quantity: 3, unit: 'egg' })
+assert.deepStrictEqual(convertUnit(2, 'can', 'US'), { quantity: 2, unit: 'can' })
+assert.strictEqual(convertUnit(100, 'g', 'Metric').unit, 'g') // already metric — no double convert
+
+// Slot derivation. The parallel case: slot 1 holds a 540s sear and a 360s "meanwhile" char, so
+// the slot must run for the LONGER of the two or the sear gets cut short.
+const chart = parseStageLines([
+  'Season | 5 min | 300s | slot 0 | ing 0-2',
+  'Sear | 8–10 min | 540s | slot 1 | ing 0-1',
+  'Char the salsa veg | 6 min | 360s | slot 1 | ing 3-5 | meanwhile',
+  'Rest and slice | 5 min | 300s | slot 2 | ing 6-7',
+  'Plate | | 0s | slot 3 | ing 8',
+].join('\n'))
+assert.strictEqual(slotCount(chart), 4)
+assert.strictEqual(slotSeconds(chart, 1), 540)
+assert.strictEqual(slotSeconds(chart, 3), 0) // untimed slot → "no timer", not 0:00 counting down
+assert.strictEqual(slotCount([]), 0)
+// Ingredients 0-1 are used by both slot 0 and slot 1 — they go in at the earlier one.
+assert.strictEqual(slotOfIngredient(chart, 0), 0)
+assert.strictEqual(slotOfIngredient(chart, 2), 0)
+assert.strictEqual(slotOfIngredient(chart, 4), 1) // only the meanwhile stage claims it
+assert.strictEqual(slotOfIngredient(chart, 8), 3)
+assert.strictEqual(slotOfIngredient(chart, 99), -1) // unclaimed
+// A step-backfilled meal (no spans at all) claims no ingredients rather than row 0.
+assert.strictEqual(slotOfIngredient(parseStageLines('Blend it | | 0s | slot 0'), 0), -1)
+
+// stageLabel turns a whole instruction into something that fits a chart cell. A card is a few
+// words wide; the instruction itself lives in `detail` and is revealed on hover/focus.
+assert.strictEqual(stageLabel('Wilt the greens'), 'Wilt the greens') // already short — untouched
+assert.strictEqual(
+  stageLabel('Herby yoghurt: mix the yoghurt, crushed garlic, lemon zest, chives, and a pinch of salt.'),
+  'Herby yoghurt' // "Label: …" prefix wins
+)
+assert.strictEqual(
+  stageLabel('Toss the chickpeas with salt and paprika, then air fry at 220°C for 20 minutes'),
+  'Toss the chickpeas with salt and paprika' // first clause
+)
+// No colon or comma in reach: cut on a word boundary and mark the truncation.
+const long = stageLabel('Scrape every browned bit off the bottom of the pan before the lid goes on')
+assert.ok(long.endsWith('…') && long.length <= 48, long)
+assert.ok(!long.endsWith(' …'))
+// A colon far into the sentence must not be mistaken for a label prefix.
+assert.ok(stageLabel('Cook the onions down slowly until they are jammy and sweet: about 25 minutes').endsWith('…'))
+
+// `> …` carries the instruction through the textarea format, and survives a round-trip.
+const detailed = parseStageLines('Sear | 8–10 min | 540s | slot 1 | ing 0-1 | crust | > Get the pan smoking, then lay the steak away from you.')
+assert.strictEqual(detailed[0].detail, 'Get the pan smoking, then lay the steak away from you.')
+assert.strictEqual(detailed[0].hint, 'crust') // still distinguished from the detail
+assert.deepStrictEqual(parseStageLines(stageLines(detailed)), detailed)
+assert.strictEqual(parseStages('[{"name":"x","detail":"  "}]')[0].detail, undefined) // blank → absent
+
+console.log('parseStages / parseStageLines / convertUnit / slots / stageLabel: all checks passed')

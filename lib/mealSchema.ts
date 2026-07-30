@@ -8,6 +8,21 @@ export const refSchema = z.object({
   measure: z.string().default(''),
 })
 
+// One cook-mode stage (see Stage in lib/recipe.ts). `to` defaults to -1, i.e. an empty
+// ingredient span, so a stage authored without one renders as a plain step rather than
+// claiming the first ingredient row.
+export const stageSchema = z.object({
+  name: z.string().trim().min(1),
+  detail: z.string().trim().optional(),
+  timing: z.string().default(''),
+  hint: z.string().optional(),
+  seconds: z.coerce.number().int().min(0).default(0),
+  slot: z.coerce.number().int().min(0).default(0),
+  from: z.coerce.number().int().min(0).default(0),
+  to: z.coerce.number().int().min(-1).default(-1),
+  meanwhile: z.boolean().optional(),
+})
+
 // Modal sends numeric fields as strings — coerce. Meal macro columns are the cached sum
 // over the referenced foods; the route computes them (see recomputeMealCache / loadFoodsMap).
 export const mealInput = z.object({
@@ -17,6 +32,7 @@ export const mealInput = z.object({
   imageUrl: z.string().default(''),
   ingredients: z.array(refSchema).default([]),
   steps: z.array(z.string()).default([]),
+  stages: z.array(stageSchema).default([]),
   prepMinutes: z.coerce.number().int().min(0).default(0),
   cookMinutes: z.coerce.number().int().min(0).default(0),
   servings: z.coerce.number().int().min(1).default(1),
@@ -27,11 +43,12 @@ export type MealInput = z.infer<typeof mealInput>
 // ingredients/steps live in String columns as JSON — stringify at the write boundary.
 // Macros are added by the route from the foods map (not here — this helper is pure/sync).
 export function toMealData(input: MealInput) {
-  const { ingredients, steps, ...rest } = input
+  const { ingredients, steps, stages, ...rest } = input
   return {
     ...rest,
     ingredients: JSON.stringify(ingredients),
     steps: JSON.stringify(steps),
+    stages: JSON.stringify(stages),
   }
 }
 
@@ -65,6 +82,9 @@ export const importSchema = z.object({
   tags: z.array(z.string()).default([]),
   ingredients: z.array(z.union([z.string(), importIngredient])).min(1),
   steps: z.array(z.string()).min(1),
+  // Optional: agents that can tell which steps overlap emit these too, and the cook-mode chart
+  // uses them instead of the one-stage-per-step fallback. `from`/`to` index into `ingredients`.
+  stages: z.array(stageSchema).default([]),
 })
 
 export type ImportInput = z.infer<typeof importSchema>

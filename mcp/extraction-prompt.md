@@ -68,7 +68,11 @@ with header `x-api-key: {MISE_API_KEY}`.
     "a plain string, OR",
     { "name": "brown rice", "quantity": 100, "unit": "g", "calories": 111, "protein": 3, "carbs": 23, "fats": 1 }
   ],
-  "steps": ["ordered cooking steps, at least 1 (required)"]
+  "steps": ["ordered cooking steps, at least 1 (required)"],
+  "stages": [
+    { "name": "Soften the onion", "detail": "Set a large Dutch oven over medium-high heat and cook the diced onion in the oil until translucent and just catching at the edges.", "timing": "5–6 min", "hint": "medium-high", "seconds": 330, "slot": 0, "from": 0, "to": 1 },
+    { "name": "Warm the pita", "detail": "While the stew simmers, warm the pita directly over the flame until it puffs.", "timing": "", "seconds": 0, "slot": 0, "from": 6, "to": 6, "meanwhile": true }
+  ]
 }
 ```
 
@@ -84,6 +88,21 @@ with header `x-api-key: {MISE_API_KEY}`.
   into two foods). Before naming an ingredient, call `list_foods` and reuse an existing name
   verbatim (same wording/singular-plural) whenever it's the same real-world food — don't
   invent a slightly different name for something already in the library.
+- `stages` (optional) drives Mise's cook-mode chart: ingredients are rows, stages are columns,
+  and a stage block spans the ingredient rows it consumes. Emit it whenever the source makes the
+  overlap and timing clear — omit it and Mise falls back to one stage per step, which reads as a
+  plain ladder.
+  - `slot` is the time slot, not the step number: **two stages with the same `slot` run at the
+    same time**. Give the unattended one `"meanwhile": true` — it never owns the slot's timer.
+  - `from`/`to` are inclusive 0-based indices into the `ingredients` array you're sending. A
+    single ingredient is `from == to`. Ranges may overlap between neighbouring stages (an
+    ingredient added in one stage and crushed in the next) — that's expected. Omit both for a
+    stage that consumes nothing new.
+  - `name` is a SHORT label — a few words that fit a chart cell ("Toast the spices"). The full
+    instruction goes in `detail`, which is revealed when the cook hovers or reaches that stage;
+    it is normally the matching `steps` entry verbatim. Do not put a whole paragraph in `name`.
+  - `seconds` is the countdown length (0 = no timer); `timing` is the display copy the cook
+    reads ("25–30 min"); `hint` is an optional cue ("medium-low · thickened").
 - `categories` become leading tags in Mise; `tags` follow them
 - Unknown optional fields: omit them, do not invent values
 - Informal small quantities (a pinch of salt, a dash, a splash) display better as their natural

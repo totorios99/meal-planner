@@ -253,6 +253,10 @@ input, textarea { font-family: inherit; color: inherit; }
   .sheet, .sheet-backdrop, .ui-select-menu, .fixed-alert, .meal-menu { animation: none; }
   /* Hover/press feedback stays, but instant — these communicate state, not decoration. */
   .btn:active, .meal-card:hover, .plan-meal { transition-duration: .01ms; }
+  /* Cook mode: the stage-bar slide-in and the time's-up pulse are decoration; the colour
+     changes that tell you which stage is active are not, so those just land instantly. */
+  .cook-bar, .cook-timer.is-up { animation: none; }
+  .cook-ing, .cook-stage, .cook-seg, .cook-timer { transition-duration: .01ms; }
 }
 
 /* === Top Nav === */
@@ -2441,4 +2445,673 @@ input, textarea { font-family: inherit; color: inherit; }
      — the glyphs just disappear at the card's edge). Widen both columns to match the type. */
   .nutrition-card .nutrition-row-values input[type="number"] { width: 62px; }
   .nutrition-card .nutrition-row-values input:not([type="number"]) { width: 52px; }
+}
+
+/* ── Cook mode ─────────────────────────────────────────────────────────────────
+   The recipe as a gantt chart: ingredients are grid rows, cooking stages are grid
+   columns, and each stage block spans exactly the ingredient rows it consumes.
+   Stages sharing a column share a time slot and run in parallel; the unattended one
+   is `.is-side` ("meanwhile"). All values from design_handoff_cook_mode/. */
+
+.field-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-4);
+}
+.field-hint code {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.cook-viewswitch {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.cook-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin: 20px 0 18px;
+}
+
+.cook-seg-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cook-seg-label {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.cook-seg-pills {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-pill);
+  background: var(--glass-fill);
+}
+.cook-seg {
+  padding: 6px 14px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  cursor: pointer;
+  transition: background .18s, color .18s;
+}
+.cook-seg.is-on {
+  background: var(--accent-grad);
+  color: #fff;
+}
+
+.cook-start {
+  margin-left: auto;
+  padding: 11px 20px;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--accent-grad);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: var(--inset-hi), 0 10px 24px -10px rgba(148, 85, 55, .55);
+  transition: filter .18s;
+}
+.cook-start:hover { filter: brightness(1.08); }
+/* Inert while cooking — the stage bar owns navigation from then on. */
+.cook-start.is-cooking {
+  background: var(--off-soft);
+  color: var(--ink-3);
+  cursor: default;
+  box-shadow: none;
+  filter: none;
+}
+
+.cook-bar,
+.cook-done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 14px 18px;
+  border-radius: var(--r-md);
+}
+.cook-bar {
+  border: 1px solid rgba(201, 138, 99, .45);
+  background: var(--accent-soft);
+  animation: cook-bar-in .22s cubic-bezier(.3, .8, .3, 1);
+}
+.cook-done {
+  border: 1px solid var(--stroke);
+  background: var(--glass-fill);
+  font-size: 14.5px;
+  font-weight: 550;
+}
+@keyframes cook-bar-in { from { transform: translateY(-8px); opacity: 0; } }
+@keyframes cook-bar-up { from { transform: translateY(10px); opacity: 0; } }
+
+.cook-bar-count {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.cook-bar-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cook-bar-name strong {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -.015em;
+}
+.cook-bar-side {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent-ink);
+}
+
+.cook-nav {
+  padding: 7px 14px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-pill);
+  background: var(--glass-fill);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cook-nav:disabled,
+.cook-nav.is-dim {
+  color: var(--ink-4);
+  cursor: default;
+}
+
+.cook-timer {
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+  cursor: pointer;
+  transition: opacity .22s;
+}
+.cook-timer.is-paused { opacity: .45; }
+.cook-timer.is-up {
+  color: var(--danger);
+  animation: cook-pulse 1s ease-in-out infinite;
+}
+/* A slot with no duration has nothing to count — say so instead of showing 0:00. */
+.cook-timer.is-none {
+  font-size: 17px;
+  letter-spacing: .04em;
+  color: var(--ink-3);
+  cursor: default;
+}
+@keyframes cook-pulse { 50% { opacity: .55; } }
+
+.cook-frame {
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--panel);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  box-shadow: var(--inset-hi), var(--shadow-glass);
+}
+.cook-vessel {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--hair);
+  background: var(--well);
+  font-family: var(--condensed);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  text-align: center;
+}
+/* Required: the grid has a 700px floor, and without a separate scroller the frame's radius
+   would be clipped away by its own overflow. */
+.cook-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.cook-grid {
+  display: grid;
+  min-width: 700px;
+  grid-template-columns: minmax(180px, 1.25fr) repeat(var(--cook-slots, 1), minmax(84px, 1fr));
+  grid-auto-rows: minmax(38px, auto);
+}
+
+.cook-ing {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 7px;
+  align-items: baseline;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--hair);
+  border-right: 1px solid var(--hair);
+  transition: background .22s, opacity .22s;
+}
+.cook-ing-qty {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.cook-ing-name {
+  font-size: 13px;
+  font-weight: 450;
+  color: var(--ink-2);
+}
+.cook-ing.is-now .cook-ing-qty { color: var(--accent-ink); }
+.cook-ing.is-now .cook-ing-name { font-weight: 600; }
+.cook-ing.is-now {
+  background: var(--accent-soft);
+  font-weight: 600;
+  color: var(--accent-ink);
+}
+.cook-ing.is-used {
+  opacity: .62;
+  text-decoration: line-through;
+}
+.cook-ing.is-later { opacity: .62; }
+
+.cook-cell { padding: 5px; }
+.cook-stage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: var(--glass-fill);
+  color: var(--ink-2);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .22s, color .22s, border-color .22s, box-shadow .22s;
+}
+.cook-stage.is-side { border-style: dashed; }
+.cook-stage:hover,
+.cook-stage.is-hover {
+  border-color: rgba(201, 138, 99, .55);
+  background: var(--accent-soft);
+}
+.cook-stage.is-active {
+  border-color: transparent;
+  background: var(--accent-grad);
+  color: #fff;
+  box-shadow: var(--inset-hi), 0 14px 30px -14px rgba(148, 85, 55, .8);
+}
+/* The unattended half of a parallel slot: present but never the focus. */
+.cook-stage.is-active-side {
+  border-style: solid;
+  border-color: rgba(201, 138, 99, .7);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.cook-stage.is-done {
+  border-color: var(--hair);
+  background: var(--off-soft);
+  color: var(--ink-3);
+  box-shadow: none;
+}
+.cook-stage-kicker {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .75;
+}
+.cook-stage-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+.cook-stage-timing,
+.cook-stage-hint {
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+.cook-stage-timing { opacity: .8; }
+.cook-stage-hint { opacity: .6; }
+
+/* Instruction rail: reserves its own height so filling it never nudges the chart. */
+.cook-rail {
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  min-height: 78px;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  transition: border-color .22s, background .22s;
+}
+.cook-rail.is-filled {
+  border-color: rgba(201, 138, 99, .35);
+  background: var(--accent-soft);
+}
+.cook-rail-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+.cook-rail-label b {
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--glass-fill);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.cook-rail-label em {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-style: normal;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.cook-rail-text {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.cook-rail:not(.is-filled) .cook-rail-text {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .04em;
+  color: var(--ink-4);
+}
+
+.cook-bar-detail {
+  max-width: 62ch;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.cook-bar-name { flex: 1 1 26ch; }
+
+.cook-foot {
+  margin: 14px 0 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: var(--ink-4);
+}
+
+/* Chart/List is decided by `data-recipe-view` on <html>, stamped pre-paint in layout.tsx, so a
+   list-preferring cook never sees the chart flash past. Chart is the default when unset. */
+[data-recipe-view="list"] .recipe-view-chart,
+html:not([data-recipe-view="list"]) .recipe-view-list { display: none; }
+
+/* The chart's meaning is its geometry — spans say which stage eats which ingredient. This is the
+   same information linearised, for anyone reading the page rather than looking at it. */
+.cook-outline {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.cook-scroll:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: -3px;
+}
+/* Focus previews a stage's ingredients the way hover does — a keyboard user otherwise gets no
+   preview before committing to a stage. */
+.cook-stage:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+  border-color: rgba(201, 138, 99, .55);
+  background: var(--accent-soft);
+}
+
+/* The gantt is a desktop reading of the recipe; the slot list is the phone's. Exactly one is in
+   play at a time, so neither has to compromise for the other. */
+.cook-slots { display: none; }
+
+@media (max-width: 720px) {
+  /* A 7-column chart in a 358px box is a panning puzzle. Cards in cooking order instead — the
+     instruction is inline (touch has no hover) and each slot carries the ingredients that go in
+     at that point, so nothing is lost with the grid. */
+  .cook-frame,
+  .cook-rail { display: none; }
+
+  .cook-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .cook-slot {
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-md);
+    background: var(--panel);
+    overflow: hidden;
+    transition: border-color .22s, background .22s, box-shadow .22s;
+  }
+  .cook-slot-head {
+    width: 100%;
+    min-height: 56px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .cook-slot-no {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .08em;
+    color: var(--ink-4);
+  }
+  .cook-slot-name {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    line-height: 1.25;
+  }
+  .cook-slot-timing {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--ink-3);
+  }
+  .cook-slot-body { padding: 0 16px 14px; }
+  /* The loose-ingredients card is a reference block, not a step: no number, not tappable. */
+  .cook-slot.is-loose { background: var(--bg-sunken); }
+  .cook-slot-head.as-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0;
+    min-height: 44px;
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    cursor: default;
+  }
+  .cook-slot.is-loose .cook-slot-ings { margin-top: 0; padding-top: 0; border-top: 0; }
+  .cook-slot.is-loose summary { cursor: pointer; list-style: none; }
+  .cook-slot.is-loose summary::-webkit-details-marker { display: none; }
+  .cook-slot.is-loose summary span {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink-4);
+  }
+  .cook-slot.is-loose summary::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid var(--ink-3);
+    border-bottom: 1.5px solid var(--ink-3);
+    transform: rotate(45deg) translate(-2px, -2px);
+    transition: transform .2s;
+  }
+  .cook-slot.is-loose details[open] summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
+  .cook-slot-detail {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    text-wrap: pretty;
+  }
+  .cook-slot-side {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px dashed rgba(201, 138, 99, .5);
+    border-radius: var(--r-sm);
+    background: var(--accent-soft);
+  }
+  .cook-slot-side .cook-stage-kicker { color: var(--accent-ink); }
+  .cook-slot-side-name {
+    margin: 4px 0 0;
+    font-size: 14.5px;
+    font-weight: 600;
+  }
+  .cook-slot-side .cook-slot-detail { margin-top: 4px; font-size: 14px; }
+  .cook-slot-ings {
+    margin: 12px 0 0;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--hair);
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .cook-slot-ings li {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .cook-slot-ings .cook-ing-qty { min-width: 5.5ch; }
+  /* No instruction above them? Then there's nothing for the rule to separate. */
+  .cook-slot-body > .cook-slot-ings:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .cook-slot.is-active {
+    border-color: rgba(201, 138, 99, .6);
+    background: var(--panel-2);
+    box-shadow: var(--inset-hi), 0 14px 30px -18px rgba(148, 85, 55, .8);
+  }
+  .cook-slot.is-active .cook-slot-head { background: var(--accent-soft); }
+  .cook-slot.is-active .cook-slot-no { color: var(--accent-ink); }
+  /* Done slots stay in the list as a receipt of what's already in the pot, collapsed to one line. */
+  .cook-slot.is-done { opacity: .62; }
+  .cook-slot.is-done .cook-slot-body { display: none; }
+  .cook-slot.is-done .cook-slot-name { text-decoration: line-through; }
+
+  /* Start cooking is the page's one primary action here — full width, not a pill wedged after
+     two segmented controls. */
+  .cook-controls { gap: 12px; }
+  .cook-start {
+    flex: 1 1 100%;
+    margin-left: 0;
+    text-align: center;
+  }
+  /* Once the bar is up it owns every cooking control; a full-width "Cooking…" placeholder is a
+     row of dead screen on a phone. */
+  .cook-start.is-cooking { display: none; }
+
+  /* Thumbs, not reach: while cooking, the controls live in a fixed bar above the tab bar rather
+     than scrolled somewhere up the page. */
+  .cook-bar {
+    /* Enters from below, where it lives — the desktop bar drops in from above. */
+    animation-name: cook-bar-up;
+    position: fixed;
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 80px);
+    z-index: 39;
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "count name  exit"
+      "back  timer next";
+    align-items: center;
+    gap: 8px 12px;
+    padding: 12px 14px;
+    /* Opaque base under the glass: this bar sits over scrolling recipe text, and where
+       backdrop-filter is unsupported or switched off (low power, some Android browsers) a
+       translucent panel alone leaves Back/Next/timer illegible against the words behind them. */
+    background: var(--panel), var(--bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(170%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(170%);
+    box-shadow: var(--inset-hi), var(--shadow-glass);
+  }
+  .cook-bar-count { grid-area: count; }
+  .cook-bar-name { grid-area: name; min-width: 0; }
+  .cook-bar-name strong { font-size: 15px; }
+  /* The instruction is already in the live card behind this bar — repeating it here would eat
+     half the screen. */
+  .cook-bar-detail { display: none; }
+  .cook-bar-side { font-size: 10.5px; }
+  .cook-nav.is-back { grid-area: back; }
+  .cook-nav.is-next { grid-area: next; }
+  .cook-nav.is-exit {
+    grid-area: exit;
+    padding: 4px 10px;
+    border: 0;
+    background: transparent;
+    color: var(--ink-3);
+    font-size: 12px;
+  }
+  .cook-timer {
+    grid-area: timer;
+    justify-self: center;
+    margin: 0;
+    font-size: 28px;
+  }
+  .cook-foot { display: none; }
+
+  /* Reserve the fixed bar's height so the last slot card can still be scrolled clear of it. */
+  body[data-cooking="1"] .recipe-page {
+    padding-bottom: calc(200px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Touch: the handoff's 30px pills are right for a mouse and wrong for a wet finger on a counter,
+   so the pointer type decides rather than the viewport. */
+@media (pointer: coarse) {
+  .cook-seg,
+  .cook-nav {
+    min-height: 44px;
+    min-width: 44px;
+    padding-inline: 18px;
+  }
+  .cook-timer { min-height: 44px; }
 }

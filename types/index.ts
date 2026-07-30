@@ -10,6 +10,7 @@ export type Meal = {
   imageUrl: string
   ingredients: string // JSON-encoded IngredientRef[] — use parseRefs(); macros above are the cached sum over foods
   steps: string // JSON-encoded string[] — use parseList()
+  stages: string // JSON-encoded Stage[] — use parseStages(); cook-mode chart, backfilled from steps
   prepMinutes: number
   cookMinutes: number
   servings: number

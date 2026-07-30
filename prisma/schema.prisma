@@ -21,6 +21,7 @@ model Meal {
   imageUrl    String @default("")
   ingredients String @default("[]") // JSON Ingredient[] — see lib/recipe.ts; macros below are the cached sum
   steps       String @default("[]") // JSON string[]
+  stages      String @default("[]") // JSON Stage[] — see lib/recipe.ts; cook-mode chart (ingredient range + slot + timer)
   prepMinutes Int    @default(0)
   cookMinutes Int    @default(0)
   servings    Int    @default(1)

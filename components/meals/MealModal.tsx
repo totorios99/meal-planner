@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Meal } from '@/types'
 import { Icon } from '@/components/Icon'
-import { parseList, parseRefs, sumRefs, foodsMap, type IngredientRef } from '@/lib/recipe'
+import { parseList, parseRefs, parseStages, parseStageLines, stageLines, sumRefs, foodsMap, type IngredientRef } from '@/lib/recipe'
 import { PhotoInput } from '@/components/meals/PhotoInput'
 import { FoodPicker } from '@/components/meals/FoodPicker'
 import type { FoodRow } from '@/types'
@@ -20,6 +20,7 @@ const EMPTY = {
   tag: '',
   imageUrl: '',
   steps: '',
+  stages: '',
   prepMinutes: '',
   cookMinutes: '',
   servings: '',
@@ -50,6 +51,7 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
         tag: meal.tag,
         imageUrl: meal.imageUrl,
         steps: parseList(meal.steps).join('\n'),
+        stages: stageLines(parseStages(meal.stages)),
         prepMinutes: meal.prepMinutes ? String(meal.prepMinutes) : '',
         cookMinutes: meal.cookMinutes ? String(meal.cookMinutes) : '',
         servings: String(meal.servings),
@@ -88,6 +90,7 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
         ...form,
         ingredients,
         steps: toLines(form.steps),
+        stages: parseStageLines(form.stages),
         prepMinutes: form.prepMinutes || 0,
         cookMinutes: form.cookMinutes || 0,
         servings: form.servings || 1,
@@ -211,6 +214,25 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
                 onChange={e => set('steps', e.target.value)}
                 style={{ resize: 'vertical', height: 96 }}
               />
+            </div>
+
+            <div className="field">
+              <label htmlFor="stages">
+                Cook stages <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>— one per line: label | timing | 330s | slot 0 | ing 0-1 | &gt; full instruction</span>
+              </label>
+              <textarea
+                id="stages"
+                placeholder={'Soften the onion | 5–6 min | 330s | slot 0 | ing 0-1 | > Cook the diced onion in the oil until translucent.\nToast the spices | 2 min | 120s | slot 1 | ing 2-5 | > Add the spices and stir until fragrant.\nWarm the pita | | 0s | slot 1 | ing 6 | meanwhile | > Warm over the flame until it puffs.'}
+                value={form.stages}
+                onChange={e => set('stages', e.target.value)}
+                style={{ resize: 'vertical', height: 96, fontFamily: 'var(--mono)', fontSize: 12 }}
+              />
+              <p className="field-hint">
+                Powers the cook-mode chart. Keep the label to a few words — the text after <code>&gt;</code> is the
+                full instruction, shown when you hover a stage or reach it while cooking. <code>ing</code> indices
+                count the ingredient rows above from 0; same <code>slot</code> = runs at the same time;
+                <code>meanwhile</code> marks the unattended one. Leave empty to fall back to the plain step list.
+              </p>
             </div>
 
             <PhotoInput value={form.imageUrl} onChange={url => set('imageUrl', url)} />
