@@ -274,7 +274,6 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
             const done = cooking && st.slot < slot
             const active = cooking && st.slot === slot
             const soft = active && st.meanwhile
-            const hovered = !cooking && hover === st.slot
             const hasSpan = st.to >= st.from
             // A stage that adds nothing new ("simmer", "bake", "assemble") still needs rows. Park
             // it beside whatever went in most recently — the pot's contents haven't changed — which
@@ -287,8 +286,6 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
                 key={i}
                 className="cook-cell"
                 style={{ gridRow: `${rowStart} / ${rowEnd}`, gridColumn: st.slot + 2 }}
-                onMouseEnter={() => { setPeek(i); if (!cooking) setHover(st.slot) }}
-                onMouseLeave={() => setPeek(p => (p === i ? -1 : p))}
               >
                 <button
                   type="button"
@@ -297,12 +294,12 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
                     (st.meanwhile ? ' is-side' : '') +
                     (active && !soft ? ' is-active' : '') +
                     (soft ? ' is-active-side' : '') +
-                    (done ? ' is-done' : '') +
-                    (hovered ? ' is-hover' : '')
+                    (done ? ' is-done' : '')
                   }
                   aria-current={active ? 'step' : undefined}
+                  onMouseEnter={() => { setPeek(i); if (!cooking) setHover(st.slot) }}
                   onFocus={() => { setPeek(i); if (!cooking) setHover(st.slot) }}
-                  onBlur={() => setPeek(p => (p === i ? -1 : p))}
+                  onBlur={() => { setPeek(p => (p === i ? -1 : p)); if (!cooking) setHover(-1) }}
                   onClick={() => start(st.slot)}
                 >
                   {st.meanwhile && <span className="cook-stage-kicker">Meanwhile</span>}

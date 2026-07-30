@@ -2724,8 +2724,7 @@ input, textarea { font-family: inherit; color: inherit; }
   transition: background .22s, color .22s, border-color .22s, box-shadow .22s;
 }
 .cook-stage.is-side { border-style: dashed; }
-.cook-stage:hover,
-.cook-stage.is-hover {
+.cook-stage:hover {
   border-color: rgba(201, 138, 99, .55);
   background: var(--accent-soft);
 }
