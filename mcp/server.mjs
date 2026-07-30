@@ -293,11 +293,11 @@ const stageObj = z.object({
   detail: z.string().optional().describe('The full instruction for this stage, shown when the cook hovers or reaches it. Usually the matching entry from `steps`.'),
   timing: z.string().optional().describe('Display copy for the duration, e.g. "25–30 min"'),
   hint: z.string().optional().describe('Optional cue, e.g. "medium-low · thickened"'),
-  seconds: z.number().int().min(0).optional().describe('Countdown length; 0 or omitted = no timer'),
+  seconds: z.number().int().min(0).optional().describe('Countdown length; 0 or omitted = no timer. Only durations the step actually states — an overnight marinade or 24 h freeze is timing:"24 h" with seconds:0, not a day-long countdown.'),
   slot: z.number().int().min(0).describe('Time slot — two stages with the SAME slot run in parallel'),
-  from: z.number().int().min(0).optional().describe('First ingredient index (0-based) this stage consumes'),
-  to: z.number().int().min(-1).optional().describe('Last ingredient index, inclusive; omit for a stage that consumes nothing'),
-  meanwhile: z.boolean().optional().describe('Unattended companion of a parallel slot; never owns the slot timer'),
+  from: z.number().int().min(0).optional().describe('First ingredient index (0-based) this stage consumes. Send `ingredients` in COOKING ORDER so each stage\'s range is contiguous.'),
+  to: z.number().int().min(-1).optional().describe('Last ingredient index, inclusive. Omit both from/to for a stage that consumes nothing new (simmer, bake, assemble).'),
+  meanwhile: z.boolean().optional().describe('Marks the UNATTENDED stage of a shared slot — the thing running on its own while the cook works on the other one. If both need hands, they are not the same slot.'),
 })
 
 const importShape = {
@@ -318,7 +318,7 @@ const importShape = {
     .describe('Ingredients — a plain string, or {name, quantity, unit, calories, protein, carbs, fats}. Include per-ingredient macros when known so portions recalc.'),
   steps: z.array(z.string()).min(1).describe('Ordered cooking steps'),
   stages: z.array(stageObj).optional()
-    .describe('Optional cook-mode chart: which ingredients each stage consumes, how long it runs, and which stages overlap (same slot). Omit and Mise falls back to one stage per step.'),
+    .describe('Optional cook-mode chart: which ingredients each stage consumes, how long it runs, and which stages overlap (same slot). Cover every step exactly once; a stage\'s slot places it in time, so the array order need not match `steps`. Omit and Mise falls back to one stage per step.'),
 }
 
 server.registerTool('import_meal', {

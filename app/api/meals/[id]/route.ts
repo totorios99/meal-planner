@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { mealInput } from '@/lib/mealSchema'
+import { mealInput, stageRangeIssues } from '@/lib/mealSchema'
 import { macrosForRefs } from '@/lib/foods'
+import { parseRefs } from '@/lib/recipe'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -28,7 +29,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (has(k)) data[k] = d[k]
   }
   if (has('steps')) data.steps = JSON.stringify(d.steps ?? [])
-  if (has('stages')) data.stages = JSON.stringify(d.stages ?? [])
+  if (has('stages')) {
+    // Stage ranges point at the ingredient list they'll be rendered against: the one in this
+    // payload if it carries ingredients, otherwise the one already stored.
+    const count = has('ingredients')
+      ? (d.ingredients ?? []).length
+      : parseRefs((await prisma.meal.findUnique({ where: { id: Number(id) }, select: { ingredients: true } }))?.ingredients ?? '[]').length
+    const rangeIssues = stageRangeIssues(d.stages ?? [], count)
+    if (rangeIssues.length > 0) {
+      return NextResponse.json({ error: rangeIssues.map(message => ({ message, path: ['stages'] })) }, { status: 400 })
+    }
+    data.stages = JSON.stringify(d.stages ?? [])
+  }
   if (has('ingredients')) {
     data.ingredients = JSON.stringify(d.ingredients ?? [])
     Object.assign(data, await macrosForRefs(data.ingredients as string))

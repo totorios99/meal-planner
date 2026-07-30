@@ -23,6 +23,25 @@ export const stageSchema = z.object({
   meanwhile: z.boolean().optional(),
 })
 
+// Stage ranges index the ingredient array they were authored against, so they can only be checked
+// against a count — a stage claiming row 12 of an 8-ingredient recipe would paint a block over rows
+// nobody sent. `mealInput` deliberately stays unrefined (the meal routes call .partial(), which
+// zod forbids on a refined object), so the meal routes call this themselves against the payload's
+// ingredients or, for a partial update that sends stages alone, the meal's stored ones.
+export function stageRangeIssues(
+  stages: { name: string; from: number; to: number }[],
+  ingredientCount: number
+): string[] {
+  const issues: string[] = []
+  for (const st of stages) {
+    if (st.to < st.from) continue // no ingredient span — always fine
+    if (st.to >= ingredientCount) {
+      issues.push(`stage "${st.name}" claims ingredient ${st.to} but only ${ingredientCount} were sent`)
+    }
+  }
+  return issues
+}
+
 // Modal sends numeric fields as strings — coerce. Meal macro columns are the cached sum
 // over the referenced foods; the route computes them (see recomputeMealCache / loadFoodsMap).
 export const mealInput = z.object({
@@ -85,6 +104,10 @@ export const importSchema = z.object({
   // Optional: agents that can tell which steps overlap emit these too, and the cook-mode chart
   // uses them instead of the one-stage-per-step fallback. `from`/`to` index into `ingredients`.
   stages: z.array(stageSchema).default([]),
+}).superRefine((v, ctx) => {
+  for (const issue of stageRangeIssues(v.stages, v.ingredients.length)) {
+    ctx.addIssue({ code: 'custom', message: issue, path: ['stages'] })
+  }
 })
 
 export type ImportInput = z.infer<typeof importSchema>

@@ -204,7 +204,7 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
     const c = convertUnit(scaled, ing.unit, units)
     // Quantity and name are separate cells: the quantity column is mono and tabular so the
     // numbers line up down the chart, which is the whole point of reading it as a grid.
-    return { qty: formatQuantityWithUnit(c.quantity, c.unit, ing.name), name: ing.name, owner, used, now, later }
+    return { index: i, qty: formatQuantityWithUnit(c.quantity, c.unit, ing.name), name: ing.name, owner, used, now, later }
   }), [ingredients, stages, cooking, slot, hover, factor, units])
 
   // Swipe to step slots while cooking — the same job as ← → on a keyboard, for a hand that's
@@ -315,7 +315,7 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
         </div>
       </div>
     </div>
-  ), [rows, stages, slotCount, cooking, slot, hover, vessel, start])
+  ), [rows, stages, slotCount, cooking, slot, hover, vessel, start, carryRows])
 
 
   // Mobile form of the same chart. A seven-column gantt inside a 358px content box is a
@@ -323,87 +323,107 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
   // carries its own stages, its instruction, and the ingredients that go in at that point. Same
   // information, same order, no panning — and instructions are inline because touch has no hover.
   const unassigned = rows.filter(r => r.owner === -1)
+
+  // Cumulative clock: when each slot starts, if the recipe states enough durations to make that
+  // meaningful. Used to label the timeline's spine.
+  const timeline = useMemo(() => {
+    const bands: { slot: number; startsAt: number; seconds: number }[] = []
+    let clock = 0
+    for (let n = 0; n < slotCount; n++) {
+      if (!stages.some(st => st.slot === n)) continue
+      const seconds = secondsInSlot(stages, n)
+      bands.push({ slot: n, startsAt: clock, seconds })
+      clock += seconds
+    }
+    return { bands, total: clock }
+  }, [stages, slotCount])
+
+  const clockLabel = (secs: number) => {
+    const m = Math.round(secs / 60)
+    if (m < 60) return `${m} min`
+    const h = Math.floor(m / 60)
+    return m % 60 === 0 ? `${h} h` : `${h} h ${m % 60}`
+  }
+
+  // Mobile is the same chart with the axes swapped: time runs DOWN the page instead of across it,
+  // so a band's height shows how long it lasts and stages that share a slot sit side by side —
+  // the two things a step list can never say. A 20-minute band is visibly taller than a 2-minute
+  // one, and "these two happen at once" is a fact of the layout rather than a label.
   const slotList = (
-    <ol
-      className="cook-slots"
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-    >
-      {/* Ingredients no stage claims — every ingredient of a step-backfilled meal, which knows the
-          instructions but not which of them consumes what. Without this the phone's Cook view
-          would list method and no quantities. */}
+    <div className="cook-tl" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       {unassigned.length > 0 && (
-        <li className="cook-slot is-loose">
-          {/* Collapsible, and closed once cooking starts: eighteen quantities standing between the
-              cook and step 01 is the wrong thing to scroll past mid-recipe. */}
-          <details open={!cooking}>
-            <summary className="cook-slot-head as-heading">
-              Everything you need
-              <span>{unassigned.length} items</span>
-            </summary>
-            <div className="cook-slot-body">
-              <ul className="cook-slot-ings">
-                {unassigned.map((r, i) => (
-                  <li key={i}>
-                    <span className="cook-ing-qty">{r.qty}</span>
-                    <span className="cook-ing-name">{r.name}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </details>
-        </li>
+        <details className="cook-tl-loose" open={!cooking}>
+          <summary>
+            Everything you need
+            <span>{unassigned.length} items</span>
+          </summary>
+          <ul className="cook-tl-chips">
+            {unassigned.map((r, i) => (
+              <li key={i}><b>{r.qty}</b> {r.name}</li>
+            ))}
+          </ul>
+        </details>
       )}
-      {Array.from({ length: slotCount }, (_, n) => {
-        const group = stagesInSlot(n)
-        if (group.length === 0) return null
-        const slotLead = group.find(st => !st.meanwhile) ?? group[0]
-        const slotSide = group.filter(st => st.meanwhile)
-        const active = cooking && n === slot
-        const done = cooking && n < slot
-        const mine = rows.filter(r => r.owner === n)
-        const seconds = slotSeconds(n)
-        return (
-          <li
-            key={n}
-            ref={active ? liveCard : undefined}
-            className={`cook-slot${active ? ' is-active' : ''}${done ? ' is-done' : ''}`}
-            aria-current={active ? 'step' : undefined}
-          >
-            <button type="button" className="cook-slot-head" onClick={() => start(n)}>
-              <span className="cook-slot-no">{String(n + 1).padStart(2, '0')}</span>
-              <span className="cook-slot-name">{slotLead.name}</span>
-              {slotLead.timing
-                ? <span className="cook-slot-timing">{slotLead.timing}</span>
-                : seconds > 0 ? <span className="cook-slot-timing">{Math.round(seconds / 60)} min</span> : null}
-            </button>
 
-            <div className="cook-slot-body">
-              {slotLead.detail && <p className="cook-slot-detail">{slotLead.detail}</p>}
+      <ol className="cook-tl-track">
+        {timeline.bands.map(({ slot: n, startsAt, seconds }, bandIndex) => {
+          // Untimed slots don't advance the clock, so several bands can share a mark — show it
+          // once, where it changes.
+          const showClock = startsAt > 0 && startsAt !== timeline.bands[bandIndex - 1]?.startsAt
+          const group = stagesInSlot(n)
+          const active = cooking && n === slot
+          const done = cooking && n < slot
+          // Height carries the duration: a floor so short steps stay legible, then a minute of
+          // cooking per 7px, capped so a one-hour braise doesn't become a scrolling void.
+          const minHeight = Math.min(96 + (seconds / 60) * 7, 260)
+          return (
+            <li
+              key={n}
+              ref={active ? liveCard : undefined}
+              className={`cook-band${active ? ' is-active' : ''}${done ? ' is-done' : ''}`}
+              style={{ minHeight: `${Math.round(minHeight)}px` }}
+              aria-current={active ? 'step' : undefined}
+            >
+              <div className="cook-band-spine">
+                <span className="cook-band-no">{String(n + 1).padStart(2, '0')}</span>
+                {showClock && <span className="cook-band-clock">+{clockLabel(startsAt)}</span>}
+                {/* Simultaneity is stated once, for the band, instead of on every card in it. */}
+                {group.length > 1 && <span className="cook-band-at-once">{group.length} at once</span>}
+                {seconds > 0 && <span className="cook-band-dur">{clockLabel(seconds)}</span>}
+              </div>
 
-              {slotSide.map((st, i) => (
-                <div key={i} className="cook-slot-side">
-                  <span className="cook-stage-kicker">Meanwhile</span>
-                  <p className="cook-slot-side-name">{st.name}</p>
-                  {st.detail && <p className="cook-slot-detail">{st.detail}</p>}
-                </div>
-              ))}
-
-              {mine.length > 0 && (
-                <ul className="cook-slot-ings">
-                  {mine.map((r, i) => (
-                    <li key={i}>
-                      <span className="cook-ing-qty">{r.qty}</span>
-                      <span className="cook-ing-name">{r.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </li>
-        )
-      })}
-    </ol>
+              <div className={`cook-band-stages${group.length > 1 ? ' is-shared' : ''}`}>
+                {group.map((st, i) => {
+                  const mine = rows.filter(r => r.owner === n && st.to >= st.from && r.index >= st.from && r.index <= st.to)
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      className={`cook-band-stage${st.meanwhile ? ' is-side' : ''}`}
+                      onClick={() => start(n)}
+                    >
+                      {st.meanwhile && <span className="cook-stage-kicker">Meanwhile</span>}
+                      <span className="cook-band-name">{st.name}</span>
+                      {st.timing && <span className="cook-band-timing">{st.timing}</span>}
+                      {mine.length > 0 && (
+                        <ul className="cook-tl-chips">
+                          {mine.map((r, j) => (
+                            <li key={j}><b>{r.qty}</b> {r.name}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {/* The instruction is what you read while you cook, so the live band shows it
+                          in full; the rest keep the shape of the chart legible. */}
+                      {st.detail && <p className="cook-band-detail">{st.detail}</p>}
+                    </button>
+                  )
+                })}
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
   )
 
   if (stages.length === 0) {

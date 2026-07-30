@@ -9,6 +9,7 @@ import {
   type Food, type NutrientEntry,
 } from './recipe.ts'
 import { localDate, toDateParam } from './date.ts'
+import { stageRangeIssues } from './mealSchema.ts'
 
 const riceNutrients: NutrientEntry[] = [
   { key: 'calories', label: 'Calories', unit: 'kcal', amount: 1.3, group: 'macro' },
@@ -207,4 +208,12 @@ assert.strictEqual(detailed[0].hint, 'crust') // still distinguished from the de
 assert.deepStrictEqual(parseStageLines(stageLines(detailed)), detailed)
 assert.strictEqual(parseStages('[{"name":"x","detail":"  "}]')[0].detail, undefined) // blank → absent
 
-console.log('parseStages / parseStageLines / convertUnit / slots / stageLabel: all checks passed')
+// Stage ranges index the ingredient list they were authored against, so an agent (or a careless
+// PUT) claiming rows nobody sent has to be rejected before it paints a block over them.
+assert.deepStrictEqual(stageRangeIssues([{ name: 'Sear', from: 0, to: 1 }], 4), [])
+assert.deepStrictEqual(stageRangeIssues([{ name: 'Assemble', from: 0, to: -1 }], 0), []) // no span, no rows needed
+assert.strictEqual(stageRangeIssues([{ name: 'Bad', from: 0, to: 5 }], 2).length, 1)
+assert.match(stageRangeIssues([{ name: 'Bad', from: 0, to: 5 }], 2)[0], /claims ingredient 5 but only 2/)
+assert.strictEqual(stageRangeIssues([{ name: 'A', from: 0, to: 9 }, { name: 'B', from: 0, to: 1 }], 3).length, 1)
+
+console.log('parseStages / parseStageLines / convertUnit / slots / stageLabel / stageRangeIssues: all checks passed')

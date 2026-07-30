@@ -94,15 +94,38 @@ with header `x-api-key: {MISE_API_KEY}`.
   plain ladder.
   - `slot` is the time slot, not the step number: **two stages with the same `slot` run at the
     same time**. Give the unattended one `"meanwhile": true` — it never owns the slot's timer.
-  - `from`/`to` are inclusive 0-based indices into the `ingredients` array you're sending. A
-    single ingredient is `from == to`. Ranges may overlap between neighbouring stages (an
-    ingredient added in one stage and crushed in the next) — that's expected. Omit both for a
-    stage that consumes nothing new.
+  - **Send `ingredients` in cooking order.** The chart draws each stage across the rows it
+    consumes, so it only reads as a staircase when the list runs in the order the recipe uses
+    things: everything the first stage touches, then the second stage's, and so on. Group by
+    stage, not by shopping aisle or by component. A recipe whose first step makes a sauce lists
+    the sauce ingredients first, even if the headline protein feels like it should lead.
+  - `from`/`to` are inclusive 0-based indices into the `ingredients` array you're sending, and a
+    stage's range must be **contiguous** — which it is automatically once the list is in cooking
+    order. A single ingredient is `from == to`. Ranges may overlap between neighbouring stages (an
+    ingredient added in one stage and crushed in the next); the earlier stage owns the row. Omit
+    both for a stage that consumes nothing new ("simmer", "bake", "assemble") — Mise parks it
+    beside whatever went in most recently.
+  - Cover every step exactly once: one stage per `steps` entry, no step left without a stage and
+    none used twice. Reordering is fine and expected — a stage's `slot` places it in time, not its
+    position in the array — so the stage carrying step 3 may well come before the one carrying
+    step 1.
   - `name` is a SHORT label — a few words that fit a chart cell ("Toast the spices"). The full
     instruction goes in `detail`, which is revealed when the cook hovers or reaches that stage;
     it is normally the matching `steps` entry verbatim. Do not put a whole paragraph in `name`.
   - `seconds` is the countdown length (0 = no timer); `timing` is the display copy the cook
     reads ("25–30 min"); `hint` is an optional cue ("medium-low · thickened").
+  - Only give `seconds` a duration the step actually states. Don't invent one, and don't set it for
+    waits nobody stands over — an overnight marinade or a 24-hour Creami freeze gets
+    `"timing": "24 h"` with `seconds: 0`, because a day-long countdown is theatre. The slot's timer
+    is `max(seconds)` across its stages, so an unattended `meanwhile` may legitimately be the one
+    carrying it (potatoes in the air fryer while the beef browns).
+  - `meanwhile` means *unattended*, not *secondary*: it marks the thing that runs on its own while
+    the cook works on the slot's other stage. If both stages need hands, they are not the same
+    slot.
+  - Mark a slot shared when the recipe genuinely overlaps — its own words are the evidence
+    ("meanwhile", "while the potatoes cook", "as the stew simmers"), as is any unattended wait long
+    enough to work through (a braise, an air fryer, a pickle, a rest). Don't invent concurrency to
+    make the chart look busy.
 - `categories` become leading tags in Mise; `tags` follow them
 - Unknown optional fields: omit them, do not invent values
 - Informal small quantities (a pinch of salt, a dash, a splash) display better as their natural

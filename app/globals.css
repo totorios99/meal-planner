@@ -1,3 +1,322 @@
+/* The gantt is a desktop reading of the recipe; the timeline is the phone's. Exactly one is in
+   play at a time, so neither has to compromise for the other. */
+.cook-tl { display: none; }
+
+@media (max-width: 720px) {
+  /* A seven-column chart in a 358px box is a panning puzzle. So the axes swap instead: time runs
+     DOWN the page, a band's height is how long it lasts, and stages sharing a slot sit side by
+     side. Same claims as the desktop chart — duration and simultaneity — made with the axis the
+     phone actually has. */
+  .cook-frame,
+  .cook-rail { display: none; }
+  .cook-tl { display: block; }
+
+  .cook-tl-track {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cook-band {
+    display: grid;
+    grid-template-columns: 58px 1fr;
+    gap: 12px;
+    padding: 0 0 14px;
+  }
+  /* The spine is the clock. Its rule is continuous down the page, so the bands read as one
+     stretch of time rather than as separate cards. */
+  .cook-band-spine {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    padding: 2px 10px 0 0;
+    text-align: right;
+    border-right: 1px solid var(--hair);
+  }
+  .cook-band-spine::after {
+    content: '';
+    position: absolute;
+    right: -4px;
+    top: 6px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ink-4);
+  }
+  .cook-band.is-active .cook-band-spine { border-right-color: rgba(201, 138, 99, .55); }
+  .cook-band.is-active .cook-band-spine::after {
+    background: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+  .cook-band-no,
+  .cook-band-clock,
+  .cook-band-dur {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+  .cook-band-no {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    color: var(--ink-3);
+  }
+  .cook-band.is-active .cook-band-no { color: var(--accent-ink); }
+  .cook-band-clock {
+    font-size: 10px;
+    letter-spacing: .04em;
+    color: var(--ink-4);
+  }
+  /* Duration sits at the bottom of the spine, so the gap above it is itself the length of the
+     step — the taller the band, the longer the wait. */
+  .cook-band-at-once {
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  .cook-band-dur {
+    margin-top: auto;
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .cook-band-stages { display: flex; flex-direction: column; gap: 8px; }
+  /* Two things at once: side by side, because that IS the claim. Two columns is the limit on a
+     phone — Honey Halloumi runs four tasks in its first twenty minutes, which wraps to 2×2 rather
+     than shrinking four cards to 80px each. */
+  .cook-band-stages.is-shared {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+  /* Below ~360px two columns leave 119px of usable width, which turns every chip into a word
+     ladder. Stack them instead; the spine's "N at once" still carries the simultaneity. */
+  @media (max-width: 379px) {
+    .cook-band-stages.is-shared { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .cook-band-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 100%;
+    height: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--stroke);
+    border-radius: 14px;
+    background: var(--glass-fill);
+    color: var(--ink-2);
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .22s, border-color .22s, color .22s;
+  }
+  .cook-band-stage.is-side {
+    border-style: dashed;
+    background: var(--accent-soft);
+  }
+  .cook-band-stage .cook-stage-kicker { color: var(--accent-ink); }
+  .cook-band-name {
+    font-size: 15.5px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    line-height: 1.25;
+    color: var(--ink);
+  }
+  .cook-band-timing {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  /* Idle, the instruction is a two-line preview so the bands keep the shape of a chart; the live
+     band shows it in full, because that's the one being cooked from. */
+  .cook-band-detail {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin: 2px 0 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink-3);
+    text-wrap: pretty;
+  }
+  .cook-band.is-active .cook-band-detail {
+    display: block;
+    color: var(--ink-2);
+  }
+  /* Quantities as chips: they belong to this moment in the cook, not to a shopping list. */
+  .cook-tl-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 2px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .cook-tl-chips li {
+    display: inline-flex;
+    /* "Yoplait Greek Yogurt Shake, Unsweetened" has no break opportunity narrow enough for a
+       119px column, and an unbreakable word is what pushes a page sideways. */
+    overflow-wrap: anywhere;
+    gap: 5px;
+    align-items: baseline;
+    padding: 3px 8px;
+    border-radius: var(--r-pill);
+    background: var(--bg-sunken);
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  /* The quantity never breaks across lines — "3 / tbsp" reads as two different numbers. The name
+     beside it is free to wrap. */
+  .cook-tl-chips b {
+    flex: none;
+    white-space: nowrap;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+
+  .cook-band.is-active .cook-band-stage {
+    border-color: rgba(201, 138, 99, .6);
+    background: var(--panel-2);
+    box-shadow: var(--inset-hi), 0 14px 30px -18px rgba(148, 85, 55, .8);
+  }
+  .cook-band.is-active .cook-band-stage.is-side { background: var(--accent-soft); }
+  /* Done bands shrink to their spine and title: proof of what's in the pot, not competing for
+     the screen with what's next. */
+  .cook-band.is-done { min-height: 0 !important; opacity: .55; }
+  .cook-band.is-done .cook-band-stage { padding: 8px 14px; }
+  .cook-band.is-done .cook-band-name { font-size: 14px; text-decoration: line-through; }
+  .cook-band.is-done .cook-band-detail,
+  .cook-band.is-done .cook-tl-chips,
+  .cook-band.is-done .cook-band-timing,
+  .cook-band.is-done .cook-band-dur { display: none; }
+
+  .cook-tl-loose {
+    margin-bottom: 12px;
+    border: 1px solid var(--hair);
+    border-radius: var(--r-md);
+    background: var(--bg-sunken);
+  }
+  .cook-tl-loose summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 44px;
+    padding: 10px 16px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    cursor: pointer;
+    list-style: none;
+  }
+  .cook-tl-loose summary::-webkit-details-marker { display: none; }
+  .cook-tl-loose summary span {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink-4);
+  }
+  .cook-tl-loose summary::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid var(--ink-3);
+    border-bottom: 1.5px solid var(--ink-3);
+    transform: rotate(45deg) translate(-2px, -2px);
+    transition: transform .2s;
+  }
+  .cook-tl-loose[open] summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
+  .cook-tl-loose > .cook-tl-chips { padding: 0 16px 14px; }
+
+  /* Start cooking is the page's one primary action here — full width, not a pill wedged after
+     two segmented controls. */
+  .cook-controls { gap: 12px; }
+  .cook-start {
+    flex: 1 1 100%;
+    margin-left: 0;
+    text-align: center;
+  }
+  /* Once the bar is up it owns every cooking control; a full-width "Cooking…" placeholder is a
+     row of dead screen on a phone. */
+  .cook-start.is-cooking { display: none; }
+
+  /* Thumbs, not reach: while cooking, the controls live in a fixed bar above the tab bar rather
+     than scrolled somewhere up the page. */
+  .cook-bar {
+    /* Enters from below, where it lives — the desktop bar drops in from above. */
+    animation-name: cook-bar-up;
+    position: fixed;
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 80px);
+    z-index: 39;
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "count name  exit"
+      "back  timer next";
+    align-items: center;
+    gap: 8px 12px;
+    padding: 12px 14px;
+    /* Opaque base under the glass: this bar sits over scrolling recipe text, and where
+       backdrop-filter is unsupported or switched off (low power, some Android browsers) a
+       translucent panel alone leaves Back/Next/timer illegible against the words behind them. */
+    background: var(--panel), var(--bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(170%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(170%);
+    box-shadow: var(--inset-hi), var(--shadow-glass);
+  }
+  .cook-bar-count { grid-area: count; }
+  .cook-bar-name { grid-area: name; min-width: 0; }
+  .cook-bar-name strong { font-size: 15px; }
+  /* The instruction is already in the live band behind this bar — repeating it here would eat
+     half the screen. */
+  .cook-bar-detail { display: none; }
+  .cook-bar-side { font-size: 10.5px; }
+  .cook-nav.is-back { grid-area: back; }
+  .cook-nav.is-next { grid-area: next; }
+  .cook-nav.is-exit {
+    grid-area: exit;
+    padding: 4px 10px;
+    border: 0;
+    background: transparent;
+    color: var(--ink-3);
+    font-size: 12px;
+  }
+  .cook-timer {
+    grid-area: timer;
+    justify-self: center;
+    margin: 0;
+    font-size: 28px;
+  }
+  .cook-foot { display: none; }
+
+  /* Reserve the fixed bar's height so the last band can still be scrolled clear of it. */
+  body[data-cooking="1"] .recipe-page {
+    padding-bottom: calc(200px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* === Mise Glass Design System === */
 
 :root {
