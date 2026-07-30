@@ -32,6 +32,7 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
   const [slot, setSlot] = useState(0)
   const [hover, setHover] = useState(-1) // slot being previewed; -1 = none
   const [peek, setPeek] = useState(-1) // stage index whose instruction is showing
+  const [openCard, setOpenCard] = useState(-1) // mobile: which companion stage of the live band is opened
   const [finished, setFinished] = useState(false)
 
   // The countdown runs off the wall-clock instant the slot ends, not a counter ticked down once a
@@ -72,6 +73,7 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
     setSlot(n)
     setHover(-1)
     setPeek(-1)
+    setOpenCard(-1)
     setPaused(false)
     resumeFrom.current = null
     setRunId(r => r + 1)
@@ -95,6 +97,7 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
       return
     }
     setSlot(n)
+    setOpenCard(-1)
     setPaused(false)
     resumeFrom.current = null
     setRunId(r => r + 1)
@@ -395,12 +398,22 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
               <div className={`cook-band-stages${group.length > 1 ? ' is-shared' : ''}`}>
                 {group.map((st, i) => {
                   const mine = rows.filter(r => r.owner === n && st.to >= st.from && r.index >= st.from && r.index <= st.to)
+                  // On the live band the stage you're actually working is open; its unattended
+                  // companions stay clamped until asked for, so four concurrent tasks don't turn
+                  // one step into a page of scrolling.
+                  const companion = active && !!st.meanwhile
+                  const open = active && (!st.meanwhile || openCard === i)
                   return (
                     <button
                       key={i}
                       type="button"
-                      className={`cook-band-stage${st.meanwhile ? ' is-side' : ''}`}
-                      onClick={() => start(n)}
+                      className={`cook-band-stage${st.meanwhile ? ' is-side' : ''}${open ? ' is-open' : ''}${companion ? ' is-toggle' : ''}`}
+                      aria-expanded={companion ? openCard === i : undefined}
+                      // Tapping the stage already on the heat must not re-arm its timer.
+                      onClick={() => {
+                        if (companion) setOpenCard(c => (c === i ? -1 : i))
+                        else if (!active) start(n)
+                      }}
                     >
                       {st.meanwhile && <span className="cook-stage-kicker">Meanwhile</span>}
                       <span className="cook-band-name">{st.name}</span>
@@ -412,9 +425,10 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
                           ))}
                         </ul>
                       )}
-                      {/* The instruction is what you read while you cook, so the live band shows it
-                          in full; the rest keep the shape of the chart legible. */}
                       {st.detail && <p className="cook-band-detail">{st.detail}</p>}
+                      {companion && (
+                        <span className="cook-band-more">{openCard === i ? 'Less' : 'How'}</span>
+                      )}
                     </button>
                   )
                 })}

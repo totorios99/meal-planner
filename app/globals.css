@@ -95,8 +95,12 @@
   .cook-band-stages.is-shared {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
+    /* start, not stretch: a clamped companion shouldn't inherit the height of an opened one. */
+    align-items: start;
   }
+  /* Whatever is open gets the full measure — reading an instruction across a 156px column is
+     worse than reading it across the screen, and the grid keeps the band's shape either way. */
+  .cook-band-stages.is-shared > .cook-band-stage.is-open { grid-column: 1 / -1; }
   /* Below ~360px two columns leave 119px of usable width, which turns every chip into a word
      ladder. Stack them instead; the spine's "N at once" still carries the simultaneity. */
   @media (max-width: 379px) {
@@ -151,10 +155,41 @@
     color: var(--ink-3);
     text-wrap: pretty;
   }
-  .cook-band.is-active .cook-band-detail {
+  /* Open = the stage being worked, or a companion the cook asked to read. */
+  .cook-band-stage.is-open .cook-band-detail {
     display: block;
     color: var(--ink-2);
   }
+  /* A companion on the live band advertises that there's more to read. */
+  .cook-band-more {
+    align-self: flex-start;
+    margin-top: 2px;
+    padding: 4px 10px 4px 8px;
+    border-radius: var(--r-pill);
+    background: var(--glass-fill);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  /* A closed companion on the live band is a title bar: its quantities and method are for when
+     the cook turns to it, and hiding them keeps a four-task step from becoming a page of
+     scrolling. Tapping HOW brings them back. */
+  .cook-band-stage.is-toggle:not(.is-open) {
+    min-height: 44px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .cook-band-stage.is-toggle:not(.is-open) .cook-tl-chips,
+  .cook-band-stage.is-toggle:not(.is-open) .cook-band-detail { display: none; }
+  .cook-band-stage.is-toggle:not(.is-open) .cook-band-name { font-size: 14px; }
+  .cook-band-stage.is-toggle:not(.is-open) .cook-stage-kicker { order: -1; }
+  .cook-band-stage.is-toggle:not(.is-open) .cook-band-more { margin: 0 0 0 auto; }
   /* Quantities as chips: they belong to this moment in the cook, not to a shopping list. */
   .cook-tl-chips {
     display: flex;
