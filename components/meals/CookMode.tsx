@@ -235,6 +235,20 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
   const mm = Math.floor(remaining / 60)
   const ss = String(remaining % 60).padStart(2, '0')
 
+  // Row range each stage falls back to when it consumes no new ingredient: the span of the most
+  // recent stage (in cooking order) that did. Walked once here instead of inside the render.
+  const carryRows = useMemo(() => {
+    const order = stages.map((_, i) => i).sort((a, b) => stages[a].slot - stages[b].slot)
+    const fallback: [number, number][] = stages.map(() => [1, 2])
+    let last: [number, number] = [1, Math.max(2, ingredients.length + 1)]
+    for (const i of order) {
+      const st = stages[i]
+      if (st.to >= st.from) last = [st.from + 1, st.to + 2]
+      else fallback[i] = last
+    }
+    return fallback
+  }, [stages, ingredients.length])
+
   // Memoised so a timer tick re-renders only the stage bar: the chart sits on a
   // backdrop-filter surface, and re-blurring it twice a second buys nothing.
   const chart = useMemo(() => (
@@ -261,11 +275,13 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
             const active = cooking && st.slot === slot
             const soft = active && st.meanwhile
             const hovered = !cooking && hover === st.slot
-            // A stage with no ingredient span (from > to) still needs a row: park it on the
-            // row matching its slot so backfilled step-ladder meals read top-to-bottom.
             const hasSpan = st.to >= st.from
-            const rowStart = hasSpan ? st.from + 1 : st.slot + 1
-            const rowEnd = hasSpan ? st.to + 2 : st.slot + 2
+            // A stage that adds nothing new ("simmer", "bake", "assemble") still needs rows. Park
+            // it beside whatever went in most recently — the pot's contents haven't changed — which
+            // reads as the recipe continuing rather than as a block dropped at an arbitrary row.
+            const [fbStart, fbEnd] = carryRows[i]
+            const rowStart = hasSpan ? st.from + 1 : fbStart
+            const rowEnd = hasSpan ? st.to + 2 : fbEnd
             return (
               <div
                 key={i}
