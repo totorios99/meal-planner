@@ -254,7 +254,11 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
   // Memoised so a timer tick re-renders only the stage bar: the chart sits on a
   // backdrop-filter surface, and re-blurring it twice a second buys nothing.
   const chart = useMemo(() => (
-    <div className="cook-frame">
+    // Preview state is cleared at the outer boundary as well as the grid's: the grid's own
+    // mouseleave misses exits that don't cross its edge under the cursor — leaving through the
+    // scroll clip, or the grid scrolling out from under a still pointer — which left the
+    // ingredient column lit with no card hovered.
+    <div className="cook-frame" onMouseLeave={() => { setHover(-1); setPeek(-1) }}>
       {vessel && <div className="cook-vessel">{vessel}</div>}
       <div className="cook-scroll" tabIndex={0} role="group" aria-label="Cooking chart, scrolls sideways">
         <div
@@ -302,7 +306,11 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
                   onMouseEnter={() => { setPeek(i); if (!cooking) setHover(st.slot) }}
                   onFocus={() => { setPeek(i); if (!cooking) setHover(st.slot) }}
                   onBlur={() => { setPeek(p => (p === i ? -1 : p)); if (!cooking) setHover(-1) }}
-                  onClick={() => start(st.slot)}
+                  // Mouse click: hand focus back. Cook mode drives on ← → and Space, so the browser
+                  // sits in keyboard modality and a clicked card keeps matching :focus-visible —
+                  // the preview highlight then outlives the pointer. detail === 0 is keyboard
+                  // activation, which must keep its ring.
+                  onClick={e => { if (e.detail > 0) e.currentTarget.blur(); start(st.slot) }}
                 >
                   {st.meanwhile && <span className="cook-stage-kicker">Meanwhile</span>}
                   <span className="cook-stage-name">{st.name}</span>

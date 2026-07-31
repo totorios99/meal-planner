@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 
 const VIEW_KEY = 'meal-planner-recipe-view'
 type View = 'chart' | 'list'
@@ -25,9 +26,18 @@ export function RecipeBody({ chart, list }: { chart: ReactNode; list: ReactNode 
     document.documentElement.dataset.recipeView = view
   }, [view])
 
+  // Chart and list are the same recipe in two shapes, and they differ wildly in height — swapped
+  // by `display`, the page jumps and you lose your place. A view transition morphs the body
+  // container between the two sizes and crossfades the contents instead. flushSync is what makes
+  // it work: startViewTransition snapshots after its callback returns, so the `display` swap (done
+  // by the effect above, off `view`) has to have already landed synchronously. Browsers without
+  // the API just take the instant swap, which is the old behaviour.
   function pick(next: View) {
-    setView(next)
     localStorage.setItem(VIEW_KEY, next)
+    const swap = () => flushSync(() => setView(next))
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduce || !document.startViewTransition) swap()
+    else document.startViewTransition(swap)
   }
 
   return (
