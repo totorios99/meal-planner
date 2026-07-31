@@ -15,11 +15,18 @@ export async function POST(request: NextRequest) {
   if (file.size > MAX_BYTES) {
     return NextResponse.json({ error: 'Image too large (max 5MB)' }, { status: 413 })
   }
-  // PNG preserves transparency (product-shot cutouts); everything else is stored as jpg.
-  const ext = file.type === 'image/png' ? 'png' : 'jpg'
-  const name = `${Date.now().toString(36)}${randomBytes(4).toString('hex')}.${ext}`
+  // Trust the bytes, not the client's Content-Type: the extension decides what
+  // /api/images/[name] serves it back as, so a mislabelled upload would be served
+  // under a type it isn't. PNG preserves transparency (product-shot cutouts).
+  const buf = Buffer.from(await file.arrayBuffer())
+  const isPng = buf.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'))
+  const isJpg = buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff
+  if (!isPng && !isJpg) {
+    return NextResponse.json({ error: 'Only PNG or JPEG images are accepted' }, { status: 415 })
+  }
+  const name = `${Date.now().toString(36)}${randomBytes(4).toString('hex')}.${isPng ? 'png' : 'jpg'}`
   const dir = imageDir()
   await mkdir(dir, { recursive: true })
-  await writeFile(join(dir, name), Buffer.from(await file.arrayBuffer()))
+  await writeFile(join(dir, name), buf)
   return NextResponse.json({ url: `/api/images/${name}` }, { status: 201 })
 }

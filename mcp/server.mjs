@@ -210,7 +210,7 @@ server.registerTool('upload_photo', {
 
   const form = new FormData()
   form.append('file', new Blob([await readFile(photo)], { type: 'image/jpeg' }), 'photo.jpg')
-  const res = await fetch(`${BASE}/api/images`, { method: 'POST', body: form })
+  const res = await fetch(`${BASE}/api/images`, { method: 'POST', body: form, headers: { 'x-api-key': API_KEY } })
   const body = await res.json()
   if (!res.ok) throw new Error(`Mise API ${res.status}: ${JSON.stringify(body)}`)
   return json(body)
@@ -234,7 +234,7 @@ server.registerTool('upload_frame', {
 
   const form = new FormData()
   form.append('file', new Blob([await readFile(photo)], { type: 'image/jpeg' }), 'photo.jpg')
-  const res = await fetch(`${BASE}/api/images`, { method: 'POST', body: form })
+  const res = await fetch(`${BASE}/api/images`, { method: 'POST', body: form, headers: { 'x-api-key': API_KEY } })
   const body = await res.json()
   if (!res.ok) throw new Error(`Mise API ${res.status}: ${JSON.stringify(body)}`)
   return json(body) // { url: "/api/images/<name>.jpg" }
