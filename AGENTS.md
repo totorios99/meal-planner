@@ -19,6 +19,14 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 - `main` = stable, deployable at any time
 - `feat/...` for new features; direct commits to `main` for small fixes
 - Suggest opening a feature branch when work spans multiple sessions or touches core data models
+- **Branch-scale work merges via a PR (`gh pr create`), never a local merge + push to `main`.**
+  "Branch-scale" is the same bar as the line above: multiple sessions, or core data models, or
+  anything touching auth, migrations or deployment. Small fixes may still go straight to `main`.
+- **A user saying "safe to push" is not a decision to skip the PR.** Ask which they mean when
+  the work qualifies above — pushing `main` here builds an image and migrates production, so
+  the two readings differ by a deploy.
+- Delete the branch after merge; keep `main` linear (`--ff-only` / squash) unless a merge commit
+  carries real information.
 
 ## Database & migrations
 
