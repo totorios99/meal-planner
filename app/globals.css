@@ -1,3 +1,9 @@
+/* Clerk's components inject their own stylesheet at runtime. Declaring their layer here — and
+   passing the matching `cssLayerName` in lib/clerkAppearance.ts — puts every rule they ship
+   below every rule in this file, because unlayered CSS always outranks a layer. That's what
+   lets the `.cl-*` section at the bottom restyle them with plain tokens and no !important. */
+@layer clerk;
+
 /* The gantt is a desktop reading of the recipe; the timeline is the phone's. Exactly one is in
    play at a time, so neither has to compromise for the other. */
 .cook-tl { display: none; }
@@ -601,10 +607,9 @@ input, textarea { font-family: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .meal-grid > *, .fav-btn.is-fav svg, .shimmer { animation: none; }
   /* The recipe page's arrival waves and its hero overscale are pure entrance — drop them and the
-     page is simply there. The Cook/List view transition is skipped in JS (RecipeBody), and the
-     rule below covers a transition already in flight when the preference flips. */
+     page is simply there. */
   .recipe-hero, .recipe-back, .recipe-head, .recipe-desc, .recipe-meta,
-  .recipe-page > .macro-row, .cook-viewswitch { animation: none; }
+  .recipe-page > .macro-row { animation: none; }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
     animation-duration: .01ms;
   }
@@ -2296,9 +2301,19 @@ input, textarea { font-family: inherit; color: inherit; }
     right: calc(12px + env(safe-area-inset-right, 0px));
     padding: 0;
   }
-  .nav-inner { padding: 5px 16px; gap: 12px; }
+  /* Asymmetric like the desktop pill: an .icon-btn centres its 17px glyph in a 40px box, so a
+     symmetric 16px right padding puts ~28px of air after the last icon against 16 before the
+     brand. The trailing item is the round avatar, whose ink reaches its own edge, so 12px there
+     balances 16px before the brand. */
+  .nav-inner { padding: 5px 14px 5px 16px; gap: 12px; }
+  /* Each .icon-btn already carries ~10px of its own padding around a 17px glyph, so any gap on
+     top of that reads as a hole between the two icons — while the avatar, which has no box at
+     all, ends up hard against the theme icon. Zero gap between the boxes, a nudge before the
+     avatar: all three now sit the same distance apart to the eye. */
+  .nav-actions { gap: 0; }
+  .nav-actions > :last-child { margin-left: 5px; }
   .nav-links { display: none; }
-  .icon-btn { width: 44px; height: 44px; border-radius: 12px; }
+  .icon-btn { width: 36px; height: 36px; border-radius: 11px; }
 
   .tabbar {
     display: grid;
@@ -2307,8 +2322,10 @@ input, textarea { font-family: inherit; color: inherit; }
     left: calc(12px + env(safe-area-inset-left, 0px));
     right: calc(12px + env(safe-area-inset-right, 0px));
     /* The home-indicator strip IS the gap on notched phones — max(), not sum, or the bar
-       sits 34px too high. 12px floor keeps Android/non-notch looking unchanged. */
-    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+       sits 34px too high. Even that whole strip is more air than the bar needs: it may sit
+       partly inside it as long as the tap targets clear the indicator, so subtract 14 of it.
+       6px floor keeps Android/non-notch tight to the edge. */
+    bottom: max(6px, calc(env(safe-area-inset-bottom, 0px) - 14px));
     z-index: 40;
     background: var(--panel);
     backdrop-filter: blur(var(--glass-blur)) saturate(170%);
@@ -2323,8 +2340,9 @@ input, textarea { font-family: inherit; color: inherit; }
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    min-height: 56px;
+    gap: 4px;
+    padding: 4px 2px;
+    min-height: 50px;
     border: none;
     background: transparent;
     color: var(--ink-4);
@@ -2340,16 +2358,24 @@ input, textarea { font-family: inherit; color: inherit; }
   .tab.active svg { stroke-width: 2; }
   .tab:active { background: var(--bg-sunken); }
 
-  .app { padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
+  /* Clear the bar itself (62) + its offset + a gap. max(), because the offset above is already
+     a max() of the floor and the (shrunk) safe area — summing both would double-count. */
+  .app { padding-bottom: max(84px, calc(56px + env(safe-area-inset-bottom, 0px))); }
 
   .page {
-    padding: calc(94px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) 40px calc(16px + env(safe-area-inset-left, 0px));
+    padding: calc(80px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) 40px calc(16px + env(safe-area-inset-left, 0px));
   }
+  /* The nav pill is position:absolute, so it takes no space — the toolbar has to clear it by
+     hand, same as .page above. 20px put it underneath. */
   .print-shell {
-    padding: 20px calc(16px + env(safe-area-inset-right, 0px)) 40px calc(16px + env(safe-area-inset-left, 0px));
+    padding: calc(80px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) 40px calc(16px + env(safe-area-inset-left, 0px));
   }
   .page-header { flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 12px; }
   .page-title { font-size: 32px; }
+  /* At 15px the one-line desktop subtitle becomes three lines of a phone, which reads as a slab
+     of body copy under the title rather than a caption. */
+  .page-eyebrow { margin-bottom: 8px; }
+  .page-sub, .home-sub { font-size: 13.5px; margin-top: 6px; }
   .page-header .btn { flex: 1; justify-content: center; }
   /* The planner's week-nav + Targets pair is flex-shrink:0 inline, so below ~360px it runs
      3px past the viewport. Let the action row wrap rather than forcing a document scroll. */
@@ -2520,8 +2546,7 @@ input, textarea { font-family: inherit; color: inherit; }
 .recipe-head,
 .recipe-desc,
 .recipe-meta,
-.recipe-page > .macro-row,
-.cook-viewswitch {
+.recipe-page > .macro-row {
   animation: recipe-rise .34s cubic-bezier(.16,1,.3,1) backwards;
 }
 .recipe-back { animation-delay: 0ms; }
@@ -2529,7 +2554,6 @@ input, textarea { font-family: inherit; color: inherit; }
 .recipe-desc { animation-delay: 140ms; }
 .recipe-meta { animation-delay: 165ms; }
 .recipe-page > .macro-row { animation-delay: 190ms; }
-.cook-viewswitch { animation-delay: 215ms; }
 /* Both view containers share one transition name — only ever one of them is displayed, so the
    browser reads old-shape → new-shape as a single element changing form. */
 .recipe-view-chart,
@@ -2776,8 +2800,8 @@ input, textarea { font-family: inherit; color: inherit; }
 /* after the base rules above so the mobile padding wins the cascade */
 @media (max-width: 768px) {
   .recipe-page {
-    padding: calc(94px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px))
-             calc(100px + env(safe-area-inset-bottom, 0px))
+    padding: calc(80px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px))
+             max(84px, calc(56px + env(safe-area-inset-bottom, 0px)))
              calc(16px + env(safe-area-inset-left, 0px));
   }
   .recipe-columns { grid-template-columns: 1fr; }
@@ -2884,11 +2908,6 @@ input, textarea { font-family: inherit; color: inherit; }
   color: var(--ink-3);
 }
 
-.cook-viewswitch {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 14px;
-}
 
 .cook-controls {
   display: flex;
@@ -3553,7 +3572,8 @@ html:not([data-recipe-view="list"]) .recipe-view-list { display: none; }
   font-weight: 500;
 }
 .settings-saved,
-.settings-error {
+.settings-error,
+.settings-reverted {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -3561,9 +3581,10 @@ html:not([data-recipe-view="list"]) .recipe-view-list { display: none; }
 }
 .settings-saved { color: var(--ink-3); }
 .settings-error { color: var(--danger); }
+.settings-reverted { color: var(--warn); }
 @keyframes settings-fade { from { opacity: 0 } to { opacity: 1 } }
 @media (prefers-reduced-motion: reduce) {
-  .settings-saved, .settings-error { animation: none; }
+  .settings-saved, .settings-error, .settings-reverted { animation: none; }
 }
 
 .settings-card { padding: 22px 24px; }
@@ -3594,9 +3615,11 @@ html:not([data-recipe-view="list"]) .recipe-view-list { display: none; }
   font-weight: 550;
   color: var(--ink);
 }
+/* 12.5px at --ink-3 lands near 4.2:1 on the glass — under AA for text this size, and this is
+   the copy that actually explains each setting. */
 .settings-row-hint {
-  font-size: 12.5px;
-  color: var(--ink-3);
+  font-size: 13px;
+  color: var(--ink-2);
   margin-top: 3px;
   line-height: 1.4;
 }
@@ -3608,7 +3631,207 @@ html:not([data-recipe-view="list"]) .recipe-view-list { display: none; }
   .settings-row {
     flex-direction: column;
     align-items: stretch;
+    /* Stacked, the 20px row gap reads as a hole between a label and its own control. */
+    gap: 10px;
   }
   .settings-row-control .cook-seg-pills { width: 100%; }
   .settings-row-control .cook-seg { flex: 1; }
 }
+
+/* The page already spends 16px of gutter each side on a phone; another 24 of card padding
+   leaves the controls in a column too narrow for their own labels. */
+@media (max-width: 768px) {
+  .settings { gap: 14px; }
+  /* The header margin, the reserved status line and the list gap stack into ~42px of nothing
+     between "Settings" and the first card. The reserve stays (it's what stops the cards jumping
+     when a save lands), it just no longer pays the list gap on top. */
+  /* One status line at the top of the page is invisible when the control you just flipped is at
+     the bottom of a phone screen. Out of flow and pinned above the tab bar instead — which also
+     retires the height reserve it needed to stop the cards jumping. */
+  .settings-status {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: max(78px, calc(50px + env(safe-area-inset-bottom, 0px)));
+    z-index: 45;
+    min-height: 0;
+    padding: 8px 14px;
+    max-width: calc(100vw - 32px);
+    border-radius: var(--r-pill);
+    background: var(--panel);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(170%);
+    backdrop-filter: blur(var(--glass-blur)) saturate(170%);
+    border: 1px solid var(--stroke);
+    box-shadow: var(--inset-hi), var(--shadow-glass);
+    pointer-events: none;
+  }
+  /* Empty most of the time — the pill must not float there as a blank lozenge. */
+  .settings-status:empty { display: none; }
+  .settings-card { padding: 16px; }
+  /* WCAG 2.5.5: the 28px pill and the 36px input are both under a fingertip. */
+  .cook-seg { min-height: 36px; padding: 6px 16px; }
+  .settings-card .field input { min-height: 40px; }
+  /* .field carries a 14px margin for stacked forms; inside a grid the 12px gap already owns the
+     spacing, so the margin was adding a whole extra row of air to the targets panel. */
+  .settings-card .field { margin-bottom: 0; }
+  .settings-card .field input { padding: 8px 10px; }
+  .settings-card .field-hint { margin-top: 10px; }
+  .settings-card-title { margin-bottom: 12px; }
+  .settings-row { padding: 12px 0; }
+}
+
+
+/* ============================================================
+   CLERK — sign-in, sign-up, and the account manager
+   Clerk owns the markup; these are its stable `.cl-*` hooks. Everything here reads tokens, so
+   the widgets follow the theme toggle the same as the rest of the app. Colours Clerk derives
+   scales from (primary, danger, the focus ring) are set in JS instead — see clerkAppearance.ts.
+   ============================================================ */
+
+/* --- The card itself: one of our glass panels, not a white sheet --- */
+.cl-cardBox,
+.cl-modalContent > .cl-card,
+.cl-userButtonPopoverCard,
+.cl-organizationSwitcherPopoverCard {
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(170%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(170%);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  box-shadow: var(--inset-hi), var(--shadow-glass);
+}
+/* Clerk nests .cl-card inside .cl-cardBox; only the outer one is the glass. */
+.cl-card,
+.cl-scrollBox,
+.cl-userButtonPopoverMain,
+.cl-pageScrollBox {
+  background: transparent;
+  box-shadow: none;
+}
+/* The strip under the card ("Secured by", "Don't have an account?") — a footer, not a slab. */
+.cl-footer,
+.cl-userButtonPopoverFooter,
+.cl-cardFooter {
+  background: transparent;
+  border-top: 1px solid var(--hair);
+}
+.cl-footer { box-shadow: none; }
+
+/* --- Ink tiers --- */
+.cl-headerTitle,
+.cl-userPreviewMainIdentifier,
+.cl-profileSectionTitleText,
+.cl-accordionTriggerButton,
+.cl-navbarButton { color: var(--ink); }
+.cl-headerSubtitle,
+.cl-dividerText,
+.cl-formFieldLabel,
+.cl-userPreviewSecondaryIdentifier,
+.cl-profileSectionPrimaryButton,
+.cl-footerActionText,
+.cl-formFieldHintText { color: var(--ink-3); }
+.cl-footerActionLink,
+.cl-formResendCodeLink,
+.cl-identityPreviewEditButton,
+.cl-alternativeMethodsBlockButton { color: var(--accent-ink); }
+.cl-footerActionLink:hover,
+.cl-formResendCodeLink:hover { color: var(--accent-2); }
+
+/* --- Inputs: the recessed well the rest of the app uses --- */
+.cl-formFieldInput,
+.cl-otpCodeFieldInput,
+.cl-selectButton,
+.cl-phoneInputBox {
+  background: var(--well);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  min-height: 40px;
+}
+.cl-formFieldInput:focus,
+.cl-formFieldInput:focus-visible,
+.cl-otpCodeFieldInput:focus,
+.cl-selectButton:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+.cl-formFieldInput::placeholder { color: var(--ink-4); }
+
+/* --- Buttons --- */
+.cl-formButtonPrimary,
+.cl-profileSectionPrimaryButton__emailAddresses {
+  background: var(--accent-grad);
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  box-shadow: var(--inset-hi);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  min-height: 40px;
+}
+.cl-formButtonPrimary:hover { filter: brightness(1.08); }
+.cl-formButtonPrimary:focus-visible,
+.cl-socialButtonsBlockButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Secondary surfaces: social providers, the popover rows, the profile side-nav. */
+.cl-socialButtonsBlockButton,
+.cl-socialButtonsIconButton,
+.cl-formButtonReset,
+.cl-userButtonPopoverActionButton,
+.cl-menuItem,
+.cl-navbarButton,
+.cl-profileSectionPrimaryButton,
+.cl-accordionTriggerButton {
+  background: transparent;
+  border-radius: var(--r-md);
+  color: var(--ink-2);
+  transition: background .18s, color .18s, border-color .18s;
+}
+.cl-socialButtonsBlockButton,
+.cl-socialButtonsIconButton {
+  background: var(--glass-fill);
+  border: 1px solid var(--stroke);
+  color: var(--ink);
+  min-height: 42px;
+}
+.cl-socialButtonsBlockButton:hover,
+.cl-socialButtonsIconButton:hover { background: var(--glass-fill-2); }
+.cl-userButtonPopoverActionButton:hover,
+.cl-menuItem:hover,
+.cl-navbarButton:hover,
+.cl-accordionTriggerButton:hover { background: var(--glass-fill); color: var(--ink); }
+.cl-navbarButton[data-active="true"],
+.cl-navbarButton.cl-active {
+  background: var(--glass-fill-2);
+  color: var(--ink);
+  box-shadow: var(--inset-hi);
+}
+
+/* --- Structure --- */
+.cl-dividerLine { background: var(--hair); }
+.cl-avatarBox { box-shadow: 0 0 0 1px var(--stroke); }
+.cl-avatarImageActionsUpload { color: var(--accent-ink); }
+.cl-badge {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-pill);
+}
+.cl-identityPreview,
+.cl-profileSectionContent,
+.cl-menuList,
+.cl-selectOptionsContainer {
+  background: var(--panel-2);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+}
+.cl-navbar { background: transparent; border-right: 1px solid var(--hair); }
+.cl-modalBackdrop { background: rgba(0,0,0,.55); }
+[data-theme="light"] .cl-modalBackdrop { background: rgba(40,55,70,.28); }
+.cl-internal-icon, .cl-buttonArrowIcon { color: currentColor; }
+/* "Secured by Clerk" — present and legible, not competing with the form. */
+.cl-footerPages, .cl-poweredByClerk { color: var(--ink-4); }

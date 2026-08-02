@@ -5,7 +5,7 @@ import {
   slotOfIngredient, type Stage,
 } from '@/lib/recipe'
 import { useSettings } from '@/lib/SettingsContext'
-import type { Units } from '@/lib/settings'
+import { Segmented } from '@/components/Segmented'
 
 // One ingredient row of the chart, already resolved from refs + foods by the server page.
 export type CookIngredient = { quantity: number; unit: string; name: string }
@@ -17,8 +17,6 @@ interface Props {
   vessel?: string
 }
 
-type System = Units
-
 // Serves options: the recipe's own yield plus the halvings/doublings that land on whole
 // servings. Deduped and sorted, so a 1-serving meal offers 1/2/3 rather than 0.5/1/1.5/2.
 function servesOptions(base: number): number[] {
@@ -27,10 +25,10 @@ function servesOptions(base: number): number[] {
 }
 
 export function CookMode({ stages, ingredients, servings: baseServings, vessel }: Props) {
-  // Session-local, seeded from the saved default — switching units mid-cook shouldn't rewrite
-  // the preference. Edited for real in /settings. ("Serves" below is local state already.)
+  // Units come straight from the saved preference — edited only in /settings, no in-flow switch.
+  // ("Serves" below is local state, it's a per-cook quantity and not a preference.)
   const { settings } = useSettings()
-  const [units, setUnits] = useState(settings.units)
+  const units = settings.units
   const [servings, setServings] = useState(baseServings)
   const [cooking, setCooking] = useState(false)
   const [slot, setSlot] = useState(0)
@@ -48,10 +46,6 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
   const [paused, setPaused] = useState(false)
   const [runId, setRunId] = useState(0)
   const resumeFrom = useRef<number | null>(null)
-
-  function pickUnits(next: System) {
-    setUnits(next)
-  }
 
   const slotCount = countSlots(stages)
   const stagesInSlot = (n: number) => stages.filter(s => s.slot === n)
@@ -451,41 +445,18 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
   return (
     <div className="cook">
       <div className="cook-controls">
-        <div className="cook-seg-group" role="radiogroup" aria-label="Servings">
+        <div className="cook-seg-group">
           <span className="cook-seg-label" aria-hidden="true">Serves</span>
-          <div className="cook-seg-pills">
-            {servesOptions(baseServings).map(n => (
-              <button
-                key={n}
-                type="button"
-                role="radio"
-                aria-checked={n === servings}
-                aria-label={`${n} ${n === 1 ? 'serving' : 'servings'}`}
-                className={`cook-seg${n === servings ? ' is-on' : ''}`}
-                onClick={() => setServings(n)}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="cook-seg-group" role="radiogroup" aria-label="Measurement units">
-          <span className="cook-seg-label" aria-hidden="true">Units</span>
-          <div className="cook-seg-pills">
-            {(['US', 'Metric'] as System[]).map(u => (
-              <button
-                key={u}
-                type="button"
-                role="radio"
-                aria-checked={u === units}
-                className={`cook-seg${u === units ? ' is-on' : ''}`}
-                onClick={() => pickUnits(u)}
-              >
-                {u}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            label="Servings"
+            value={servings}
+            options={servesOptions(baseServings).map(n => ({
+              value: n,
+              label: String(n),
+              ariaLabel: `${n} ${n === 1 ? 'serving' : 'servings'}`,
+            }))}
+            onPick={setServings}
+          />
         </div>
 
         <button

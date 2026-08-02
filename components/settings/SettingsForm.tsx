@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSettings } from '@/lib/SettingsContext'
 import { DEFAULTS, type MacroTargets, type SettingsPatch } from '@/lib/settings'
 import { Icon } from '@/components/Icon'
+import { Segmented } from '@/components/Segmented'
 
 const MACROS: { key: keyof MacroTargets; label: string; unit: string }[] = [
   { key: 'calories', label: 'Calories', unit: 'kcal' },
@@ -10,33 +11,6 @@ const MACROS: { key: keyof MacroTargets; label: string; unit: string }[] = [
   { key: 'carbs',    label: 'Carbs',    unit: 'g'    },
   { key: 'fats',     label: 'Fats',     unit: 'g'    },
 ]
-
-// Segmented control, same shape as the Cook/List and Units switches already in the recipe page.
-function Segmented<T extends string>({
-  label, value, options, onPick,
-}: {
-  label: string
-  value: T
-  options: { value: T; label: string }[]
-  onPick: (v: T) => void
-}) {
-  return (
-    <div className="cook-seg-pills" role="radiogroup" aria-label={label}>
-      {options.map(o => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={o.value === value}
-          className={`cook-seg${o.value === value ? ' is-on' : ''}`}
-          onClick={() => onPick(o.value)}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 function Row({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
   return (
@@ -53,18 +27,26 @@ function Row({ title, hint, children }: { title: string; hint: string; children:
 export function SettingsForm() {
   const { settings, update, error } = useSettings()
   const [saved, setSaved] = useState(false)
+  // A target that fell back to the shared default, so the panel can say so instead of silently
+  // showing a number the user never typed.
+  const [reverted, setReverted] = useState<string | null>(null)
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Number inputs are edited as text so a half-typed "16" on the way to "160" isn't committed
   // and isn't fought by a re-render. They commit on blur / Enter; everything else on change.
   const [draft, setDraft] = useState<Record<string, string>>({})
 
-  useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current) }, [])
+  useEffect(() => () => {
+    if (savedTimer.current) clearTimeout(savedTimer.current)
+    if (revertTimer.current) clearTimeout(revertTimer.current)
+  }, [])
 
   // `update` never rejects — it reports failure through the context's `error`, so the only
   // thing to do here is flash "Saved" when it actually landed.
   function commit(patch: SettingsPatch) {
     setSaved(false)
+    setReverted(null)
     void update(patch).then(ok => {
       if (!ok) return
       setSaved(true)
@@ -79,8 +61,16 @@ export function SettingsForm() {
     setDraft(d => Object.fromEntries(Object.entries(d).filter(([k]) => k !== key)))
     const n = Number(raw)
     // Blank or nonsense reverts to the shared default rather than writing a target that would
-    // make every progress bar in the planner divide by zero.
-    commit({ [key]: n > 0 && Number.isFinite(n) ? n : DEFAULTS[key] } as SettingsPatch)
+    // make every progress bar in the planner divide by zero. Announced, not silent — otherwise
+    // the field just fills itself with a number nobody typed and reports "Saved".
+    const ok = n > 0 && Number.isFinite(n)
+    commit({ [key]: ok ? n : DEFAULTS[key] } as SettingsPatch)
+    if (!ok) {
+      const macro = MACROS.find(m => m.key === key)!
+      setReverted(`${macro.label} can't be empty — reset to ${DEFAULTS[key].toLocaleString()} ${macro.unit}.`)
+      if (revertTimer.current) clearTimeout(revertTimer.current)
+      revertTimer.current = setTimeout(() => setReverted(null), 6000)
+    }
   }
 
   const fromMacros = settings.protein * 4 + settings.carbs * 4 + settings.fats * 9
@@ -90,6 +80,8 @@ export function SettingsForm() {
       <div className="settings-status" aria-live="polite">
         {error
           ? <span className="settings-error"><Icon name="warning" size={13} /> {error}</span>
+          : reverted
+          ? <span className="settings-reverted"><Icon name="warning" size={13} /> {reverted}</span>
           : saved && <span className="settings-saved"><Icon name="check" size={13} /> Saved</span>}
       </div>
 
