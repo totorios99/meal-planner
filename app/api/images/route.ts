@@ -3,10 +3,20 @@ import { mkdir, writeFile } from 'fs/promises'
 import { randomBytes } from 'crypto'
 import { join } from 'path'
 import { imageDir } from '@/lib/images'
+import { isAdmin, optionalUserId } from '@/lib/auth'
 
 const MAX_BYTES = 5 * 1024 * 1024
 
 export async function POST(request: NextRequest) {
+  // Two legitimate callers with different credentials: the in-app uploader (a signed-in Clerk
+  // user) and the MCP server (the admin secret header). proxy.ts admits both — it lets a valid
+  // admin secret through without a session — so this is where the two are actually told apart.
+  // Accept either, reject everything else.
+  const signedIn = (await optionalUserId()) !== null
+  if (!signedIn && !isAdmin(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const form = await request.formData()
   const file = form.get('file')
   if (!(file instanceof File)) {

@@ -1,8 +1,12 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
+import { UserButton } from '@clerk/nextjs'
 import { Icon } from '@/components/Icon'
+import { authAppearance } from '@/lib/clerkAppearance'
+import { useSettings } from '@/lib/SettingsContext'
+import type { ThemePref } from '@/lib/settings'
 
 const LINKS = [
   { href: '/',        label: 'Home',     icon: 'home'     },
@@ -12,35 +16,41 @@ const LINKS = [
   { href: '/print',   label: 'Print',    icon: 'printer'  },
 ]
 
-type ThemePref = 'system' | 'light' | 'dark'
-
-function applyTheme(pref: ThemePref): boolean {
-  const dark =
-    pref === 'dark' ||
-    (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+// The stylesheet keys off `data-theme` / `.dark` on <html>; the nav is what moves them once
+// the page is live (app/layout.tsx stamps them for the first paint).
+function applyTheme(dark: boolean) {
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
   document.documentElement.classList.toggle('dark', dark)
-  return dark
+}
+
+// matchMedia is external state, so it's subscribed to rather than mirrored into an effect —
+// no setState-in-effect, and no render where the icon is wrong.
+const systemDarkStore = {
+  subscribe(cb: () => void) {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    mq.addEventListener('change', cb)
+    return () => mq.removeEventListener('change', cb)
+  },
+  get: () => window.matchMedia('(prefers-color-scheme: dark)').matches,
+  // On the server the preference is unknowable; light matches what layout.tsx renders, and the
+  // pre-paint script has already corrected the document by the time this hydrates.
+  getServer: () => false,
 }
 
 export function Nav() {
   const pathname = usePathname()
-  const [themePref, setThemePref] = useState<ThemePref>('system')
-  const [resolvedDark, setResolvedDark] = useState(false)
+  const { settings, update } = useSettings()
+  const themePref = settings.theme
+  const systemDark = useSyncExternalStore(
+    systemDarkStore.subscribe,
+    systemDarkStore.get,
+    systemDarkStore.getServer
+  )
+  const resolvedDark = themePref === 'dark' || (themePref === 'system' && systemDark)
 
-  useEffect(() => {
-    const stored = (localStorage.getItem('theme-pref') ?? 'system') as ThemePref
-    setThemePref(stored)
-    setResolvedDark(applyTheme(stored))
-  }, [])
-
-  useEffect(() => {
-    if (themePref !== 'system') return
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const handler = () => setResolvedDark(applyTheme('system'))
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [themePref])
+  // Push the resolved value at the document. Not derivable by CSS alone: `system` has to beat
+  // a previously-stamped explicit theme, and the class is what the rest of the app reads.
+  useEffect(() => { applyTheme(resolvedDark) }, [resolvedDark])
 
   function toggleTheme() {
     let next: ThemePref
@@ -51,13 +61,7 @@ export function Nav() {
     } else {
       next = 'system'
     }
-    setThemePref(next)
-    if (next === 'system') {
-      localStorage.removeItem('theme-pref')
-    } else {
-      localStorage.setItem('theme-pref', next)
-    }
-    setResolvedDark(applyTheme(next))
+    void update({ theme: next })
   }
 
   const themeTitle =
@@ -92,10 +96,27 @@ export function Nav() {
           <div className="nav-spacer" />
 
           <div className="nav-actions">
+            {/* Deliberately not in LINKS: a sixth tab crowds the mobile tab bar, and the
+                mobile pill renders nav-actions anyway. */}
+            <Link
+              href="/settings"
+              className={`icon-btn${pathname === '/settings' ? ' active' : ''}`}
+              title="Settings"
+              aria-label="Settings"
+            >
+              <Icon name="settings" size={17} />
+            </Link>
             <button className="icon-btn" title={themeTitle} onClick={toggleTheme}>
               <Icon name={resolvedDark ? 'sun' : 'moon'} size={17} />
               {themePref === 'system' && <span className="auto-dot" />}
             </button>
+            {/* Sized to match .icon-btn so the row doesn't jump when Clerk hydrates. */}
+            <UserButton
+              appearance={{
+                ...authAppearance,
+                elements: { ...authAppearance.elements, avatarBox: { width: 26, height: 26 } },
+              }}
+            />
           </div>
         </div>
       </nav>

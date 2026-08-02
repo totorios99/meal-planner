@@ -1,7 +1,13 @@
 import type { Metadata, Viewport } from 'next'
+import { ClerkProvider } from '@clerk/nextjs'
 import { Geist, Geist_Mono, Oswald } from 'next/font/google'
 import './globals.css'
 import { Nav } from '@/components/Nav'
+import { getSettings } from '@/lib/settings.server'
+import { SettingsProvider } from '@/lib/SettingsContext'
+
+// Preferences now live in the DB, so the shell is per-request rather than prerendered.
+export const dynamic = 'force-dynamic'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -51,30 +57,42 @@ export const viewport: Viewport = {
   themeColor: '#c17a52',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const settings = await getSettings()
+
   return (
+    <ClerkProvider>
     <html
       lang="en"
       suppressHydrationWarning
       data-wallpaper="mist"
+      // Stamped server-side so the chart/list rule in globals.css is already correct on the
+      // first paint — no script, no flash. Units aren't here: nothing styles off them, cook
+      // mode reads them through SettingsContext.
+      data-theme-pref={settings.theme}
+      data-recipe-view={settings.recipeView}
       className={`${geistSans.variable} ${geistMono.variable} ${oswald.variable}`}
     >
       <head>
+        {/* The one thing the server can't know: how 'system' resolves on this device. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var e=document.documentElement;var p=localStorage.getItem('theme-pref')||'system';var d=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);e.setAttribute('data-theme',d?'dark':'light');e.classList.toggle('dark',d);var v=localStorage.getItem('meal-planner-recipe-view');if(v==='list'||v==='chart')e.setAttribute('data-recipe-view',v);}catch(_){}})();`,
+            __html: `(function(){try{var e=document.documentElement;var p=e.getAttribute('data-theme-pref')||'system';var d=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);e.setAttribute('data-theme',d?'dark':'light');e.classList.toggle('dark',d);}catch(_){}})();`,
           }}
         />
       </head>
       <body className="app">
         <div className="wallpaper" />
-        <Nav />
-        {children}
+        <SettingsProvider initial={settings}>
+          <Nav />
+          {children}
+        </SettingsProvider>
       </body>
     </html>
+    </ClerkProvider>
   )
 }

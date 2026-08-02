@@ -4,6 +4,8 @@ import {
   convertUnit, formatQuantityWithUnit, slotCount as countSlots, slotSeconds as secondsInSlot,
   slotOfIngredient, type Stage,
 } from '@/lib/recipe'
+import { useSettings } from '@/lib/SettingsContext'
+import type { Units } from '@/lib/settings'
 
 // One ingredient row of the chart, already resolved from refs + foods by the server page.
 export type CookIngredient = { quantity: number; unit: string; name: string }
@@ -15,8 +17,7 @@ interface Props {
   vessel?: string
 }
 
-const UNITS_KEY = 'meal-planner-units'
-type System = 'US' | 'Metric'
+type System = Units
 
 // Serves options: the recipe's own yield plus the halvings/doublings that land on whole
 // servings. Deduped and sorted, so a 1-serving meal offers 1/2/3 rather than 0.5/1/1.5/2.
@@ -26,8 +27,11 @@ function servesOptions(base: number): number[] {
 }
 
 export function CookMode({ stages, ingredients, servings: baseServings, vessel }: Props) {
+  // Session-local, seeded from the saved default — switching units mid-cook shouldn't rewrite
+  // the preference. Edited for real in /settings. ("Serves" below is local state already.)
+  const { settings } = useSettings()
+  const [units, setUnits] = useState(settings.units)
   const [servings, setServings] = useState(baseServings)
-  const [units, setUnits] = useState<System>('US')
   const [cooking, setCooking] = useState(false)
   const [slot, setSlot] = useState(0)
   const [hover, setHover] = useState(-1) // slot being previewed; -1 = none
@@ -45,16 +49,8 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
   const [runId, setRunId] = useState(0)
   const resumeFrom = useRef<number | null>(null)
 
-  // Defaults-first, hydrate once — same reason as lib/useMacroTargets.ts: the server render
-  // must not depend on localStorage.
-  useEffect(() => {
-    const stored = localStorage.getItem(UNITS_KEY)
-    if (stored === 'US' || stored === 'Metric') setUnits(stored)
-  }, [])
-
   function pickUnits(next: System) {
     setUnits(next)
-    localStorage.setItem(UNITS_KEY, next)
   }
 
   const slotCount = countSlots(stages)

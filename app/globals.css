@@ -2501,9 +2501,9 @@ input, textarea { font-family: inherit; color: inherit; }
 
 /* ── Meal detail page ── */
 .recipe-page {
-  max-width: 860px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 30px 24px 120px;
+  padding: 30px 26px 120px;
 }
 /* Arrival in three waves rather than one fade of the whole page: the dish photo settles out of a
    slight overscale (the page's subject, so it leads), then the naming block, then the numbers and
@@ -3537,4 +3537,78 @@ html:not([data-recipe-view="list"]) .recipe-view-list { display: none; }
     padding-inline: 18px;
   }
   .cook-timer { min-height: 44px; }
+}
+
+/* === Settings === */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Reserved even when empty, so committing a value doesn't shove the first card down. */
+.settings-status {
+  min-height: 18px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.settings-saved,
+.settings-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  animation: settings-fade .2s ease;
+}
+.settings-saved { color: var(--ink-3); }
+.settings-error { color: var(--danger); }
+@keyframes settings-fade { from { opacity: 0 } to { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) {
+  .settings-saved, .settings-error { animation: none; }
+}
+
+.settings-card { padding: 22px 24px; }
+.settings-card-title {
+  font-size: 12px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+  margin: 0 0 16px;
+}
+.settings-card .field-hint { margin-top: 14px; }
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 0;
+  border-top: 1px solid var(--stroke);
+}
+.settings-row:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+.settings-row-title {
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--ink);
+}
+.settings-row-hint {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+.settings-row-control { flex-shrink: 0; }
+
+/* Under ~560px the label + control pair no longer fits on one line without squeezing the
+   segmented control below its touch target, so it stacks instead. */
+@media (max-width: 560px) {
+  .settings-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .settings-row-control .cook-seg-pills { width: 100%; }
+  .settings-row-control .cook-seg { flex: 1; }
 }

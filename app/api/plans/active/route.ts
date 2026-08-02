@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUserId } from '@/lib/auth'
 
 function getThisMonday(): Date {
   const d = new Date()
@@ -28,19 +29,20 @@ const planInclude = {
 }
 
 export async function GET(request: NextRequest) {
+  const userId = await requireUserId(request)
   const weekParam = request.nextUrl.searchParams.get('weekStart')
   const weekStart = weekParam ? parseLocalDate(weekParam) : getThisMonday()
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekEnd.getDate() + 1)
 
   let plan = await prisma.weeklyPlan.findFirst({
-    where: { weekStart: { gte: weekStart, lt: weekEnd } },
+    where: { userId, weekStart: { gte: weekStart, lt: weekEnd } },
     include: planInclude
   })
 
   if (!plan) {
     const newPlan = await prisma.weeklyPlan.create({
-      data: { weekStart, isActive: true }
+      data: { userId, weekStart, isActive: true }
     })
     for (let i = 0; i < 7; i++) {
       await prisma.weeklyPlanDay.create({
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
       })
     }
     plan = await prisma.weeklyPlan.findFirst({
-      where: { id: newPlan.id },
+      where: { id: newPlan.id, userId },
       include: planInclude
     })
   }

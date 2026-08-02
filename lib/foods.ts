@@ -8,23 +8,28 @@ function num(v: unknown): number { const n = Number(v); return Number.isFinite(n
 // findUnique({where:{name}}) misses "Egg" when asked for "egg" and silently creates a duplicate
 // food instead of reusing the source of truth. excludeId lets a rename check for conflicts
 // against every *other* food.
-export async function findFoodByName(name: string, excludeId?: number) {
+//
+// Every function here takes userId first and it is not optional: these are raw/bulk queries
+// where a forgotten filter leaks another user's library, so the compiler is the reminder.
+export async function findFoodByName(userId: string, name: string, excludeId?: number) {
+  // Raw SQL gets no scoping for free — the userId predicate here is hand-written and must
+  // stay. Without it a rename-conflict check would see across accounts.
   const rows = excludeId == null
-    ? await prisma.$queryRaw<{ id: number }[]>`SELECT id FROM "Food" WHERE name = ${name} COLLATE NOCASE LIMIT 1`
-    : await prisma.$queryRaw<{ id: number }[]>`SELECT id FROM "Food" WHERE name = ${name} COLLATE NOCASE AND id != ${excludeId} LIMIT 1`
+    ? await prisma.$queryRaw<{ id: number }[]>`SELECT id FROM "Food" WHERE "userId" = ${userId} AND name = ${name} COLLATE NOCASE LIMIT 1`
+    : await prisma.$queryRaw<{ id: number }[]>`SELECT id FROM "Food" WHERE "userId" = ${userId} AND name = ${name} COLLATE NOCASE AND id != ${excludeId} LIMIT 1`
   const row = rows[0]
-  return row ? prisma.food.findUnique({ where: { id: row.id } }) : null
+  return row ? prisma.food.findFirst({ where: { id: row.id, userId } }) : null
 }
 
-// Load all foods as an id→Food map (measures parsed) for macro computation.
-export async function loadFoodsMap(): Promise<Map<number, Food>> {
-  const foods = await prisma.food.findMany()
+// Load the user's foods as an id→Food map (measures parsed) for macro computation.
+export async function loadFoodsMap(userId: string): Promise<Map<number, Food>> {
+  const foods = await prisma.food.findMany({ where: { userId } })
   return foodsMap(foods)
 }
 
 // Cached macro totals for a meal's ingredient-refs JSON, from the current foods.
-export async function macrosForRefs(ingredientsJson: string) {
-  const map = await loadFoodsMap()
+export async function macrosForRefs(userId: string, ingredientsJson: string) {
+  const map = await loadFoodsMap(userId)
   return sumRefs(parseRefs(ingredientsJson), map)
 }
 
@@ -32,6 +37,7 @@ export async function macrosForRefs(ingredientsJson: string) {
 // Existing foods (source of truth) are referenced, not overwritten. When no per-ingredient
 // macros are given, the top-level totals are split evenly across the ingredients.
 export async function importIngredientsToRefs(
+  userId: string,
   raw: (string | ImportIngredient)[],
   totals: Macros,
 ): Promise<{ refs: IngredientRef[]; macros: Macros; warnings: string[] }> {
@@ -51,7 +57,7 @@ export async function importIngredientsToRefs(
       ? { calories: totals.calories / nn, protein: totals.protein / nn, carbs: totals.carbs / nn, fats: totals.fats / nn }
       : { calories: num(it.calories), protein: num(it.protein), carbs: num(it.carbs), fats: num(it.fats) }
     const baseUnit = (it.unit || '').trim() || 'unit'
-    let food = await findFoodByName(name)
+    let food = await findFoodByName(userId, name)
     if (!food) {
       const nutrients: NutrientEntry[] = [
         { key: 'calories', label: 'Calories', unit: 'kcal', amount: m.calories / q, group: 'macro' },
@@ -60,12 +66,12 @@ export async function importIngredientsToRefs(
         { key: 'fat_g', label: 'Fat', unit: 'g', amount: m.fats / q, group: 'macro' },
       ]
       food = await prisma.food.create({
-        data: { name, baseUnit, nutrients: JSON.stringify(nutrients), measures: '[]' },
+        data: { userId, name, baseUnit, nutrients: JSON.stringify(nutrients), measures: '[]' },
       })
     }
     refs.push({ foodId: food.id, quantity: q, measure: resolveMeasure(food, it.unit, name, warnings) })
   }
-  const map = await loadFoodsMap()
+  const map = await loadFoodsMap(userId)
   return { refs, macros: sumRefs(refs, map), warnings }
 }
 
@@ -101,15 +107,16 @@ function resolveMeasure(
 // Recompute the cached macro columns on meals from the current foods. Meal macros are
 // derived, so this is the propagation step: call after a food edit, or for a saved meal.
 // Pass mealIds to limit the work; omit to recompute every meal.
-export async function recomputeMealCache(mealIds?: number[]): Promise<void> {
-  const map = await loadFoodsMap()
-  const meals = await prisma.meal.findMany(
-    mealIds ? { where: { id: { in: mealIds } } } : undefined
-  )
+export async function recomputeMealCache(userId: string, mealIds?: number[]): Promise<void> {
+  const map = await loadFoodsMap(userId)
+  const meals = await prisma.meal.findMany({
+    where: mealIds ? { userId, id: { in: mealIds } } : { userId },
+  })
   for (const m of meals) {
     const t = sumRefs(parseRefs(m.ingredients), map)
     await prisma.meal.update({
-      where: { id: m.id },
+      where: { id: m.id }, // m came from the userId-scoped findMany above
+
       data: { calories: t.calories, protein: t.protein, carbs: t.carbs, fats: t.fats },
     })
   }

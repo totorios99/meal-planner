@@ -2,10 +2,9 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { PrintButton } from '@/components/print/PrintButton'
 import { parseRefs, sumRefs, foodsMap, hasUnfilledIngredient, formatQuantityWithUnit } from '@/lib/recipe'
+import { requireUserIdForPage } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
-
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 function fmt(d: Date, opts: Intl.DateTimeFormatOptions) {
   return d.toLocaleDateString('en-US', opts)
@@ -18,8 +17,9 @@ function dayDate(weekStart: Date, dayIndex: number) {
 }
 
 export default async function PrintPage() {
+  const userId = await requireUserIdForPage()
   const plan = await prisma.weeklyPlan.findFirst({
-    where: { isActive: true },
+    where: { userId, isActive: true },
     include: {
       days: {
         orderBy: { dayIndex: 'asc' },
@@ -43,7 +43,7 @@ export default async function PrintPage() {
     )
   }
 
-  const fmap = foodsMap(await prisma.food.findMany())
+  const fmap = foodsMap(await prisma.food.findMany({ where: { userId } }))
 
   const weekStart = new Date(plan.weekStart)
   const weekEnd = new Date(weekStart)
@@ -118,7 +118,7 @@ export default async function PrintPage() {
             return (
               <div key={day.id} className="print-day">
                 <div className="print-day-head">
-                  <span>{DAY_NAMES[day.dayIndex]}</span>
+                  <span>{fmt(date, { weekday: 'long' })}</span>
                   {day.isDismissed
                     ? <span className="off">off</span>
                     : <span className="date">{fmt(date, { month: 'short', day: 'numeric' })}</span>

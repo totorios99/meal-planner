@@ -48,7 +48,7 @@ NUTRITION:
 ## JSON schema
 
 Deliver via the `import_meal` MCP tool, or `POST {MISE_URL}/api/meals/import`
-with header `x-api-key: {MISE_API_KEY}`.
+with header `x-mise-admin-secret: {MISE_ADMIN_SECRET}`.
 
 ```json
 {

@@ -7,6 +7,7 @@ import { MacroRow } from '@/components/meals/MacroRow'
 import { FavoriteButton } from '@/components/meals/FavoriteButton'
 import { CookMode } from '@/components/meals/CookMode'
 import { RecipeBody } from '@/components/meals/RecipeBody'
+import { requireUserIdForPage } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,23 +18,26 @@ export default async function MealPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ pm?: string }>
 }) {
+  const userId = await requireUserIdForPage()
   const { id } = await params
   const { pm } = await searchParams
   const mealId = Number(id)
   if (!Number.isInteger(mealId)) notFound()
 
-  const meal = await prisma.meal.findUnique({ where: { id: mealId } })
+  const meal = await prisma.meal.findFirst({ where: { id: mealId, userId } })
   if (!meal) notFound()
 
   // ?pm=<WeeklyPlanMeal.id> renders this recipe with that placement's edited portions
   const planMealId = Number(pm)
   const placement = Number.isInteger(planMealId)
-    ? await prisma.weeklyPlanMeal.findUnique({ where: { id: planMealId } })
+    ? await prisma.weeklyPlanMeal.findFirst({
+        where: { id: planMealId, weeklyPlanDay: { weeklyPlan: { userId } } },
+      })
     : null
   const fromPlan = placement?.mealId === meal.id
   const refs = parseRefs(fromPlan ? placement!.ingredients : meal.ingredients)
 
-  const fmap = foodsMap(await prisma.food.findMany())
+  const fmap = foodsMap(await prisma.food.findMany({ where: { userId } }))
   const ingredients = refs.map(ref => {
     const food = fmap.get(ref.foodId)
     return { ref, food, macros: refMacros(ref, food) }

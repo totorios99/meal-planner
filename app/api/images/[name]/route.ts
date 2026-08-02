@@ -3,6 +3,9 @@ import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { imageDir } from '@/lib/images'
 
+// ponytail: images are stored flat under one random filename, not per user, so any signed-in
+// user who knows a name can fetch it. Names are unguessable in practice (4 random bytes) and
+// the route is behind Clerk. Give the file an owner if images ever become sensitive.
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ name: string }> }) {
   const { name } = await params
   const match = /^[a-z0-9]+\.(jpg|png)$/.exec(name)

@@ -9,8 +9,26 @@ datasource db {
   provider = "sqlite"
 }
 
+// One preferences row per Clerk user. userId is the primary key — the old singleton `id`
+// column is gone, since its `DEFAULT 1` would have collided the moment a second user saved
+// a preference.
+model Settings {
+  userId            String   @id
+  calories          Float    @default(2450)
+  protein           Float    @default(160)
+  carbs             Float    @default(270)
+  fats              Float    @default(80)
+  recipeView        String   @default("chart")  // 'chart' | 'list'
+  units             String   @default("US")     // 'US' | 'Metric'
+  theme             String   @default("system") // 'system' | 'light' | 'dark'
+  plannerFullTitles Boolean  @default(false)
+  weekStartsOn      Int      @default(1)        // 0 = Sunday, 1 = Monday
+  updatedAt         DateTime @updatedAt
+}
+
 model Meal {
   id          Int    @id @default(autoincrement())
+  userId      String // Clerk user id — every query must scope on this, see lib/auth.ts
   title       String
   description String @default("")
   tag         String @default("")
@@ -30,17 +48,26 @@ model Meal {
   updatedAt   DateTime @updatedAt
 
   weeklyPlanMeals WeeklyPlanMeal[]
+
+  @@index([userId])
 }
 
 model WeeklyPlan {
   id         Int       @id @default(autoincrement())
+  userId     String
   weekStart  DateTime
   isActive   Boolean   @default(false)
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
 
   days WeeklyPlanDay[]
+
+  @@index([userId])
 }
+
+// WeeklyPlanDay and WeeklyPlanMeal carry no userId — they inherit ownership through the
+// cascading parent. Scope them by filtering on the parent's userId (see assertOwns in
+// lib/auth.ts) so an id guessed from someone else's plan misses.
 
 model WeeklyPlanDay {
   id            Int        @id @default(autoincrement())
@@ -71,7 +98,8 @@ model WeeklyPlanMeal {
 // cup -> 185 g). Meals reference foods by id, so correcting a food propagates everywhere.
 model Food {
   id            Int      @id @default(autoincrement())
-  name          String   @unique
+  userId        String
+  name          String
   baseUnit      String   @default("")
   nutrients     String   @default("[]") // JSON NutrientEntry[]
   measures      String   @default("[]") // JSON [{unit, perBase}]
@@ -82,4 +110,6 @@ model Food {
   isPlaceholder Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@unique([userId, name])
 }

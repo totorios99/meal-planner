@@ -12,11 +12,21 @@ services:
       - DATABASE_URL=file:/app/data/meal-planner.db
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
-      - MISE_API_KEY=${MISE_API_KEY:-}
+      # Clerk — publishable key is client-visible by design; the secret key never is.
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:?set in .env}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY:?set in .env}
+      - NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+      - NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+      - NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
+      - NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
+      # Server-only. Agent/MCP access, sent as the x-mise-admin-secret header. Never
+      # NEXT_PUBLIC_-prefixed, never in a URL.
+      - MISE_ADMIN_SECRET=${MISE_ADMIN_SECRET:-}
+      - MISE_OWNER_USER_ID=${MISE_OWNER_USER_ID:-}
     restart: unless-stopped
     healthcheck:
-      # /login is the one route the auth gate always lets through — /api/meals now 401s.
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/login"]
+      # /sign-in is the one route Clerk always lets through — everything else redirects or 401s.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/sign-in"]
       interval: 30s
       timeout: 10s
       retries: 3

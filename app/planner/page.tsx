@@ -4,25 +4,20 @@ import { WeeklyPlan, FoodRow } from '@/types'
 import { sumEntries, foodsMap } from '@/lib/recipe'
 import { WeekBoard } from '@/components/planner/WeekBoard'
 import { QuickFill } from '@/components/planner/QuickFill'
-import { useMacroTargets } from '@/lib/useMacroTargets'
-import { TargetsModal } from '@/components/planner/TargetsModal'
+import Link from 'next/link'
+import { useSettings } from '@/lib/SettingsContext'
 import { Icon } from '@/components/Icon'
+import { startOfWeek, toDateParam } from '@/lib/date'
 
 function fmt(d: Date) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function getWeekBounds(offset: number): { weekStart: Date; weekEnd: Date; weekParam: string } {
-  const d = new Date()
-  const day = d.getDay()
-  const diff = day === 0 ? -6 : 1 - day
-  d.setDate(d.getDate() + diff + offset * 7)
-  d.setHours(0, 0, 0, 0)
-  const weekStart = new Date(d)
-  const weekEnd = new Date(d)
+function getWeekBounds(offset: number, weekStartsOn: 0 | 1): { weekStart: Date; weekEnd: Date; weekParam: string } {
+  const weekStart = startOfWeek(weekStartsOn, offset)
+  const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekEnd.getDate() + 6)
-  const weekParam = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`
-  return { weekStart, weekEnd, weekParam }
+  return { weekStart, weekEnd, weekParam: toDateParam(weekStart) }
 }
 
 export default function PlannerPage() {
@@ -30,20 +25,11 @@ export default function PlannerPage() {
   const [foods, setFoods] = useState<FoodRow[]>([])
   const [loading, setLoading] = useState(true)
   const [weekOffset, setWeekOffset] = useState(0)
-  const { targets, updateTargets } = useMacroTargets()
-  const [showTargets, setShowTargets] = useState(false)
-  const [fullTitles, setFullTitles] = useState(false)
-
-  useEffect(() => {
-    setFullTitles(localStorage.getItem('meal-planner-full-titles') === '1')
-  }, [])
-
-  function toggleFullTitles() {
-    setFullTitles(v => {
-      localStorage.setItem('meal-planner-full-titles', v ? '0' : '1')
-      return !v
-    })
-  }
+  // Read-only here: preferences are edited in /settings, not from the planner header.
+  const { settings } = useSettings()
+  const targets = settings
+  const fullTitles = settings.plannerFullTitles
+  const weekStartsOn = settings.weekStartsOn
 
   useEffect(() => {
     fetch('/api/foods').then(r => r.json()).then(setFoods).catch(() => {})
@@ -51,7 +37,7 @@ export default function PlannerPage() {
 
   const fetchPlan = useCallback(async () => {
     setLoading(true)
-    const { weekParam } = getWeekBounds(weekOffset)
+    const { weekParam } = getWeekBounds(weekOffset, weekStartsOn)
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 8000)
     try {
@@ -62,11 +48,11 @@ export default function PlannerPage() {
       clearTimeout(timer)
       setLoading(false)
     }
-  }, [weekOffset])
+  }, [weekOffset, weekStartsOn])
 
   useEffect(() => { fetchPlan() }, [fetchPlan])
 
-  const { weekStart, weekEnd } = getWeekBounds(weekOffset)
+  const { weekStart, weekEnd } = getWeekBounds(weekOffset, weekStartsOn)
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--ink-3)' }}>
@@ -105,29 +91,16 @@ export default function PlannerPage() {
               <Icon name="chev-right" size={14} />
             </button>
           </div>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={toggleFullTitles}
-            aria-pressed={fullTitles}
-            title={fullTitles ? 'Shorten long meal titles' : 'Show full meal titles'}
-          >
-            <span style={{ display: 'flex', transform: fullTitles ? 'rotate(180deg)' : undefined }}>
-              <Icon name="chev-down" size={14} />
-            </span>
-            Titles
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setShowTargets(true)}>
+          {/* Both the title-length toggle and the targets modal used to live here. They are
+              preferences, and preferences are edited in one place now. */}
+          <Link href="/settings" className="btn btn-ghost btn-sm">
             <Icon name="settings" size={14} /> Targets
-          </button>
+          </Link>
         </div>
       </div>
 
       <QuickFill onCloned={fetchPlan} />
       <WeekBoard plan={plan} targets={targets} foods={foods} fullTitles={fullTitles} onPlanUpdate={setPlan} />
-
-      {showTargets && (
-        <TargetsModal targets={targets} onSave={updateTargets} onClose={() => setShowTargets(false)} />
-      )}
     </main>
   )
 }

@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUserId } from '@/lib/auth'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ planId: string }> }
 ) {
+  const userId = await requireUserId(request)
   const { planId } = await params
 
-  // Get source plan
-  const source = await prisma.weeklyPlan.findUnique({
-    where: { id: Number(planId) },
+  // Get source plan. findFirst, not findUnique, so the userId filter is part of the lookup —
+  // someone else's plan id reads as "not found" rather than being cloned into your week.
+  const source = await prisma.weeklyPlan.findFirst({
+    where: { id: Number(planId), userId },
     include: {
       days: {
         include: {
@@ -22,7 +25,7 @@ export async function POST(
 
   // Get active plan
   const active = await prisma.weeklyPlan.findFirst({
-    where: { isActive: true },
+    where: { userId, isActive: true },
     include: { days: true }
   })
   if (!active) return NextResponse.json({ error: 'No active plan' }, { status: 400 })

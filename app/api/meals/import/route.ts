@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { stageLabel } from '@/lib/recipe'
 import { importSchema } from '@/lib/mealSchema'
 import { importIngredientsToRefs } from '@/lib/foods'
+import { requireAdmin, adminOwnerId, unauthorizedResponse } from '@/lib/auth'
 
 // One stage per step, no timer, no ingredient span: the chart degrades to a plain ladder, which
 // is the honest fallback when nobody has said which step consumes what.
@@ -19,10 +20,17 @@ function ladderFromSteps(steps: string[]) {
 }
 
 export async function POST(request: NextRequest) {
-  const key = process.env.MISE_API_KEY
-  // Unset key = import disabled, never open
-  if (!key || request.headers.get('x-api-key') !== key) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Agents have no Clerk session; this route authenticates on the x-mise-admin-secret header
+  // alone (never a query param, never a browser cookie) and imports on the owner's behalf.
+  // Unset secret = import disabled, never open.
+  let userId: string
+  try {
+    requireAdmin(request)
+    userId = adminOwnerId()
+  } catch (e) {
+    const res = unauthorizedResponse(e)
+    if (res) return res
+    throw e
   }
 
   let body: unknown
@@ -38,11 +46,12 @@ export async function POST(request: NextRequest) {
   }
 
   const p = parsed.data
-  const { refs, macros, warnings } = await importIngredientsToRefs(p.ingredients, {
+  const { refs, macros, warnings } = await importIngredientsToRefs(userId, p.ingredients, {
     calories: p.calories, protein: p.protein, carbs: p.carbs, fats: p.fats,
   })
   const meal = await prisma.meal.create({
     data: {
+      userId,
       title: p.name,
       description: p.description,
       imageUrl: p.image,

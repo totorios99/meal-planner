@@ -4,7 +4,7 @@
  *
  * Env:
  *   MISE_URL      base URL of a running Mise instance (default http://localhost:3000)
- *   MISE_API_KEY  key for POST /api/meals/import (only needed for import_meal)
+ *   MISE_ADMIN_SECRET  shared admin secret, sent as the x-mise-admin-secret header (required: every route is authenticated)
  *
  * Run: node mcp/server.mjs   (or `npm run mcp`)
  */
@@ -22,7 +22,7 @@ import { z } from 'zod'
 const exec = promisify(execFile)
 
 const BASE = process.env.MISE_URL ?? 'http://localhost:3000'
-const API_KEY = process.env.MISE_API_KEY ?? ''
+const ADMIN_SECRET = process.env.MISE_ADMIN_SECRET ?? ''
 
 const EXTRACTION_PROMPT = readFileSync(new URL('./extraction-prompt.md', import.meta.url), 'utf8')
 
@@ -31,7 +31,7 @@ async function api(path, init = {}) {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': API_KEY,
+      'x-mise-admin-secret': ADMIN_SECRET,
       ...init.headers,
     },
   })
@@ -210,7 +210,7 @@ server.registerTool('upload_photo', {
 
   const form = new FormData()
   form.append('file', new Blob([await readFile(photo)], { type: 'image/jpeg' }), 'photo.jpg')
-  const res = await fetch(`${BASE}/api/images`, { method: 'POST', body: form, headers: { 'x-api-key': API_KEY } })
+  const res = await fetch(`${BASE}/api/images`, { method: 'POST', body: form, headers: { 'x-mise-admin-secret': ADMIN_SECRET } })
   const body = await res.json()
   if (!res.ok) throw new Error(`Mise API ${res.status}: ${JSON.stringify(body)}`)
   return json(body)
@@ -234,7 +234,7 @@ server.registerTool('upload_frame', {
 
   const form = new FormData()
   form.append('file', new Blob([await readFile(photo)], { type: 'image/jpeg' }), 'photo.jpg')
-  const res = await fetch(`${BASE}/api/images`, { method: 'POST', body: form, headers: { 'x-api-key': API_KEY } })
+  const res = await fetch(`${BASE}/api/images`, { method: 'POST', body: form, headers: { 'x-mise-admin-secret': ADMIN_SECRET } })
   const body = await res.json()
   if (!res.ok) throw new Error(`Mise API ${res.status}: ${JSON.stringify(body)}`)
   return json(body) // { url: "/api/images/<name>.jpg" }
@@ -323,7 +323,7 @@ const importShape = {
 
 server.registerTool('import_meal', {
   description:
-    'Create a meal from structured recipe data (the canonical way for agents to add recipes). Requires MISE_API_KEY. See the extract-recipe prompt / mise://recipe-schema resource for extraction rules.',
+    'Create a meal from structured recipe data (the canonical way for agents to add recipes). Requires MISE_ADMIN_SECRET. See the extract-recipe prompt / mise://recipe-schema resource for extraction rules.',
   inputSchema: importShape,
 }, async (recipe) => json(await api('/api/meals/import', { method: 'POST', body: JSON.stringify(recipe) })))
 

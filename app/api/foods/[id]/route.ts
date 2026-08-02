@@ -4,9 +4,13 @@ import { prisma } from '@/lib/prisma'
 import { foodInput, foodToJson, canonicalWarnings } from '@/lib/foodSchema'
 import { recomputeMealCache, findFoodByName } from '@/lib/foods'
 import { parseRefs } from '@/lib/recipe'
+import { requireUserId } from '@/lib/auth'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const userId = await requireUserId(request)
   const { id } = await params
+  const existing = await prisma.food.findFirst({ where: { id: Number(id), userId } })
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const raw = await request.json()
   // Partial update: only the keys the caller actually sent are changed, so an agent tweaking
   // just baseUnit/measures can't silently wipe nutrients (or vice versa) via a full-object
@@ -18,7 +22,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const d = parsed.data
   const has = (k: string) => raw != null && typeof raw === 'object' && k in raw
   const foodId = Number(id)
-  if (has('name') && d.name && await findFoodByName(d.name, foodId)) {
+  if (has('name') && d.name && await findFoodByName(userId, d.name, foodId)) {
     return NextResponse.json({ error: 'A food with that name already exists' }, { status: 409 })
   }
   const data: Record<string, unknown> = {}
@@ -34,9 +38,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // Propagate: macros are derived, so refresh cached totals — but only when something that
     // affects them actually changed, and only on the meals that reference this food.
     if (has('nutrients') || has('measures') || has('isPlaceholder')) {
-      const meals = await prisma.meal.findMany({ select: { id: true, ingredients: true } })
+      const meals = await prisma.meal.findMany({ where: { userId }, select: { id: true, ingredients: true } })
       const affected = meals.filter(m => parseRefs(m.ingredients).some(r => r.foodId === foodId)).map(m => m.id)
-      if (affected.length) await recomputeMealCache(affected)
+      if (affected.length) await recomputeMealCache(userId, affected)
     }
     const warnings = has('nutrients') ? canonicalWarnings(d.nutrients ?? []) : []
     return NextResponse.json({ ...foodToJson(food), ...(warnings.length ? { warnings } : {}) })
@@ -51,13 +55,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const userId = await requireUserId(request)
   const { id } = await params
   const foodId = Number(id)
-  // Block if any meal or placement references this food.
+  const existing = await prisma.food.findFirst({ where: { id: foodId, userId } })
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  // Block if any of this user's meals or placements references this food. Scoped to them:
+  // a food id is only ever referenced from its own owner's rows.
   const [meals, placements] = await Promise.all([
-    prisma.meal.findMany({ select: { ingredients: true } }),
-    prisma.weeklyPlanMeal.findMany({ select: { ingredients: true } }),
+    prisma.meal.findMany({ where: { userId }, select: { ingredients: true } }),
+    prisma.weeklyPlanMeal.findMany({
+      where: { weeklyPlanDay: { weeklyPlan: { userId } } },
+      select: { ingredients: true },
+    }),
   ])
   const used = [...meals, ...placements].some(r => parseRefs(r.ingredients).some(ref => ref.foodId === foodId))
   if (used) {

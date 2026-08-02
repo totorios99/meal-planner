@@ -6,11 +6,9 @@ import { DayAnalytics } from './DayAnalytics'
 import { MealPicker } from './MealPicker'
 import { FoodPicker } from '@/components/meals/FoodPicker'
 import { parseRefs, sumRefs, sumEntries, foodsMap, hasUnfilledIngredient, type IngredientRef } from '@/lib/recipe'
-import { localDate } from '@/lib/date'
-import { MacroTargets } from '@/lib/useMacroTargets'
+import { localDate, dayName } from '@/lib/date'
+import type { MacroTargets } from '@/lib/settings'
 import { Icon } from '@/components/Icon'
-
-const DAY_ABBR = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 interface Props {
   day: WeeklyPlanDay
@@ -199,7 +197,7 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
     <div className={`day-col${day.isDismissed ? ' off' : ''}${isToday ? ' today' : ''}`}>
       <div className="day-head">
         <div className="day-head-text">
-          <div className="day-name">{DAY_ABBR[day.dayIndex]}</div>
+          <div className="day-name">{dayName(date)}</div>
           <div className="day-date">{date.getDate()}</div>
         </div>
         <button
@@ -321,7 +319,7 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
         <div className="sheet-backdrop" onClick={e => { if (e.target === e.currentTarget) setExpanded(null) }}>
           <div className="sheet">
             <div className="sheet-head">
-              <h2 className="sheet-title">{expandedEntry.meal.title} — {DAY_ABBR[day.dayIndex]}</h2>
+              <h2 className="sheet-title">{expandedEntry.meal.title} — {dayName(date)}</h2>
               <button className="icon-btn" onClick={() => setExpanded(null)} title="Close">
                 <Icon name="x" size={16} />
               </button>

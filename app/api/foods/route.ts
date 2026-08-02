@@ -3,27 +3,30 @@ import { Prisma } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { foodInput, toFoodData, foodToJson, canonicalWarnings } from '@/lib/foodSchema'
 import { findFoodByName } from '@/lib/foods'
+import { requireUserId } from '@/lib/auth'
 
 // Foods source of truth — the only place nutrients are authored.
 export async function GET(request: NextRequest) {
+  const userId = await requireUserId(request)
   const search = request.nextUrl.searchParams.get('search')?.trim()
   const foods = await prisma.food.findMany({
-    where: search ? { name: { contains: search } } : undefined,
+    where: search ? { userId, name: { contains: search } } : { userId },
     orderBy: { name: 'asc' },
   })
   return NextResponse.json(foods.map(foodToJson))
 }
 
 export async function POST(request: NextRequest) {
+  const userId = await requireUserId(request)
   const parsed = foodInput.safeParse(await request.json())
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues }, { status: 400 })
   }
-  if (await findFoodByName(parsed.data.name)) {
+  if (await findFoodByName(userId, parsed.data.name)) {
     return NextResponse.json({ error: 'A food with that name already exists' }, { status: 409 })
   }
   try {
-    const food = await prisma.food.create({ data: toFoodData(parsed.data) })
+    const food = await prisma.food.create({ data: { userId, ...toFoodData(parsed.data) } })
     const warnings = canonicalWarnings(parsed.data.nutrients)
     return NextResponse.json({ ...foodToJson(food), ...(warnings.length ? { warnings } : {}) }, { status: 201 })
   } catch (e) {

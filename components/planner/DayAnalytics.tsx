@@ -1,4 +1,4 @@
-import { MacroTargets } from '@/lib/useMacroTargets'
+import type { MacroTargets } from '@/lib/settings'
 
 interface Totals { calories: number; protein: number; carbs: number; fats: number }
 interface Props { totals: Totals; targets: MacroTargets }

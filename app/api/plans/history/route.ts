@@ -1,9 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUserId } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const userId = await requireUserId(request)
   const plans = await prisma.weeklyPlan.findMany({
-    where: { isActive: false },
+    where: { userId, isActive: false },
     orderBy: { weekStart: 'desc' },
     include: {
       days: {

@@ -3,25 +3,12 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { WeeklyPlan, Meal, FoodRow } from '@/types'
 import { parseRefs, sumRefs, sumEntries, foodsMap } from '@/lib/recipe'
-import { localDate } from '@/lib/date'
-import { useMacroTargets } from '@/lib/useMacroTargets'
+import { localDate, startOfWeek, toDateParam, todayIndex, dayName } from '@/lib/date'
+import { useSettings } from '@/lib/SettingsContext'
 import { MealCard } from '@/components/meals/MealCard'
 import { MealModal } from '@/components/meals/MealModal'
-import { TargetsModal } from '@/components/planner/TargetsModal'
 import { Icon } from '@/components/Icon'
 
-const DAY_ABBR = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
-function todayDayIndex() {
-  return (new Date().getDay() + 6) % 7
-}
-
-function localMonday() {
-  const d = new Date()
-  const diff = d.getDay() === 0 ? -6 : 1 - d.getDay()
-  d.setDate(d.getDate() + diff)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 function greeting() {
   const h = new Date().getHours()
@@ -117,14 +104,16 @@ export default function HomePage() {
   const [foods, setFoods] = useState<FoodRow[]>([])
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
   const [showNewMeal, setShowNewMeal] = useState(false)
-  const [showTargets, setShowTargets] = useState(false)
-  const { targets, updateTargets } = useMacroTargets()
+  // Read-only: targets are edited in /settings. Still needed here to draw the rings against.
+  const { settings: targets } = useSettings()
+  const weekStartsOn = targets.weekStartsOn
+  const todayIdx = todayIndex(weekStartsOn)
   const weekDaysRef = useRef<HTMLDivElement>(null)
 
   const fetchAll = useCallback(async () => {
     try {
       const [planRes, mealsRes, foodsRes] = await Promise.all([
-        fetch(`/api/plans/active?weekStart=${localMonday()}`),
+        fetch(`/api/plans/active?weekStart=${toDateParam(startOfWeek(weekStartsOn))}`),
         fetch('/api/meals'),
         fetch('/api/foods'),
       ])
@@ -132,7 +121,7 @@ export default function HomePage() {
       if (mealsRes.ok) setMeals(await mealsRes.json())
       if (foodsRes.ok) setFoods(await foodsRes.json())
     } catch { /* silently degrade */ }
-  }, [])
+  }, [weekStartsOn])
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
@@ -148,7 +137,7 @@ export default function HomePage() {
     }
   }, [plan])
 
-  const today = plan?.days.find(d => d.dayIndex === todayDayIndex())
+  const today = plan?.days.find(d => d.dayIndex === todayIdx)
   const todayMeals = today?.meals ?? []
   // localDate, not new Date(): weekStart is stored as a UTC timestamp and rendering it
   // directly labels the week a day early for anyone west of UTC (AGENTS.md, timezones).
@@ -257,9 +246,9 @@ export default function HomePage() {
         <div className="macros-block">
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
             <h2>Today&apos;s macros</h2>
-            <button className="btn btn-ghost btn-sm" onClick={() => setShowTargets(true)}>
+            <Link href="/settings" className="btn btn-ghost btn-sm">
               <Icon name="settings" size={13} /> Targets
-            </button>
+            </Link>
           </div>
           <div className="macros-ring-wrap">
             <MacroRing
@@ -296,7 +285,7 @@ export default function HomePage() {
           <div className="week-strip-days" ref={weekDaysRef}>
             {plan.days.map(day => {
               const date = dayDate(weekStart, day.dayIndex)
-              const isToday = day.dayIndex === todayDayIndex()
+              const isToday = day.dayIndex === todayIdx
               const kcal = day.isDismissed ? 0 : day.meals.reduce((s, m) => s + sumRefs(parseRefs(m.ingredients), fmap).calories, 0)
               return (
                 <Link
@@ -305,7 +294,7 @@ export default function HomePage() {
                   className={`week-day${isToday ? ' today' : ''}${day.isDismissed ? ' off' : ''}`}
                   style={{ textDecoration: 'none' }}
                 >
-                  <div className="week-day-name">{DAY_ABBR[day.dayIndex]}</div>
+                  <div className="week-day-name">{dayName(date, 'short')}</div>
                   <div className="week-day-date">{date.getDate()}</div>
                   {day.isDismissed ? (
                     <div className="week-day-off-label">{day.justification || 'Off day'}</div>
@@ -382,9 +371,6 @@ export default function HomePage() {
           onClose={() => { setShowNewMeal(false); setEditingMeal(null) }}
           onSaved={fetchAll}
         />
-      )}
-      {showTargets && (
-        <TargetsModal targets={targets} onSave={updateTargets} onClose={() => setShowTargets(false)} />
       )}
     </main>
   )

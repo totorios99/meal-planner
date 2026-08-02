@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react'
 import { WeeklyPlan, WeeklyPlanDay, FoodRow } from '@/types'
 import { DayCard } from './DayCard'
-import { MacroTargets } from '@/lib/useMacroTargets'
+import type { MacroTargets } from '@/lib/settings'
 
 interface Props {
   plan: WeeklyPlan
