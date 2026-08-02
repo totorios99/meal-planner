@@ -57,17 +57,78 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 - `lib/prisma.ts` — Prisma client singleton with libSQL adapter
 - `components/Nav.tsx` — desktop nav with icon+label links, mobile top pill (brand only), bottom tabbar; theme toggle (system/light/dark 3-state cycle)
 - `lib/mealSchema.ts` — zod schemas for meal CRUD (`mealInput`) and agent import (`importSchema`); `Meal.ingredients`/`steps` are JSON-encoded `string[]` columns, parse with `parseList()` from `lib/recipe.ts`
-- `app/api/meals/import/route.ts` — agent import endpoint, requires `x-api-key` = `MISE_API_KEY` env (unset = disabled); local dev key in gitignored `.env`
-- `mcp/server.mjs` — stdio MCP server proxying the HTTP API (run `npm run mcp` with `MISE_URL`/`MISE_API_KEY`); extraction rules + import JSON shape in `mcp/extraction-prompt.md`
-- Favorites: `PATCH /api/meals/[id]` with `{isFavorite}`, max 5 enforced server-side (409)
+- `app/api/meals/import/route.ts` — agent import endpoint, requires `x-mise-admin-secret` = `MISE_ADMIN_SECRET` env (unset = disabled); local dev secret in gitignored `.env`
+- `mcp/server.mjs` — stdio MCP server proxying the HTTP API (run `npm run mcp` with `MISE_URL`/`MISE_ADMIN_SECRET`); extraction rules + import JSON shape in `mcp/extraction-prompt.md`
+- Favorites: `PATCH /api/meals/[id]` with `{isFavorite}`, max 5 enforced **per user** server-side (409)
+- `proxy.ts` — Clerk gate (Next 16 renamed `middleware.ts` → `proxy.ts`); `lib/auth.ts` — the actual security boundary; `lib/adminSecret.ts` — shared header check
+
+## Security requirements
+
+Binding constraints. Every plan that touches routes, data or deployment must restate the
+relevant ones — see *Planning and documentation* below.
+
+1. **Clerk is the only user authentication mechanism.** No hand-rolled sessions, no password
+   columns. Supabase Auth and any other auth provider are out. Authentication UI lives only in
+   the page layer (`app/sign-in`, `app/sign-up`) — never inside an API route.
+2. **Action routes require the admin secret.** Operational `POST`s that start or mutate work on
+   an agent's behalf (`/api/meals/import`, `/api/images` upload) require a shared secret sent
+   **strictly as the `x-mise-admin-secret` header**. Missing or invalid → **`401`**.
+3. **Never in the query string, never in browser code.** The admin secret must not appear in a
+   URL, must not be sent from a client component, and must not be readable by a browser.
+   Compare with `timingSafeEqual`, never `!==`.
+4. **Operational routes are not reachable by regular users.** A signed-in Clerk session grants
+   nothing on import/scrape/scheduler-style paths; those are header-only.
+5. **Fail closed.** A missing `CLERK_SECRET_KEY` or `MISE_ADMIN_SECRET` rejects requests. Never
+   reintroduce the old "env var unset ⇒ app wide open" fallback.
+6. **The proxy is not the security boundary.** Per
+   `node_modules/next/dist/docs/01-app/02-guides/authentication.md`, proxy checks are
+   optimistic. Authorization happens next to the data, in `lib/auth.ts` + userId-scoped
+   queries. Ownership is verified, never inferred from a route param.
+7. **Every query is scoped by `userId`.** `Meal`, `WeeklyPlan`, `Food` and `Settings` carry it;
+   `WeeklyPlanDay`/`WeeklyPlanMeal` inherit it through their cascading parent (use
+   `findOwnedDay` / `findOwnedPlanMeal`). Cross-tenant misses return **404, not 403** — a 403
+   confirms the row exists. Raw `$queryRaw` gets no scoping for free: write the predicate by
+   hand (see `findFoodByName` in `lib/foods.ts`).
+
+### Environment variables
+
+| Variable | Exposure | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | client + server | Clerk publishable key |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` / `..._SIGN_UP_URL` | client + server | `/sign-in`, `/sign-up` |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` / `..._SIGN_UP_...` | client + server | `/` |
+| `CLERK_SECRET_KEY` | **server only** | Clerk backend key |
+| `MISE_ADMIN_SECRET` | **server only** | value of the `x-mise-admin-secret` header |
+| `MISE_OWNER_USER_ID` | **server only** | Clerk user id agent imports act as; migration backfill target |
+
+Never give an admin secret, DB credential or API key a `NEXT_PUBLIC_` prefix. `MISE_API_KEY` is
+retired — it no longer exists anywhere in the codebase.
+
+## Planning and documentation
+
+- Any implementation plan must include a **security requirements** section naming which of the
+  rules above the work touches and how it satisfies them.
 
 ## Design system
 
-- CSS custom properties only — no Tailwind utility classes in component markup
-- Tokens defined in `app/globals.css`: surfaces (`--bg`, `--bg-elev`, `--bg-sunken`), ink, accent (olive `#2F5237`), macro colours (`--protein` / `--carbs` / `--fats`)
-- Dark mode via `[data-theme="dark"]` attribute on `<html>`, set by `Nav.tsx`
-- Design handoff lives in `design_handoff_meal_planner/` — reference for component shapes and visual spec
-- Page header pattern: `.page-eyebrow` (12px uppercase label) → `.page-title` (display font, 46px, gradient `<em>` for name) → `.home-sub` (15px, `--ink-3`)
+**Full spec: `DESIGN.md`.** Read it before any UI work. The two rules worth repeating here
+because they constrain every change:
+
+- **CSS custom properties only** — no Tailwind utility classes in component markup. Tokens live
+  in `app/globals.css`.
+- **`:root` is the *dark* theme; `[data-theme="light"]` overrides it.** The attribute is stamped
+  server-side in `app/layout.tsx` and re-applied by `stamp()` in `lib/SettingsContext.tsx` —
+  never swap it in a plain `useEffect`, that reintroduces the flash.
+
+## Preferences
+
+- `/settings` (`components/settings/SettingsForm.tsx`) is the **only** place a preference is
+  written. Don't add a settings control anywhere else.
+- In-flow controls that look like settings — the recipe Cook/List switch
+  (`components/meals/RecipeBody.tsx`) and CookMode's US/Metric — are deliberately
+  **session-local**: seeded from the saved default, never persisted. They used to write the
+  global default, so reading one recipe in list view changed every recipe.
+- The Nav theme toggle is the one exception: standard app chrome, and persisting it is correct.
 
 ## Timezone handling
 
@@ -94,7 +155,7 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 
 ## Companion app — Forma
 
-- Second CasaOS app: AI nutrition + workout planner
-- Design handoff: `design_handoff_forma/` — full spec, Prisma schema, Anthropic SDK pattern
-- Prototype: `forma.html` — open in browser, no server needed
-- Builds as separate repo/container on port `3001`; shares same design token conventions as Mise
+Planned second CasaOS app (AI nutrition + workout planner, port `3001`), to be built as a
+separate repo sharing Mise's design token conventions. **No Forma assets exist in this tree** —
+the handoff folder and prototype were removed in `7a98015`; recover them from git history if
+the project restarts.

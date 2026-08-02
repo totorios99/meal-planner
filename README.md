@@ -43,8 +43,8 @@ prisma/
   schema.prisma     # Meal, WeeklyPlan, WeeklyPlanDay, WeeklyPlanMeal models
 scripts/
   migrate.js        # Migration runner (used at container startup)
-design_handoff_meal_planner/   # Original design spec + prototype
-design_handoff_forma/          # Design handoff for Forma (companion app)
+proxy.ts            # Clerk gate (Next 16's renamed middleware.ts)
+DESIGN.md           # Design system: tokens, theming model, patterns
 ```
 
 ## Dev workflow
@@ -70,11 +70,22 @@ Container runs on **port 3000**, data persisted at `/DATA/AppData/mise/`.
 
 > Do not run Docker during dev iteration — use `npm run dev` for HMR.
 
-### Import API key
+### Authentication
 
-`POST /api/meals/import` lets external agents push structured recipes. It requires
-`x-api-key` matching the `MISE_API_KEY` env var — put it in a `.env` next to
-`docker-compose.yml` (gitignored). If unset, import is disabled.
+Users sign in with [Clerk](https://clerk.com). Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and
+`CLERK_SECRET_KEY` (plus the `NEXT_PUBLIC_CLERK_SIGN_IN_URL`/`SIGN_UP_URL` route vars) in a
+`.env` next to `docker-compose.yml` — see `.env.example`. Every meal, food, plan and
+preference row is scoped to the signed-in user; two accounts never see each other's data.
+
+Note that sign-in needs outbound internet from the browser. Reaching Mise over LAN or
+Tailscale still works, but a WAN outage blocks new logins.
+
+### Admin secret (agents)
+
+`POST /api/meals/import` and the image upload let external agents push recipes. They require
+`x-mise-admin-secret` matching the `MISE_ADMIN_SECRET` env var — header only, never a query
+string. If unset, agent access is disabled. Imports are created for the Clerk user named by
+`MISE_OWNER_USER_ID`.
 
 ## MCP server (agent access)
 
@@ -94,7 +105,7 @@ Client config:
       "args": ["/path/to/meal-planner/mcp/server.mjs"],
       "env": {
         "MISE_URL": "http://localhost:3000",
-        "MISE_API_KEY": "<same key as the container>"
+        "MISE_ADMIN_SECRET": "<same secret as the container>"
       }
     }
   }
@@ -104,15 +115,15 @@ Client config:
 ## Data model
 
 ```
-Meal                  — cookbook entries (title, tag, kcal, protein, carbs, fats, imageUrl,
+Meal                  — cookbook entries (userId, title, tag, kcal, protein, carbs, fats, imageUrl,
                         ingredients/steps as JSON string[], prep/cook minutes, servings, isFavorite)
-WeeklyPlan            — a week's plan (weekStart, isActive)
+WeeklyPlan            — a week's plan (userId, weekStart, isActive)
   WeeklyPlanDay       — one day slot (dayIndex 0–6, isDismissed, justification note)
     WeeklyPlanMeal    — a meal in a day slot (mealId, quantity)
 ```
 
 ## Companion app
 
-**Forma** — AI-powered nutrition + workout planner (next project, port 3001).  
-Design handoff: [`design_handoff_forma/README.md`](design_handoff_forma/README.md)  
-Prototype: [`forma.html`](forma.html) — open in browser, no server needed.
+**Forma** — AI-powered nutrition + workout planner (next project, port 3001), to be built as a
+separate repo. Its design handoff and prototype were removed from this tree in `7a98015`;
+recover them from git history if the project restarts.

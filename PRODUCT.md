@@ -8,13 +8,17 @@ web
 
 ## Users
 
-Solo user (Antonio, the developer) — a single-user personal tool, not shared
-with a household or other viewers.
+Multi-user, small-scale: Antonio (the developer) plus anyone he invites —
+household-sized, not a public product. Every account is fully isolated: its
+own meals, foods, weekly plans and macro targets, with no sharing between
+them. Antonio is additionally the *owner* account (`MISE_OWNER_USER_ID`) that
+agent imports act on behalf of.
 
 ## Product Purpose
 
 Mise is a self-hosted personal meal planner: a cookbook of meals, a
-Monday–Sunday weekly planner, and a printable weekly reference, all tracking
+seven-day weekly planner (starting Monday or Sunday, per user), and a
+printable weekly reference, all tracking
 macros (calories/protein/carbs/fats, plus optional micronutrients) against a
 user-set daily target. Success is a week planned in advance whose logged
 meals hit that target, with a physical printout to follow while shopping and
@@ -46,9 +50,12 @@ that together replace a notes app + a tracking app + a recipe manager:
 - Recipes are frequently sourced from short-form cooking video (TikTok
   mainly), captured through the MCP import pipeline rather than typed in
   by hand.
-- Weekly macro target (calories/protein/carbs/fats) is user-set and stored
-  client-side; the current default seed is 2000 kcal / 150P / 200C / 65F,
-  editable per user, not a fixed product value.
+- Daily macro target (calories/protein/carbs/fats) is user-set and stored
+  server-side as a per-user `Settings` row; the seed defaults are
+  2450 kcal / 160P / 270C / 80F (`DEFAULTS` in `lib/settings.ts`), editable
+  per user, not a fixed product value. All preferences — targets, theme,
+  units, recipe view, week start, planner density — are edited in one place,
+  `/settings`.
 
 ## Capabilities and Constraints
 
@@ -62,23 +69,24 @@ that together replace a notes app + a tracking app + a recipe manager:
   etc.), placeholder foods (e.g. "vegetables") that intentionally contribute
   0 macros and prompt the user to specify a real ingredient later.
 - Print view: printable weekly menu + aggregated shopping list.
-- Theming: light/dark/system, persisted.
-- No multi-user accounts, no auth beyond a single API key gating the
-  agent-import endpoint — single-tenant by design, not a constraint to
-  route around.
+- Theming: light/dark/system, persisted per user.
+- Accounts via Clerk; agents authenticate separately with a shared admin
+  secret (`x-mise-admin-secret`) and act as the owner account. Every query is
+  scoped by `userId` — isolation is enforced next to the data, not by the
+  proxy. See the security requirements in `AGENTS.md`.
 
 ## Brand Commitments
 
-Name: **Mise** (from "mise en place"). Olive accent (`#2F5237`), warm
-surface palette, serif/display headline pairing over CSS custom properties
-(no Tailwind utility classes in markup). Full spec in
-`design_handoff_meal_planner/`.
+Name: **Mise** (from "mise en place"). Clay accent (`--accent` `#c98a63`,
+with a deliberately darker `--accent-grad` ramp for surfaces carrying white
+text), warm translucent "glass" surfaces over a blurred wallpaper, display
+headline pairing — all over CSS custom properties, no Tailwind utility
+classes in markup. Full spec in `DESIGN.md`.
 
 ## Evidence on Hand
 
-Live production data: ~90 curated foods (many with real product photos) and
+Live production data: ~115 curated foods (many with real product photos) and
 ~20 recipes, several imported from real TikTok videos via the MCP pipeline.
-`design_handoff_meal_planner/` holds the original visual spec/prototype.
 No user testimonials, case studies, or third-party press exist or should be
 implied — this is a personal tool, not a marketed product.
 
@@ -101,5 +109,6 @@ implied — this is a personal tool, not a marketed product.
 ## Accessibility & Inclusion
 
 No product-specific accessibility requirement has been established beyond
-standard web practice — single sighted solo user, not a formal requirement
-to design against yet.
+standard web practice. The accent ramp is held to 4.5:1 against white text
+(see `DESIGN.md`) and controls carry `role`/`aria-checked`, but nothing has
+been formally audited or designed against yet.
