@@ -24,6 +24,33 @@ function dayDate(weekStart: Date, idx: number) {
   return d
 }
 
+// The ring's percentage is the one number the page exists to show, and it lands ~300ms after
+// mount when the plan fetch resolves. Snapping it while the arcs sweep reads as two unrelated
+// events, so it counts to the same curve. Interruptible: a re-fetch resumes from where it is.
+function useCountUp(target: number, ms = 900) {
+  const [value, setValue] = useState(target)
+  const from = useRef(target)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      from.current = target
+      setValue(target)
+      return
+    }
+    const start = performance.now()
+    const a = from.current
+    let raf = requestAnimationFrame(function tick(t) {
+      const p = Math.min(1, (t - start) / ms)
+      const eased = a + (target - a) * (1 - Math.pow(1 - p, 3))
+      from.current = eased
+      setValue(eased)
+      if (p < 1) raf = requestAnimationFrame(tick)
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [target, ms])
+  return value
+}
+
 function MacroRing({ protein, carbs, fats, kcal, targets }: {
   protein: number; carbs: number; fats: number; kcal: number
   targets: { calories: number; protein: number; carbs: number; fats: number }
@@ -32,7 +59,7 @@ function MacroRing({ protein, carbs, fats, kcal, targets }: {
   const r = (size - thickness) / 2
   const c = 2 * Math.PI * r
   const cx = size / 2, cy = size / 2
-  const kcalPct = targets.calories > 0 ? Math.min(1, kcal / targets.calories) : 0
+  const kcalPct = useCountUp(targets.calories > 0 ? Math.min(1, kcal / targets.calories) : 0)
   const segs = [
     { val: protein, tgt: targets.protein, color: 'var(--protein)' },
     { val: carbs,   tgt: targets.carbs,   color: 'var(--carbs)'   },
@@ -46,6 +73,8 @@ function MacroRing({ protein, carbs, fats, kcal, targets }: {
         const fillLen = (c / 3) * pct
         return (
           <circle key={i} cx={cx} cy={cy} r={r}
+            className="macro-arc"
+            style={{ transitionDelay: `${i * 90}ms` }}
             stroke={s.color} strokeWidth={thickness} fill="none"
             strokeDasharray={`${fillLen} ${c - fillLen}`}
             strokeDashoffset={-(c * i / 3)}
@@ -168,7 +197,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="page">
+    <main className="page home">
       {/* Header */}
       <div className="page-header">
         <div className="page-header-text">

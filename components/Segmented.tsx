@@ -1,5 +1,5 @@
 'use client'
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export type SegmentedOption<T> = { value: T; label: string; ariaLabel?: string }
 
@@ -16,9 +16,24 @@ export function Segmented<T extends string | number>({
   onPick: (v: T) => void
 }) {
   const group = useRef<HTMLDivElement>(null)
+  // The selected pill is one moving object, not N backgrounds taking turns — it slides between
+  // options so the group reads as a single choice. Measured rather than nth-of-100%: the labels
+  // ("Truncate"/"Full", the servings steps) are not equal width.
+  const [thumb, setThumb] = useState<{ x: number; w: number } | null>(null)
   // Roving tabindex needs a focusable member even if `value` matches nothing (a stale saved
   // preference, a servings count outside the offered steps) — fall back to the first.
   const current = Math.max(0, options.findIndex(o => o.value === value))
+
+  useEffect(() => {
+    const el = group.current?.querySelectorAll('button')[current]
+    if (!el) return
+    const measure = () => setThumb({ x: el.offsetLeft, w: el.offsetWidth })
+    measure()
+    // Width changes with the breakpoint (the pills go flex:1 under 560px) and with font load.
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [current, options.length])
 
   function move(to: number) {
     const next = (to + options.length) % options.length
@@ -39,11 +54,20 @@ export function Segmented<T extends string | number>({
   return (
     <div
       ref={group}
-      className="cook-seg-pills"
+      className={`cook-seg-pills${thumb ? ' has-thumb' : ''}`}
       role="radiogroup"
       aria-label={label}
       onKeyDown={onKeyDown}
     >
+      {/* Only once measured: until then the pills keep their own accent fill, so a server render
+          or a failed effect still shows which option is on. */}
+      {thumb && (
+        <span
+          className="cook-seg-thumb"
+          aria-hidden
+          style={{ transform: `translateX(${thumb.x}px)`, width: thumb.w }}
+        />
+      )}
       {options.map((o, i) => (
         <button
           key={String(o.value)}
