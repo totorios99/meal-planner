@@ -63,6 +63,10 @@ model WeeklyPlan {
   days WeeklyPlanDay[]
 
   @@index([userId])
+  // One plan per user per week. GET /api/plans/active creates on read, and the home page and
+  // the planner both fire it on mount — without this the two raced and left duplicate rows for
+  // the same week (prod carried three for Aug 3).
+  @@unique([userId, weekStart])
 }
 
 // WeeklyPlanDay and WeeklyPlanMeal carry no userId — they inherit ownership through the
