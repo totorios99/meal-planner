@@ -40,17 +40,26 @@ export async function GET(request: NextRequest) {
     include: planInclude
   })
 
+  // ponytail: a GET that writes. Every mutation downstream needs a persisted WeeklyPlanDay id
+  // (findOwnedDay), so the week has to exist before the first edit; materialising it lazily on
+  // write instead would touch the home page, the planner and DayCard. The unique index on
+  // (userId, weekStart) is what makes it safe to leave here — see below.
   if (!plan) {
-    const newPlan = await prisma.weeklyPlan.create({
-      data: { userId, weekStart, isActive: true }
-    })
-    for (let i = 0; i < 7; i++) {
-      await prisma.weeklyPlanDay.create({
-        data: { weeklyPlanId: newPlan.id, dayIndex: i }
+    try {
+      const newPlan = await prisma.weeklyPlan.create({
+        data: { userId, weekStart, isActive: true }
       })
+      await prisma.weeklyPlanDay.createMany({
+        data: Array.from({ length: 7 }, (_, dayIndex) => ({ weeklyPlanId: newPlan.id, dayIndex }))
+      })
+    } catch (err) {
+      // P2002: the home page and the planner both fire this on mount, so two requests can reach
+      // the create for the same week. The index now rejects the loser instead of letting it
+      // write a duplicate row — re-read and serve whichever one won.
+      if ((err as { code?: string }).code !== 'P2002') throw err
     }
     plan = await prisma.weeklyPlan.findFirst({
-      where: { id: newPlan.id, userId },
+      where: { userId, weekStart: { gte: weekStart, lt: weekEnd } },
       include: planInclude
     })
   }
