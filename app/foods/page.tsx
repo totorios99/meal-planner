@@ -75,12 +75,14 @@ export default function FoodsPage() {
         </div>
       ) : (
         <div className="food-list">
-          {filtered.map(f => {
+          {filtered.map((f, i) => {
             const m = coreMacros(f.nutrients)
             const { factor, display } = pieceMeasure(f.baseUnit, f.measures)
             const extraCount = f.nutrients.filter(n => n.group !== 'macro').length
             return (
-            <button key={f.id} className="food-row" onClick={() => openEdit(f)}>
+            /* Capped at 10: the library runs to a hundred rows and the eleventh shouldn't wait
+               longer than the tenth. */
+            <button key={f.id} className="food-row" style={{ '--i': Math.min(i, 10) } as React.CSSProperties} onClick={() => openEdit(f)}>
               {f.imageUrl && (
                 <div className="today-meal-thumb">
                   <img src={f.imageUrl} alt="" loading="lazy" decoding="async" />

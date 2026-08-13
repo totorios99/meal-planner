@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export default function SignUpPage() {
   return (
-    <main style={{ maxWidth: 420, margin: '12vh auto', padding: '0 20px' }}>
+    <main className="auth-arrive" style={{ maxWidth: 420, margin: "12vh auto", padding: "0 20px" }}>
       <p className="page-eyebrow">Mise</p>
       <h1 className="page-title">
         Join <em>Mise</em>

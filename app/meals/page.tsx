@@ -169,7 +169,9 @@ export default function CookbookPage() {
           </button>
         </div>
       ) : (
-        <MealGrid meals={filtered} onEdit={openEdit} onDelete={handleDelete} onFavToggled={fetchMeals} />
+        /* Keyed on the filters, not the search box: picking a chip is a deliberate act and the
+           shelf re-deals to acknowledge it, while typing would strobe the grid on every letter. */
+        <MealGrid key={`${activeCat}|${activeTag}`} meals={filtered} onEdit={openEdit} onDelete={handleDelete} onFavToggled={fetchMeals} />
       )}
 
       {/* Modal */}

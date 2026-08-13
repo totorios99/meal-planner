@@ -10,9 +10,14 @@ interface Props {
   foods: FoodRow[]
   fullTitles: boolean
   onPlanUpdate: (plan: WeeklyPlan) => void
+  /* Which way the user travelled to get here, so the board arrives from that side. null on
+     first load — that's an arrival, not a move. */
+  dir: 'prev' | 'next' | null
+  /* True while a different week is in flight: what's on screen is the old one. */
+  stale: boolean
 }
 
-export function WeekBoard({ plan, targets, foods, fullTitles, onPlanUpdate }: Props) {
+export function WeekBoard({ plan, targets, foods, fullTitles, onPlanUpdate, dir, stale }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
   const landedOnToday = useRef(false)
 
@@ -42,7 +47,16 @@ export function WeekBoard({ plan, targets, foods, fullTitles, onPlanUpdate }: Pr
   }
 
   return (
-    <div className={`planner-grid${fullTitles ? ' full-titles' : ''}`} ref={gridRef}>
+    /* Keyed on the plan so a new week is a new element and replays its entrance. The key is on
+       the grid and not on WeekBoard itself: remounting the component would reset
+       `landedOnToday` and yank a phone back to today on every week flip. */
+    <div
+      key={plan.id}
+      className={`planner-grid${fullTitles ? ' full-titles' : ''}${stale ? ' is-stale' : ''}`}
+      data-dir={dir ?? undefined}
+      aria-busy={stale || undefined}
+      ref={gridRef}
+    >
       {plan.days.map(day => (
         <DayCard
           key={day.id}

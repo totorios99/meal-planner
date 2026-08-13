@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useCallback, useContext, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { DEFAULTS, type Settings, type SettingsPatch } from '@/lib/settings'
 
 type Ctx = {
@@ -41,6 +41,9 @@ export function SettingsProvider({
   // for its rollback without reading it inside a setState updater — updaters must stay pure,
   // and React is free to run one twice or throw its render away.
   const latest = useRef(settings)
+  // Set by `update`. The mount re-read below must not undo a save that landed while it was in
+  // flight; identity of `initial` can't say that — it's a fresh object every server render.
+  const saved = useRef(false)
 
   const apply = useCallback((next: Settings) => {
     latest.current = next
@@ -48,8 +51,29 @@ export function SettingsProvider({
     stamp(next)
   }, [])
 
+  // `initial` is only as good as the render that produced it. getSettings() degrades to
+  // DEFAULTS whenever auth() comes back empty, and a page restored from a home-screen
+  // snapshot carries whatever it was serialised with. Either way the whole app then runs on
+  // preferences that aren't the user's: a defaulted Monday start made the planner ask for the
+  // wrong week and report a Sunday-start plan as missing. Re-read the row once on mount and
+  // reconcile — the API resolves the acting user itself, so it is the honest answer.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/settings')
+      .then(res => (res.ok ? res.json() : null))
+      .then((row: Settings | null) => {
+        // A save that landed first is newer than this read — don't undo it. Signed-out
+        // visitors get a 401 (null) and keep the defaults the layout already gave them.
+        if (cancelled || !row || saved.current) return
+        apply(row)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [apply])
+
   const update = useCallback(async (patch: SettingsPatch): Promise<boolean> => {
     const previous = latest.current
+    saved.current = true
     apply({ ...previous, ...patch })
     setError(null)
     try {

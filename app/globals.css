@@ -605,7 +605,12 @@ input, textarea { font-family: inherit; color: inherit; }
   /* no drift animation: it forced every backdrop-filter surface to re-blur each frame */
 }
 @media (prefers-reduced-motion: reduce) {
-  .meal-grid > *, .fav-btn.is-fav svg, .shimmer { animation: none; }
+  .meal-grid > *, .food-list > .food-row, .fav-btn.is-fav svg, .shimmer { animation: none; }
+  /* Every page's arrival wave is entrance only — drop it and the page is simply there. */
+  .page > .page-header, .page > .toolbar, .page > .quick-fill, .page > .empty,
+  .planner-grid, .planner-grid[data-dir], .auth-arrive > * { animation: none; }
+  /* The stale week still dims — that's state, not decoration; it just lands instantly. */
+  .planner-grid.is-stale { transition-duration: .01ms; }
   /* The recipe page's arrival waves and its hero overscale are pure entrance — drop them and the
      page is simply there. */
   .recipe-hero, .recipe-back, .recipe-head, .recipe-desc, .recipe-meta,
@@ -1417,6 +1422,9 @@ input, textarea { font-family: inherit; color: inherit; }
   transition: transform .15s, border-color .18s, background .18s;
   cursor: pointer;
   text-align: left;
+  /* The grid item is where the auto minimum bites: without this each column floors at the
+     longest nowrap title's min-content, the 1fr track loses, and the row runs past the strip. */
+  min-width: 0;
 }
 .week-day:hover { transform: translateY(-2px); border-color: var(--stroke-hi); background: var(--glass-fill-2); }
 .week-day.today { border-color: rgba(255,255,255,.5); background: var(--accent-soft); box-shadow: var(--inset-hi), 0 0 0 1px rgba(201,138,99,.4); }
@@ -1438,7 +1446,9 @@ input, textarea { font-family: inherit; color: inherit; }
   line-height: 1;
   margin: 2px 0 8px;
 }
-.week-day-meals { display: flex; flex-direction: column; gap: 2px; }
+/* min-width:0 — auto would floor these at the longest title's min-content and blow the
+   7-column track out past the strip, which then paints its background short of the cards. */
+.week-day-meals { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .week-day-meal {
   font-size: 12px;
   color: var(--ink-2);
@@ -1482,11 +1492,11 @@ input, textarea { font-family: inherit; color: inherit; }
    two panels you actually came for, then the week, then the actions. The strip and the meal list
    mount when their fetch resolves, so their wave doubles as the answer to "is this loading?".
    `backwards` keeps every section in its final state if the animation never runs. */
-.home .page-header { animation: home-in .5s cubic-bezier(.16,1,.3,1) backwards; }
-.home .today-card { animation: home-in .5s cubic-bezier(.16,1,.3,1) .06s backwards; }
-.home .macros-block { animation: home-in .5s cubic-bezier(.16,1,.3,1) .12s backwards; }
-.home .week-strip { animation: home-in .5s cubic-bezier(.16,1,.3,1) .18s backwards; }
-.home .qa-card { animation: home-in .5s cubic-bezier(.16,1,.3,1) backwards; }
+.home .page-header { animation: page-in .5s cubic-bezier(.16,1,.3,1) backwards; }
+.home .today-card { animation: page-in .5s cubic-bezier(.16,1,.3,1) .06s backwards; }
+.home .macros-block { animation: page-in .5s cubic-bezier(.16,1,.3,1) .12s backwards; }
+.home .week-strip { animation: page-in .5s cubic-bezier(.16,1,.3,1) .18s backwards; }
+.home .qa-card { animation: page-in .5s cubic-bezier(.16,1,.3,1) backwards; }
 .home .qa-card:nth-child(2) { animation-delay: .27s; }
 .home .qa-card:nth-child(3) { animation-delay: .32s; }
 .home .qa-card:nth-child(1) { animation-delay: .22s; }
@@ -1495,7 +1505,7 @@ input, textarea { font-family: inherit; color: inherit; }
 .home .today-meal:nth-child(2) { animation-delay: .05s; }
 .home .today-meal:nth-child(3) { animation-delay: .1s; }
 .home .today-meal:nth-child(n+4) { animation-delay: .15s; }
-@keyframes home-in { from { opacity: 0; transform: translateY(12px); } }
+@keyframes page-in { from { opacity: 0; transform: translateY(12px); } }
 .qa-icon {
   width: 46px;
   height: 46px;
@@ -1609,6 +1619,23 @@ input, textarea { font-family: inherit; color: inherit; }
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 12px;
+  animation: page-in .5s cubic-bezier(.16,1,.3,1) .12s backwards;
+}
+/* ── Week navigation ──
+   The planner's one real gesture. The week that arrives comes from the side you sent the old
+   one, so < and > read as travel along a timeline rather than a repaint. The board moves as one
+   element on purpose: each .day-col carries a backdrop-filter, and animating seven blurred
+   layers at once is the thing the wallpaper comment above already warns about. */
+.planner-grid[data-dir="next"] { animation: week-in-next .42s cubic-bezier(.16,1,.3,1) backwards; }
+.planner-grid[data-dir="prev"] { animation: week-in-prev .42s cubic-bezier(.16,1,.3,1) backwards; }
+@keyframes week-in-next { from { opacity: 0; transform: translateX(30px); } }
+@keyframes week-in-prev { from { opacity: 0; transform: translateX(-30px); } }
+/* The old week while the new one loads: still readable, visibly not current, not clickable.
+   It never overlaps the entrance — the arriving board is a different element. */
+.planner-grid.is-stale {
+  opacity: .42;
+  pointer-events: none;
+  transition: opacity .18s ease;
 }
 .day-col {
   background: var(--panel);
@@ -1748,7 +1775,17 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 .plan-meal:hover .plan-meal-remove { opacity: 1; }
 .plan-meal-remove:hover { background: var(--danger); }
-.plan-meal-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* Both children are nowrap and there is ~88px between them at a 1160px window, so side-by-side
+   they ran past .day-col's overflow:hidden and lost the end of "swap". Wrapping costs a row of
+   height on narrow columns and keeps the label. */
+.plan-meal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
 .plan-meal-kcal { font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; font-weight: 550; }
 .plan-meal-veg-warning { display: inline-flex; vertical-align: -2px; margin-left: 5px; color: var(--warn); }
 
@@ -2529,13 +2566,32 @@ input, textarea { font-family: inherit; color: inherit; }
   .today-meal-thumb { width: 48px; height: 48px; }
 }
 
+/* Sign-in / sign-up: the same wave, one beat quicker — there is nothing to read here, and the
+   Clerk card mounts last anyway. */
+.auth-arrive > * { animation: page-in .45s cubic-bezier(.16,1,.3,1) backwards; }
+.auth-arrive > :nth-child(2) { animation-delay: .06s; }
+.auth-arrive > :nth-child(3) { animation-delay: .12s; }
+
+/* ── Page arrival ──
+   The home page's wave, extended to the working pages so moving between tabs doesn't feel like
+   moving between apps: the header you read first, then the controls, then the content. The
+   content wave lives on the items themselves (below) — animating a grid *and* its cards makes
+   everything move twice, so the container stays still and the cards start after the toolbar.
+   `backwards` keeps every section in its final state if the animation never runs. */
+.page > .page-header { animation: page-in .5s cubic-bezier(.16,1,.3,1) backwards; }
+.page > .toolbar,
+.page > .quick-fill { animation: page-in .5s cubic-bezier(.16,1,.3,1) .06s backwards; }
+.page > .empty { animation: page-in .5s cubic-bezier(.16,1,.3,1) .12s backwards; }
+
 /* ── Entrance + favorite animations ── */
 @keyframes card-in {
   from { opacity: 0; transform: translateY(10px); }
 }
-.meal-grid > * {
+.meal-grid > *,
+.food-list > .food-row {
   animation: card-in .35s cubic-bezier(.3,.8,.3,1) backwards;
-  animation-delay: calc(var(--i, 0) * 40ms);
+  /* 120ms puts the first card behind the toolbar above it; --i is capped by the caller. */
+  animation-delay: calc(120ms + var(--i, 0) * 40ms);
 }
 /* Skeletons — shown while data loads, same shells as the real cards */
 @keyframes shimmer {

@@ -25,6 +25,8 @@ export default function PlannerPage() {
   const [foods, setFoods] = useState<FoodRow[]>([])
   const [loading, setLoading] = useState(true)
   const [weekOffset, setWeekOffset] = useState(0)
+  // Direction of the last week move, so the board can arrive from the side it came from.
+  const [dir, setDir] = useState<'prev' | 'next' | null>(null)
   // Read-only here: preferences are edited in /settings, not from the planner header.
   const { settings } = useSettings()
   const targets = settings
@@ -54,7 +56,10 @@ export default function PlannerPage() {
 
   const { weekStart, weekEnd } = getWeekBounds(weekOffset, weekStartsOn)
 
-  if (loading) return (
+  // Only the *first* load blanks the page. Flipping weeks keeps the header and the board on
+  // screen — the old week dims, the new one slides in — instead of dropping the whole planner
+  // to a centred "Loading planner…" and rebuilding it.
+  if (loading && !plan) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--ink-3)' }}>
       Loading planner…
     </div>
@@ -77,17 +82,23 @@ export default function PlannerPage() {
           <div className="page-eyebrow">Weekly planner</div>
           <h1 className="page-title">Week of <em>{fmt(weekStart)}.</em></h1>
           <p className="page-sub">
-            {daysPlanned} day{daysPlanned !== 1 ? 's' : ''} planned
-            {totalKcal > 0 && ` · ${Math.round(totalKcal).toLocaleString()} kcal`}
+            {/* The counts belong to the week on screen; while another is in flight they'd
+                contradict the title above them. */}
+            {loading ? 'Loading…' : (
+              <>
+                {daysPlanned} day{daysPlanned !== 1 ? 's' : ''} planned
+                {totalKcal > 0 && ` · ${Math.round(totalKcal).toLocaleString()} kcal`}
+              </>
+            )}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <div className="week-nav">
-            <button onClick={() => setWeekOffset(o => o - 1)} title="Previous week">
+            <button onClick={() => { setDir('prev'); setWeekOffset(o => o - 1) }} title="Previous week">
               <Icon name="chev-left" size={14} />
             </button>
             <span className="label">{fmt(weekStart)} – {fmt(weekEnd)}</span>
-            <button onClick={() => setWeekOffset(o => o + 1)} title="Next week">
+            <button onClick={() => { setDir('next'); setWeekOffset(o => o + 1) }} title="Next week">
               <Icon name="chev-right" size={14} />
             </button>
           </div>
@@ -100,7 +111,7 @@ export default function PlannerPage() {
       </div>
 
       <QuickFill onCloned={fetchPlan} />
-      <WeekBoard plan={plan} targets={targets} foods={foods} fullTitles={fullTitles} onPlanUpdate={setPlan} />
+      <WeekBoard plan={plan} targets={targets} foods={foods} fullTitles={fullTitles} onPlanUpdate={setPlan} dir={dir} stale={loading} />
     </main>
   )
 }
