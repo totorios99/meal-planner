@@ -67,6 +67,27 @@ export async function POST(request: NextRequest) {
       ...macros,
     },
   })
+  // Stages that claim no ingredients are legal but lossy: the desktop chart degenerates to a row
+  // of captions, and on a phone every ingredient falls into the "Everything you need" catch-all
+  // instead of appearing at the step that uses it. That is what a missing `stages` (and so the
+  // ladderFromSteps fallback above) produces, and four imported meals shipped that way before
+  // anyone noticed. Say so, in the same channel the unit warnings use.
+  const claimed = new Set<number>()
+  for (const s of p.stages) {
+    if (s.to !== undefined && s.from !== undefined && s.to >= s.from) {
+      for (let i = s.from; i <= s.to; i++) claimed.add(i)
+    }
+  }
+  const unclaimed = refs.length - claimed.size
+  const all = [...warnings]
+  if (unclaimed > 0) {
+    all.push(
+      p.stages.length === 0
+        ? `No stages sent, so cook mode fell back to one stage per step with no ingredients attached. Re-send with stages carrying from/to (0-based, inclusive, indices into the ingredients array in cooking order) to get the chart.`
+        : `${unclaimed} of ${refs.length} ingredients are not claimed by any stage's from/to range, so they only appear in the phone's catch-all list. Ranges must be contiguous, which means sending ingredients in cooking order.`,
+    )
+  }
+
   // Warnings, not errors: the meal is saved, but the agent needs to know a unit was reinterpreted.
-  return NextResponse.json(warnings.length > 0 ? { ...meal, warnings } : meal, { status: 201 })
+  return NextResponse.json(all.length > 0 ? { ...meal, warnings: all } : meal, { status: 201 })
 }

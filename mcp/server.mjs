@@ -323,7 +323,7 @@ const importShape = {
 
 server.registerTool('import_meal', {
   description:
-    'Create a meal from structured recipe data (the canonical way for agents to add recipes). Requires MISE_ADMIN_SECRET. See the extract-recipe prompt / mise://recipe-schema resource for extraction rules.',
+    'Create a meal from structured recipe data (the canonical way for agents to add recipes). Requires MISE_ADMIN_SECRET. See the extract-recipe prompt / mise://recipe-schema resource for extraction rules. The response includes a `warnings` array — check it. It reports units that were reinterpreted, and any ingredient no stage claims through from/to: those are missing from the cook-mode chart and land in a catch-all list on the phone, so send `stages` with from/to and the ingredients in cooking order.',
   inputSchema: importShape,
 }, async (recipe) => json(await api('/api/meals/import', { method: 'POST', body: JSON.stringify(recipe) })))
 
