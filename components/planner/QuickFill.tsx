@@ -2,30 +2,39 @@
 import { useState, useEffect } from 'react'
 import { WeeklyPlan } from '@/types'
 import { Select } from '@/components/ui/Select'
-import { localDate } from '@/lib/date'
+import { localDate, toDateParam } from '@/lib/date'
 
 interface Props {
+  // The week currently on screen: both the cutoff for "past" and the destination of the copy.
+  plan: WeeklyPlan
   onCloned: () => void
 }
 
-export function QuickFill({ onCloned }: Props) {
+export function QuickFill({ plan, onCloned }: Props) {
   const [history, setHistory] = useState<WeeklyPlan[]>([])
   const [selected, setSelected] = useState('')
   const [cloning, setCloning] = useState(false)
+  const weekStart = toDateParam(localDate(plan.weekStart))
 
   useEffect(() => {
     // An unchecked .json() used to land {error} in `history`, and .map threw on it.
-    fetch('/api/plans/history')
+    fetch(`/api/plans/history?before=${weekStart}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(String(r.status))))
       .then(data => setHistory(Array.isArray(data) ? data : []))
       .catch(() => setHistory([]))
-  }, [])
+    // Weeks earlier than the one on screen — so the list changes as you page through weeks.
+    setSelected('')
+  }, [weekStart])
 
   async function handleClone() {
     if (!selected) return
     setCloning(true)
     try {
-      const res = await fetch(`/api/plans/${selected}/clone`, { method: 'POST' })
+      const res = await fetch(`/api/plans/${selected}/clone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetPlanId: plan.id }),
+      })
       if (!res.ok) throw new Error(String(res.status))
       onCloned()
     } catch {

@@ -115,7 +115,7 @@ export default function PlannerPage() {
         </div>
       </div>
 
-      <QuickFill onCloned={fetchPlan} />
+      <QuickFill plan={plan} onCloned={fetchPlan} />
       <WeekBoard plan={plan} targets={targets} foods={foods} fullTitles={fullTitles} onPlanUpdate={setPlan} dir={dir} stale={loading} />
     </main>
   )
