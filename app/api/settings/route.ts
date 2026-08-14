@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { settingsPatch } from '@/lib/settings'
 import { getSettings, saveSettings } from '@/lib/settings.server'
+import { optionalUserId } from '@/lib/auth'
 
-// No auth check here on purpose: proxy.ts turns signed-out traffic away, and getSettings/
-// saveSettings resolve the acting user themselves — there is no unscoped settings row to reach.
-//
-// `request` is threaded into both so a caller holding the admin secret rather than a Clerk
-// session resolves to the owner. Without it, GET quietly answered with DEFAULTS instead of the
-// owner's saved targets, and PATCH threw its way to a 500.
+// `request` is threaded into getSettings/saveSettings so a caller holding the admin secret rather
+// than a Clerk session resolves to the owner. Without it, GET quietly answered with DEFAULTS
+// instead of the owner's saved targets, and PATCH threw its way to a 500.
 
+// 401 rather than DEFAULTS when no user resolves. The proxy already turns signed-out traffic
+// away, so reaching here without a user means auth() failed on a request that should have had one
+// — production logs "Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware()".
+// Answering 200 with defaults told the client those defaults WERE the user's preferences, and it
+// applied them: a Sunday-start week became Monday, and the planner created the wrong week. An
+// error the client can see leaves the last known values alone.
 export async function GET(request: NextRequest) {
+  const userId = await optionalUserId(request)
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   return NextResponse.json(await getSettings(request))
 }
 
