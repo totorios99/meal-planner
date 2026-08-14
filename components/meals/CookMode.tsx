@@ -1,5 +1,6 @@
 'use client'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { RecipeBody } from '@/components/meals/RecipeBody'
 import {
   convertUnit, formatQuantityWithUnit, slotCount as countSlots, slotSeconds as secondsInSlot,
   slotOfIngredient, type Stage,
@@ -14,6 +15,13 @@ interface Props {
   stages: Stage[]
   ingredients: CookIngredient[]
   servings: number
+  // The page's markup, rendered around the chart. Serves, Start cooking and the step bar belong
+  // under the macros, but they are pure renders of state that lives here (servings, cooking,
+  // slot, the timer) — so the header comes to the state rather than twelve pieces of state being
+  // lifted out of this component. `head` is the naming block; the controls follow it.
+  hero: ReactNode
+  head: ReactNode
+  list: ReactNode
 }
 
 // Serves options: the recipe's own yield plus the halvings/doublings that land on whole
@@ -33,7 +41,7 @@ function subscribeNarrow(cb: () => void) {
   return () => mq.removeEventListener('change', cb)
 }
 
-export function CookMode({ stages, ingredients, servings: baseServings }: Props) {
+export function CookMode({ stages, ingredients, servings: baseServings, hero, head, list }: Props) {
   // Units come straight from the saved preference — edited only in /settings, no in-flow switch.
   // ("Serves" below is local state, it's a per-cook quantity and not a preference.)
   const { settings } = useSettings()
@@ -500,12 +508,33 @@ export function CookMode({ stages, ingredients, servings: baseServings }: Props)
     </div>
   )
 
+  // Everything a cook touches before the chart sits in the header column, under the macros: the
+  // two controls, the step bar once cooking starts, and the done banner. What remains below is
+  // the chart alone.
+  const header = (controls: ReactNode) => (
+    <div className="recipe-split">
+      {hero}
+      <div className="recipe-headcol">
+        {head}
+        {controls}
+      </div>
+    </div>
+  )
+
   if (stages.length === 0) {
-    return <p className="recipe-empty">No cook stages yet — add them from the meal editor.</p>
+    return (
+      <>
+        {header(null)}
+        <RecipeBody
+          chart={<p className="recipe-empty">No cook stages yet — add them from the meal editor.</p>}
+          list={list}
+        />
+      </>
+    )
   }
 
-  return (
-    <div className="cook">
+  const cookControls = (
+    <>
       <div className="cook-controls">
         <div className="cook-seg-group">
           <span className="cook-seg-label" aria-hidden="true">Serves</span>
@@ -579,7 +608,11 @@ export function CookMode({ stages, ingredients, servings: baseServings }: Props)
           <button type="button" className="cook-nav" onClick={() => setFinished(false)}>Dismiss</button>
         </div>
       )}
+    </>
+  )
 
+  const body = (
+    <div className="cook">
       {chart}
       {slotList}
 
@@ -622,5 +655,12 @@ export function CookMode({ stages, ingredients, servings: baseServings }: Props)
         </p>
       )}
     </div>
+  )
+
+  return (
+    <>
+      {header(cookControls)}
+      <RecipeBody chart={body} list={list} />
+    </>
   )
 }

@@ -1,5 +1,6 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Suspense, useState, useEffect, useCallback, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Meal } from '@/types'
 import { MealGrid, MealGridSkeleton } from '@/components/meals/MealGrid'
 import { MealModal } from '@/components/meals/MealModal'
@@ -16,12 +17,43 @@ let mealsCache: Meal[] | null = null
 const CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Dessert']
 const TAG_LIMIT = 8
 
+// useSearchParams needs a Suspense boundary above it, or the route fails to prerender.
 export default function CookbookPage() {
+  return (
+    <Suspense fallback={<main className="page"><MealGridSkeleton /></main>}>
+      <Cookbook />
+    </Suspense>
+  )
+}
+
+function Cookbook() {
+  const router = useRouter()
+  const params = useSearchParams()
   const [meals, setMeals] = useState<Meal[] | null>(mealsCache)
-  const [q, setQ] = useState('')
-  const [activeCat, setActiveCat] = useState('All')
-  const [activeTag, setActiveTag] = useState('All')
+  // Filters live in the URL, not in component state: opening a recipe and coming back used to
+  // land on an unfiltered cookbook, so the search and chips had to be re-picked to find the meal
+  // you had just been looking at. The URL survives that trip — and makes a filtered shelf a link.
+  const activeCat = params.get('cat') ?? 'All'
+  const activeTag = params.get('tag') ?? 'All'
   const [showAllTags, setShowAllTags] = useState(false)
+  // The query is mirrored rather than read straight off the URL: a controlled input whose value
+  // comes back through a route re-render drops characters on a slow device. Seeded from the URL,
+  // so a link or a Back still arrives filtered.
+  const [q, setQTyped] = useState(params.get('q') ?? '')
+
+  // replace, not push: typing a query is not five history entries, and Back should leave the
+  // cookbook rather than walk the filters backwards. scroll:false keeps the grid where it is.
+  const setParam = useCallback((key: string, value: string) => {
+    const next = new URLSearchParams(params)
+    if (!value || value === 'All') next.delete(key)
+    else next.set(key, value)
+    const qs = next.toString()
+    router.replace(qs ? `/meals?${qs}` : '/meals', { scroll: false })
+  }, [params, router])
+
+  const setQ = useCallback((v: string) => { setQTyped(v); setParam('q', v) }, [setParam])
+  const setActiveCat = useCallback((v: string) => setParam('cat', v), [setParam])
+  const setActiveTag = useCallback((v: string) => setParam('tag', v), [setParam])
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
   const [showModal, setShowModal] = useState(false)
 

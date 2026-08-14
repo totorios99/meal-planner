@@ -96,22 +96,19 @@ export function Nav() {
           <div className="nav-spacer" />
 
           <div className="nav-actions">
-            {/* Deliberately not in LINKS: a sixth tab crowds the mobile tab bar, and the
-                mobile pill renders nav-actions anyway. */}
-            <Link
-              href="/settings"
-              className={`icon-btn${pathname === '/settings' ? ' active' : ''}`}
-              title="Settings"
-              aria-label="Settings"
-            >
-              <Icon name="settings" size={17} />
-            </Link>
+            {/* No gear here: preferences live inside the profile now, so the avatar is the one
+                way in. Two entries to the same screen is what this merge was meant to remove. */}
             <button className="icon-btn" title={themeTitle} onClick={toggleTheme}>
               <Icon name={resolvedDark ? 'sun' : 'moon'} size={17} />
               {themePref === 'system' && <span className="auto-dot" />}
             </button>
             {/* Sized to match .icon-btn so the row doesn't jump when Clerk hydrates. */}
+            {/* "Manage account" navigates to /settings rather than opening a modal: preferences
+                and account management are one screen now, and a modal copy would be a second
+                home for the same controls. */}
             <UserButton
+              userProfileMode="navigation"
+              userProfileUrl="/settings"
               appearance={{
                 ...authAppearance,
                 elements: { ...authAppearance.elements, avatarBox: { width: 26, height: 26 } },

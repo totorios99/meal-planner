@@ -6,7 +6,6 @@ import { Icon } from '@/components/Icon'
 import { MacroRow } from '@/components/meals/MacroRow'
 import { FavoriteButton } from '@/components/meals/FavoriteButton'
 import { CookMode } from '@/components/meals/CookMode'
-import { RecipeBody } from '@/components/meals/RecipeBody'
 import { requireUserIdForPage } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
@@ -53,8 +52,18 @@ export default async function MealPage({
       <BackLink />
 
       {/* Split hero: the photo keeps its own 4:3 ratio beside the naming block, instead of a
-          280px band that cropped a 4:3 photo to a 4.53:1 sliver of itself. */}
-      <div className="recipe-split">
+          280px band that cropped a 4:3 photo to a 4.53:1 sliver of itself. CookMode renders the
+          split so Serves, Start cooking and the step bar can sit under the macros while their
+          state stays where the chart and the timer already read it. */}
+      <CookMode
+        stages={stages}
+        servings={meal.servings}
+        ingredients={ingredients.map(({ ref, food }) => ({
+          quantity: ref.quantity,
+          unit: ref.measure || food?.baseUnit || '',
+          name: food?.name ?? 'Unknown food',
+        }))}
+        hero={
       <div className="recipe-hero">
         {meal.imageUrl ? (
           <img src={meal.imageUrl} alt={meal.title} />
@@ -67,8 +76,9 @@ export default async function MealPage({
           </div>
         )}
       </div>
-
-      <div className="recipe-headcol">
+        }
+        head={
+          <>
       {fromPlan && <p className="page-eyebrow">Portions from your plan</p>}
 
       <div className="recipe-head">
@@ -91,20 +101,7 @@ export default async function MealPage({
       </div>
 
       <MacroRow calories={totals.calories} protein={totals.protein} carbs={totals.carbs} fats={totals.fats} />
-      </div>
-      </div>
-
-      <RecipeBody
-        chart={
-          <CookMode
-            stages={stages}
-            servings={meal.servings}
-            ingredients={ingredients.map(({ ref, food }) => ({
-              quantity: ref.quantity,
-              unit: ref.measure || food?.baseUnit || '',
-              name: food?.name ?? 'Unknown food',
-            }))}
-          />
+          </>
         }
         list={
           <div className="recipe-columns">

@@ -41,3 +41,13 @@ export const authAppearance = {
     header: { display: 'none' },
   },
 }
+
+// UserProfile keeps its header: inside the profile shell that header names the section you
+// navigated to (Profile, Security), so hiding it the way the sign-in card does would leave the
+// account pages captionless. Everything else is shared.
+export const profileAppearance = {
+  ...authAppearance,
+  elements: Object.fromEntries(
+    Object.entries(authAppearance.elements).filter(([k]) => k !== 'header'),
+  ),
+}

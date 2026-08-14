@@ -2718,6 +2718,15 @@ input, textarea { font-family: inherit; color: inherit; }
 .recipe-split .recipe-desc { margin-top: 0; }
 .recipe-split .recipe-meta { margin: 0; }
 .recipe-headcol > .macro-row { margin: 0; }
+/* CookMode renders these into the column; their margins were tuned for sitting above a
+   full-width chart, and the column's gap owns spacing here. */
+.recipe-headcol .cook-controls { margin: 0; }
+.recipe-headcol .cook-bar,
+.recipe-headcol .cook-done { margin-bottom: 0; }
+/* List view is a plain read of the recipe — no chart to start, so no controls either. */
+[data-recipe-view="list"] .recipe-headcol .cook-controls,
+[data-recipe-view="list"] .recipe-headcol .cook-bar,
+[data-recipe-view="list"] .recipe-headcol .cook-done { display: none; }
 
 @media (max-width: 900px) {
   .recipe-split { grid-template-columns: minmax(0, 1fr); gap: 20px; }
@@ -3719,6 +3728,33 @@ html:not([data-recipe-view="list"]) .recipe-view-list { display: none; }
   flex-direction: column;
   gap: 18px;
 }
+
+/* ── Preferences inside Clerk's profile shell ──
+   The form is unchanged; only its frame is. Standing alone it was four glass cards on the page
+   background, but Clerk's profile is already a card, and a card inside a card reads as clutter —
+   so the surfaces flatten to rules and the section titles carry the separation instead. Clerk's
+   widget sizes itself to its container; the panel gives it the page's width. */
+.settings-panel { width: 100%; }
+.settings-panel .cl-cardBox,
+.settings-panel .cl-card { width: 100%; max-width: 100%; }
+.settings-panel .settings {
+  gap: 26px;
+}
+.settings-panel .settings-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* The wave belongs to a page arriving, not to a tab inside a widget the user just clicked. */
+.settings-panel .settings-card { animation: none; }
+.settings-panel .settings-card + .settings-card { border-top: 1px solid var(--hair); padding-top: 22px; }
+/* Reserved space for the save flash is page chrome; in the panel Clerk owns the top edge. */
+.settings-panel .settings-status { min-height: 0; }
+.settings-panel .settings-status:not(:empty) { min-height: 18px; margin-bottom: 4px; }
 
 /* Reserved even when empty, so committing a value doesn't shove the first card down. */
 .settings-status {
