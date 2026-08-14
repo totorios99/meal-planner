@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { mealInput, stageRangeIssues } from '@/lib/mealSchema'
 import { macrosForRefs } from '@/lib/foods'
-import { parseRefs } from '@/lib/recipe'
+import { parseRefs, parseStages } from '@/lib/recipe'
 import { requireUserId } from '@/lib/auth'
 
 const notFound = () => NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -62,7 +62,26 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     Object.assign(data, await macrosForRefs(userId, data.ingredients as string))
   }
   const meal = await prisma.meal.update({ where: { id: existing.id }, data })
-  return NextResponse.json(meal)
+
+  // Stage ranges index the ingredient list, so editing one without the other leaves them stale —
+  // and that path isn't covered by the check above, which only runs when `stages` was sent. Report
+  // the state the meal actually ended in, against whichever list it now has. Warnings rather than
+  // a rejection: an agent fixing a typo in one ingredient shouldn't be forced to restate the
+  // chart, and the same channel already carries the import's warnings.
+  const finalStages = parseStages(meal.stages)
+  const finalCount = parseRefs(meal.ingredients).length
+  const claimed = new Set<number>()
+  for (const st of finalStages) {
+    if (st.to >= st.from) for (let i = st.from; i <= Math.min(st.to, finalCount - 1); i++) claimed.add(i)
+  }
+  const warnings = stageRangeIssues(finalStages, finalCount)
+  const unclaimed = finalCount - claimed.size
+  if (unclaimed > 0 && finalCount > 0) {
+    warnings.push(
+      `${unclaimed} of ${finalCount} ingredients are not claimed by any stage's from/to range — they are missing from the cook-mode chart and only appear in the phone's catch-all list. Send stages with from/to (0-based, inclusive, ingredients in cooking order).`,
+    )
+  }
+  return NextResponse.json(warnings.length > 0 ? { ...meal, warnings } : meal)
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

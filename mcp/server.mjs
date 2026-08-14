@@ -329,7 +329,7 @@ server.registerTool('import_meal', {
 
 server.registerTool('update_meal', {
   description:
-    'Update a meal. Omit `ingredients` to leave them (and macros) unchanged and edit only the other fields. To change ingredients, send food refs (get foodIds from get_meal or list_foods). Macros are derived from the foods.',
+    'Update a meal. Omit `ingredients` to leave them (and macros) unchanged and edit only the other fields. To change ingredients, send food refs (get foodIds from get_meal or list_foods). Macros are derived from the foods. Stage from/to ranges index the ingredient list, so changing ingredients without re-sending `stages` leaves them pointing at the old positions — the response `warnings` array reports any ingredient no stage claims, and any range now out of bounds. Check it.',
   inputSchema: {
     id: z.number().int(),
     title: z.string().min(1),
