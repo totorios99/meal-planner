@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
   convertUnit, formatQuantityWithUnit, slotCount as countSlots, slotSeconds as secondsInSlot,
   slotOfIngredient, type Stage,
@@ -14,7 +14,6 @@ interface Props {
   stages: Stage[]
   ingredients: CookIngredient[]
   servings: number
-  vessel?: string
 }
 
 // Serves options: the recipe's own yield plus the halvings/doublings that land on whole
@@ -24,11 +23,24 @@ function servesOptions(base: number): number[] {
   return [...new Set(raw)].filter(n => n >= 1).sort((a, b) => a - b)
 }
 
-export function CookMode({ stages, ingredients, servings: baseServings, vessel }: Props) {
+// A phone puts Serves and Start cooking on one row, and four pills plus the button do not fit —
+// the group wrapped and the pills squeezed to unreadable. Two is what the row affords: the
+// recipe's own yield and the largest offered batch.
+const NARROW = '(max-width: 720px)'
+function subscribeNarrow(cb: () => void) {
+  const mq = matchMedia(NARROW)
+  mq.addEventListener('change', cb)
+  return () => mq.removeEventListener('change', cb)
+}
+
+export function CookMode({ stages, ingredients, servings: baseServings }: Props) {
   // Units come straight from the saved preference — edited only in /settings, no in-flow switch.
   // ("Serves" below is local state, it's a per-cook quantity and not a preference.)
   const { settings } = useSettings()
   const units = settings.units
+  // Server snapshot is `false`: the desktop set is the wider one, so the first paint never shows
+  // fewer pills than the markup the client hydrates into.
+  const narrow = useSyncExternalStore(subscribeNarrow, () => matchMedia(NARROW).matches, () => false)
   const [servings, setServings] = useState(baseServings)
   const [cooking, setCooking] = useState(false)
   const [slot, setSlot] = useState(0)
@@ -221,6 +233,25 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
   // One home for an instruction at a time. While cooking the stage bar owns the current step's
   // text, so the rail only speaks when the cook is previewing a DIFFERENT stage — otherwise the
   // same paragraph sat in both places at once.
+  // When the head row fills it grows, and the chart below it slides down — so a card can leave
+  // the cursor without the cursor ever moving. That fires mouseleave, which cleared the preview,
+  // which collapsed the row, which slid the card back: a flicker several times a second. Ignore
+  // leaves for the length of the row's transition; a real pointer exit still lands after it.
+  const shiftedAt = useRef(0)
+  const leaveCard = useCallback((i: number) => {
+    if (Date.now() - shiftedAt.current < 300) return
+    setPeek(p => (p === i ? -1 : p))
+  }, [])
+
+  // The current pick is kept whatever the width, so rotating a phone that had 6 selected does not
+  // leave the group with nothing checked.
+  const serves = useMemo(() => {
+    const all = servesOptions(baseServings)
+    if (!narrow || all.length <= 2) return all
+    const keep = new Set([baseServings, all[all.length - 1], servings])
+    return all.filter(n => keep.has(n)).slice(0, 3)
+  }, [baseServings, narrow, servings])
+
   const previewed = peek >= 0 ? stages[peek] : undefined
   const railStage = previewed && !(cooking && previewed.slot === slot) ? previewed : undefined
 
@@ -249,12 +280,38 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
     // scroll clip, or the grid scrolling out from under a still pointer — which left the
     // ingredient column lit with no card hovered.
     <div className="cook-frame" onMouseLeave={() => { setHover(-1); setPeek(-1) }}>
-      {vessel && <div className="cook-vessel">{vessel}</div>}
+      {/* The frame's head row: where an instruction reads, inside the chart it belongs to. It
+          grows to fit and pushes the chart down — see the mouseleave guard for why that needs
+          care. */}
+      <div className={`cook-vessel${railStage ? ' is-filled' : ''}`}>
+        {railStage ? (
+          <>
+            <span className="cook-vessel-label">
+              {/* While cooking, say plainly that this is not the step on the heat. */}
+              {cooking && <b>Step {railStage.slot + 1}</b>}
+              {railStage.name}
+              {railStage.timing ? <em>{railStage.timing}</em> : null}
+            </span>
+            <p className="cook-vessel-text">{railStage.detail || 'No further detail for this stage.'}</p>
+          </>
+        ) : (
+          <p className="cook-vessel-text">
+            {cooking
+              ? 'Hover a stage to look ahead without leaving this step.'
+              : 'Hover or focus a stage to read its instruction.'}
+          </p>
+        )}
+      </div>
       <div className="cook-scroll" tabIndex={0} role="group" aria-label="Cooking chart, scrolls sideways">
+        {/* No mouseleave here on purpose. The head row grows to fit the instruction, which pushes
+            this grid down; a cursor near the grid's top edge then lands on the head row, i.e.
+            outside the grid. Clearing here fired, the row collapsed, the grid slid back under the
+            cursor, and the whole thing ran several times a second. The frame's own mouseleave
+            above is the real boundary — it contains the head row, so the preview survives the
+            shift and only ends when the pointer actually leaves the chart. */}
         <div
           className="cook-grid"
           style={{ ['--cook-slots' as string]: slotCount }}
-          onMouseLeave={() => { setHover(-1); setPeek(-1) }}
         >
           {rows.map((r, i) => (
             <div
@@ -293,7 +350,12 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
                     (done ? ' is-done' : '')
                   }
                   aria-current={active ? 'step' : undefined}
-                  onMouseEnter={() => { setPeek(i); if (!cooking) setHover(st.slot) }}
+                  // Entering marks the moment the row is about to resize; leaveCard ignores any
+                  // mouseleave that lands while that resize is still playing.
+                  onMouseEnter={() => { shiftedAt.current = Date.now(); setPeek(i); if (!cooking) setHover(st.slot) }}
+                  // The instruction belongs to the card under the pointer and to nothing else, so
+                  // it ends here rather than at the frame's edge.
+                  onMouseLeave={() => { leaveCard(i); if (!cooking) setHover(-1) }}
                   onFocus={() => { setPeek(i); if (!cooking) setHover(st.slot) }}
                   onBlur={() => { setPeek(p => (p === i ? -1 : p)); if (!cooking) setHover(-1) }}
                   // Mouse click: hand focus back. Cook mode drives on ← → and Space, so the browser
@@ -316,7 +378,7 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
         </div>
       </div>
     </div>
-  ), [rows, stages, slotCount, cooking, slot, hover, vessel, start, carryRows])
+  ), [rows, stages, slotCount, cooking, slot, hover, railStage, start, carryRows])
 
 
   // Mobile form of the same chart. A seven-column gantt inside a 358px content box is a
@@ -450,7 +512,7 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
           <Segmented
             label="Servings"
             value={servings}
-            options={servesOptions(baseServings).map(n => ({
+            options={serves.map(n => ({
               value: n,
               label: String(n),
               ariaLabel: `${n} ${n === 1 ? 'serving' : 'servings'}`,
@@ -517,30 +579,6 @@ export function CookMode({ stages, ingredients, servings: baseServings, vessel }
           <button type="button" className="cook-nav" onClick={() => setFinished(false)}>Dismiss</button>
         </div>
       )}
-
-      {/* Always rendered at a fixed height, filled or not. Growing it on hover pushed the very
-          card being hovered downwards — a cursor near a card's top edge fell outside it, which
-          ended the hover, which shrank this box, which slid the card back under the cursor, many
-          times a second. A preview must never move the thing being previewed. */}
-      <div className={`cook-rail${railStage ? ' is-filled' : ''}`}>
-        {railStage ? (
-          <>
-            <span className="cook-rail-label">
-              {/* While cooking, say plainly that this is not the step on the heat. */}
-              {cooking && <b>Step {railStage.slot + 1}</b>}
-              {railStage.name}
-              {railStage.timing ? <em>{railStage.timing}</em> : null}
-            </span>
-            <p className="cook-rail-text">{railStage.detail || 'No further detail for this stage.'}</p>
-          </>
-        ) : (
-          <p className="cook-rail-text">
-            {cooking
-              ? 'Hover a stage to look ahead without leaving this step.'
-              : 'Hover or focus a stage to read its instruction.'}
-          </p>
-        )}
-      </div>
 
       {chart}
       {slotList}

@@ -52,6 +52,9 @@ export default async function MealPage({
     <main className="recipe-page">
       <BackLink />
 
+      {/* Split hero: the photo keeps its own 4:3 ratio beside the naming block, instead of a
+          280px band that cropped a 4:3 photo to a 4.53:1 sliver of itself. */}
+      <div className="recipe-split">
       <div className="recipe-hero">
         {meal.imageUrl ? (
           <img src={meal.imageUrl} alt={meal.title} />
@@ -65,6 +68,7 @@ export default async function MealPage({
         )}
       </div>
 
+      <div className="recipe-headcol">
       {fromPlan && <p className="page-eyebrow">Portions from your plan</p>}
 
       <div className="recipe-head">
@@ -87,6 +91,8 @@ export default async function MealPage({
       </div>
 
       <MacroRow calories={totals.calories} protein={totals.protein} carbs={totals.carbs} fats={totals.fats} />
+      </div>
+      </div>
 
       <RecipeBody
         chart={

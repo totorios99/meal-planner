@@ -13,8 +13,7 @@
      DOWN the page, a band's height is how long it lasts, and stages sharing a slot sit side by
      side. Same claims as the desktop chart — duration and simultaneity — made with the axis the
      phone actually has. */
-  .cook-frame,
-  .cook-rail { display: none; }
+  .cook-frame { display: none; }
   .cook-tl { display: block; }
 
   .cook-tl-track {
@@ -288,13 +287,20 @@
   .cook-tl-loose[open] summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
   .cook-tl-loose > .cook-tl-chips { padding: 0 16px 14px; }
 
-  /* Start cooking is the page's one primary action here — full width, not a pill wedged after
-     two segmented controls. */
-  .cook-controls { gap: 12px; }
+  /* One row: Serves takes what it needs, Start cooking sits beside it. The button used to own a
+     full row, pushing the chart a button's height down the page — and at this width the Serves
+     group is trimmed to two steps (see servesOptions/narrow in CookMode), so both fit. */
+  .cook-controls {
+    gap: 12px;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+  .cook-seg-group { min-width: 0; }
   .cook-start {
-    flex: 1 1 100%;
-    margin-left: 0;
+    flex: 0 1 auto;
+    margin-left: auto;
     text-align: center;
+    white-space: nowrap;
   }
   /* Once the bar is up it owns every cooking control; a full-width "Cooking…" placeholder is a
      row of dead screen on a phone. */
@@ -614,7 +620,7 @@ input, textarea { font-family: inherit; color: inherit; }
   /* The recipe page's arrival waves and its hero overscale are pure entrance — drop them and the
      page is simply there. */
   .recipe-hero, .recipe-back, .recipe-head, .recipe-desc, .recipe-meta,
-  .recipe-page > .macro-row { animation: none; }
+  .recipe-headcol > .macro-row { animation: none; }
   /* Home's arrival wave is entrance only. The ring arcs and macro bars stay animated in spirit
      but land instantly — they're state, and the count-up opts itself out in JS. */
   .home .page-header, .home .today-card, .home .macros-block, .home .week-strip,
@@ -634,7 +640,7 @@ input, textarea { font-family: inherit; color: inherit; }
   /* Cook mode: the stage-bar slide-in and the time's-up pulse are decoration; the colour
      changes that tell you which stage is active are not, so those just land instantly. */
   .cook-bar, .cook-timer.is-up { animation: none; }
-  .cook-ing, .cook-stage, .cook-seg, .cook-timer { transition-duration: .01ms; }
+  .cook-ing, .cook-stage, .cook-seg, .cook-timer, .cook-vessel { transition-duration: .01ms; }
 }
 
 /* === Top Nav === */
@@ -2634,14 +2640,14 @@ input, textarea { font-family: inherit; color: inherit; }
 .recipe-head,
 .recipe-desc,
 .recipe-meta,
-.recipe-page > .macro-row {
+.recipe-headcol > .macro-row {
   animation: recipe-rise .34s cubic-bezier(.16,1,.3,1) backwards;
 }
 .recipe-back { animation-delay: 0ms; }
 .recipe-head { animation-delay: 110ms; }
 .recipe-desc { animation-delay: 140ms; }
 .recipe-meta { animation-delay: 165ms; }
-.recipe-page > .macro-row { animation-delay: 190ms; }
+.recipe-headcol > .macro-row { animation-delay: 190ms; }
 /* Both view containers share one transition name — only ever one of them is displayed, so the
    browser reads old-shape → new-shape as a single element changing form. */
 .recipe-view-chart,
@@ -2682,6 +2688,42 @@ input, textarea { font-family: inherit; color: inherit; }
   box-shadow: var(--shadow-glass);
   margin-bottom: 22px;
 }
+/* ── Split hero (design handoff 1a) ──
+   The photo used to be a full-bleed 280px band: at the page's 1268px content width that is a
+   4.53:1 window on a 4:3 photo, so about a fifth of the dish survived. Here it keeps its own
+   ratio in a column beside the naming block. */
+.recipe-split {
+  display: grid;
+  grid-template-columns: minmax(0, 600px) minmax(0, 1fr);
+  gap: 34px;
+  align-items: start;
+  margin-bottom: 26px;
+}
+/* 4/3 matches .meal-card-img, so a photo is cropped the same way on the card and here. */
+.recipe-split .recipe-hero {
+  height: auto;
+  aspect-ratio: 4 / 3;
+  margin-bottom: 0;
+}
+.recipe-headcol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding-top: 4px;
+}
+/* ~600px of column instead of the full page: the title can carry more size than full-bleed. */
+.recipe-split .recipe-title { font-size: 2.625rem; letter-spacing: -.035em; }
+/* These margins spaced the blocks when they were stacked full-width; the column gap owns it now. */
+.recipe-split .recipe-desc { margin-top: 0; }
+.recipe-split .recipe-meta { margin: 0; }
+.recipe-headcol > .macro-row { margin: 0; }
+
+@media (max-width: 900px) {
+  .recipe-split { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .recipe-split .recipe-title { font-size: 2.375rem; }
+}
+
 .recipe-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .recipe-hero .photo-ph { font-size: 72px; }
 .recipe-hero .meal-tags {
@@ -3193,17 +3235,75 @@ input, textarea { font-family: inherit; color: inherit; }
   backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   box-shadow: var(--inset-hi), var(--shadow-glass);
 }
+/* The frame's head row — the chart's own instruction line. It sits in flow and grows to fit the
+   instruction, pushing the chart down. That shift is why CookMode ignores a card's mouseleave for
+   the length of this transition: the card moves out from under a still cursor, and treating that
+   as "pointer left" collapsed the row, slid the card back, and flickered several times a second.
+   `interpolate-size` is what lets height: auto animate; without it (Safari, Firefox today) the
+   row still sizes correctly and simply snaps. The cap keeps a very long detail bounded. */
 .cook-vessel {
-  padding: 11px 16px;
+  interpolate-size: allow-keywords;
+  height: auto;
+  min-height: 52px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--hair);
   background: var(--well);
+  transition: height .26s cubic-bezier(.16, 1, .3, 1);
+}
+.cook-vessel-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 6px;
   font-family: var(--condensed);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: .16em;
   text-transform: uppercase;
+  color: var(--ink);
+}
+.cook-vessel-label b {
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--glass-fill);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.cook-vessel-label em {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-style: normal;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+/* The step title carries the head row's condensed uppercase voice (see .cook-vessel-label); the
+   instruction itself stays sentence case — it is a sentence to read while cooking, not a label. */
+.cook-vessel-text {
+  margin: 0 auto;
+  max-width: 68ch;
+  font-size: 14.5px;
+  line-height: 1.5;
   color: var(--ink-2);
   text-align: center;
+  text-wrap: pretty;
+}
+/* Idle: same condensed head-row voice as the step title, one tier quieter. */
+.cook-vessel:not(.is-filled) .cook-vessel-text {
+  font-family: var(--condensed);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-4);
 }
 /* Required: the grid has a 700px floor, and without a separate scroller the frame's radius
    would be clipped away by its own overflow. */
@@ -3318,69 +3418,6 @@ input, textarea { font-family: inherit; color: inherit; }
 .cook-stage-timing { opacity: .8; }
 .cook-stage-hint { opacity: .6; }
 
-/* Instruction rail: reserves its own height so filling it never nudges the chart. */
-.cook-rail {
-  margin-bottom: 12px;
-  padding: 14px 16px;
-  /* Fixed, not min-height: this box sits above the chart, so any growth on hover moves the cards
-     underneath it. Tall enough for a label plus three lines at this measure; the rare longer
-     instruction scrolls rather than resizing the page. */
-  height: 118px;
-  overflow-y: auto;
-  border: 1px solid var(--hair);
-  border-radius: var(--r-md);
-  background: var(--bg-sunken);
-  transition: border-color .22s, background .22s;
-}
-.cook-rail.is-filled {
-  border-color: rgba(201, 138, 99, .35);
-  background: var(--accent-soft);
-}
-.cook-rail-label {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 6px;
-  font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: -.01em;
-  color: var(--ink);
-}
-.cook-rail-label b {
-  padding: 2px 8px;
-  border-radius: var(--r-pill);
-  background: var(--glass-fill);
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-.cook-rail-label em {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-style: normal;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--accent-ink);
-}
-.cook-rail-text {
-  margin: 0;
-  max-width: 68ch;
-  font-size: 14.5px;
-  line-height: 1.5;
-  color: var(--ink-2);
-  text-wrap: pretty;
-}
-.cook-rail:not(.is-filled) .cook-rail-text {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: .04em;
-  color: var(--ink-4);
-}
-
 .cook-bar-detail {
   max-width: 62ch;
   font-size: 13.5px;
@@ -3438,8 +3475,7 @@ html:not([data-recipe-view="list"]) .recipe-view-list { display: none; }
   /* A 7-column chart in a 358px box is a panning puzzle. Cards in cooking order instead — the
      instruction is inline (touch has no hover) and each slot carries the ingredients that go in
      at that point, so nothing is lost with the grid. */
-  .cook-frame,
-  .cook-rail { display: none; }
+  .cook-frame { display: none; }
 
   .cook-slots {
     display: flex;
@@ -3588,13 +3624,20 @@ html:not([data-recipe-view="list"]) .recipe-view-list { display: none; }
   .cook-slot.is-done .cook-slot-body { display: none; }
   .cook-slot.is-done .cook-slot-name { text-decoration: line-through; }
 
-  /* Start cooking is the page's one primary action here — full width, not a pill wedged after
-     two segmented controls. */
-  .cook-controls { gap: 12px; }
+  /* One row: Serves takes what it needs, Start cooking sits beside it. The button used to own a
+     full row, pushing the chart a button's height down the page — and at this width the Serves
+     group is trimmed to two steps (see servesOptions/narrow in CookMode), so both fit. */
+  .cook-controls {
+    gap: 12px;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+  .cook-seg-group { min-width: 0; }
   .cook-start {
-    flex: 1 1 100%;
-    margin-left: 0;
+    flex: 0 1 auto;
+    margin-left: auto;
     text-align: center;
+    white-space: nowrap;
   }
   /* Once the bar is up it owns every cooking control; a full-width "Cooking…" placeholder is a
      row of dead screen on a phone. */
