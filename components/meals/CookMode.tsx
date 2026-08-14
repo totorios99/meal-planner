@@ -243,11 +243,15 @@ export function CookMode({ stages, ingredients, servings: baseServings, hero, he
   // same paragraph sat in both places at once.
   // When the head row fills it grows, and the chart below it slides down — so a card can leave
   // the cursor without the cursor ever moving. That fires mouseleave, which cleared the preview,
-  // which collapsed the row, which slid the card back: a flicker several times a second. Ignore
-  // leaves for the length of the row's transition; a real pointer exit still lands after it.
-  const shiftedAt = useRef(0)
-  const leaveCard = useCallback((i: number) => {
-    if (Date.now() - shiftedAt.current < 300) return
+  // which collapsed the row, which slid the card back: a flicker several times a second.
+  //
+  // Ask geometry rather than the clock: if the pointer is still inside the card's box at the
+  // moment it "left", the card moved, not the pointer — so keep the preview. A real exit has the
+  // pointer outside and clears immediately, so flicking off and back is no longer sticky.
+  const leaveCard = useCallback((i: number, e: React.MouseEvent<HTMLElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom
+    if (inside) return
     setPeek(p => (p === i ? -1 : p))
   }, [])
 
@@ -262,6 +266,20 @@ export function CookMode({ stages, ingredients, servings: baseServings, hero, he
 
   const previewed = peek >= 0 ? stages[peek] : undefined
   const railStage = previewed && !(cooking && previewed.slot === slot) ? previewed : undefined
+
+  // The head row animates between two content heights. CSS can only do that with
+  // `interpolate-size`, which is Chromium-only — so the height is measured here and set in px,
+  // which every browser can transition. Measured through a ResizeObserver rather than in the
+  // effect body: the observer fires once on observe, so there is no setState-during-effect.
+  const vesselInner = useRef<HTMLDivElement>(null)
+  const [vesselH, setVesselH] = useState<number | null>(null)
+  useEffect(() => {
+    const el = vesselInner.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setVesselH(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const mm = Math.floor(remaining / 60)
   const ss = String(remaining % 60).padStart(2, '0')
@@ -291,24 +309,29 @@ export function CookMode({ stages, ingredients, servings: baseServings, hero, he
       {/* The frame's head row: where an instruction reads, inside the chart it belongs to. It
           grows to fit and pushes the chart down — see the mouseleave guard for why that needs
           care. */}
-      <div className={`cook-vessel${railStage ? ' is-filled' : ''}`}>
-        {railStage ? (
-          <>
-            <span className="cook-vessel-label">
-              {/* While cooking, say plainly that this is not the step on the heat. */}
-              {cooking && <b>Step {railStage.slot + 1}</b>}
-              {railStage.name}
-              {railStage.timing ? <em>{railStage.timing}</em> : null}
-            </span>
-            <p className="cook-vessel-text">{railStage.detail || 'No further detail for this stage.'}</p>
-          </>
-        ) : (
-          <p className="cook-vessel-text">
-            {cooking
-              ? 'Hover a stage to look ahead without leaving this step.'
-              : 'Hover or focus a stage to read its instruction.'}
-          </p>
-        )}
+      <div
+        className={`cook-vessel${railStage ? ' is-filled' : ''}`}
+        style={vesselH ? { height: Math.min(vesselH, 220) } : undefined}
+      >
+        <div className="cook-vessel-inner" ref={vesselInner}>
+          {railStage ? (
+            <>
+              <span className="cook-vessel-label">
+                {/* While cooking, say plainly that this is not the step on the heat. */}
+                {cooking && <b>Step {railStage.slot + 1}</b>}
+                {railStage.name}
+                {railStage.timing ? <em>{railStage.timing}</em> : null}
+              </span>
+              <p className="cook-vessel-text">{railStage.detail || 'No further detail for this stage.'}</p>
+            </>
+          ) : (
+            <p className="cook-vessel-text">
+              {cooking
+                ? 'Hover a stage to look ahead without leaving this step.'
+                : 'Hover or focus a stage to read its instruction.'}
+            </p>
+          )}
+        </div>
       </div>
       <div className="cook-scroll" tabIndex={0} role="group" aria-label="Cooking chart, scrolls sideways">
         {/* No mouseleave here on purpose. The head row grows to fit the instruction, which pushes
@@ -358,12 +381,10 @@ export function CookMode({ stages, ingredients, servings: baseServings, hero, he
                     (done ? ' is-done' : '')
                   }
                   aria-current={active ? 'step' : undefined}
-                  // Entering marks the moment the row is about to resize; leaveCard ignores any
-                  // mouseleave that lands while that resize is still playing.
-                  onMouseEnter={() => { shiftedAt.current = Date.now(); setPeek(i); if (!cooking) setHover(st.slot) }}
+                  onMouseEnter={() => { setPeek(i); if (!cooking) setHover(st.slot) }}
                   // The instruction belongs to the card under the pointer and to nothing else, so
                   // it ends here rather than at the frame's edge.
-                  onMouseLeave={() => { leaveCard(i); if (!cooking) setHover(-1) }}
+                  onMouseLeave={e => { leaveCard(i, e); if (!cooking) setHover(-1) }}
                   onFocus={() => { setPeek(i); if (!cooking) setHover(st.slot) }}
                   onBlur={() => { setPeek(p => (p === i ? -1 : p)); if (!cooking) setHover(-1) }}
                   // Mouse click: hand focus back. Cook mode drives on ← → and Space, so the browser
@@ -386,7 +407,7 @@ export function CookMode({ stages, ingredients, servings: baseServings, hero, he
         </div>
       </div>
     </div>
-  ), [rows, stages, slotCount, cooking, slot, hover, railStage, start, carryRows])
+  ), [rows, stages, slotCount, cooking, slot, hover, railStage, vesselH, start, leaveCard, carryRows])
 
 
   // Mobile form of the same chart. A seven-column gantt inside a 358px content box is a

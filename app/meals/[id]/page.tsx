@@ -43,7 +43,16 @@ export default async function MealPage({
   })
   const totals = fromPlan ? sumRefs(refs, fmap) : meal
   const steps = parseList(meal.steps)
-  const stages = parseStages(meal.stages)
+  // A stage's from/to index the MEAL's ingredient list. A placement keeps its own copy, edited
+  // independently — swap an ingredient on Tuesday and the two lists no longer line up, so those
+  // ranges would light the wrong rows and strike through the wrong things while cooking. When the
+  // lists have diverged, drop the ranges: the chart falls back to a plain stage ladder, which
+  // says less but says nothing false. Re-syncing the copies instead would delete the user's edit.
+  const mealRefCount = parseRefs(meal.ingredients).length
+  const stagesDiverged = fromPlan && refs.length !== mealRefCount
+  const stages = parseStages(meal.stages).map(s =>
+    stagesDiverged ? { ...s, from: 0, to: -1 } : s,
+  )
   const tags = meal.tag.split(',').map(t => t.trim()).filter(Boolean)
   const totalMinutes = meal.prepMinutes + meal.cookMinutes
 

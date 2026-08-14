@@ -11,6 +11,14 @@ type Ctx = {
    */
   update: (patch: SettingsPatch) => Promise<boolean>
   error: string | null
+  /**
+   * Whether `settings` has been confirmed against the row, rather than being whatever the server
+   * render happened to produce. `getSettings()` degrades to DEFAULTS when auth() comes back empty
+   * — which it does intermittently in production, where Clerk logs "auth() was called but Clerk
+   * can't detect usage of clerkMiddleware()" — and a defaulted `weekStartsOn` asks for the wrong
+   * week. Anything that reads a preference to fetch or create data must wait for this.
+   */
+  ready: boolean
 }
 
 const SettingsCtx = createContext<Ctx | null>(null)
@@ -57,6 +65,7 @@ export function SettingsProvider({
   // preferences that aren't the user's: a defaulted Monday start made the planner ask for the
   // wrong week and report a Sunday-start plan as missing. Re-read the row once on mount and
   // reconcile — the API resolves the acting user itself, so it is the honest answer.
+  const [ready, setReady] = useState(false)
   useEffect(() => {
     let cancelled = false
     fetch('/api/settings')
@@ -67,7 +76,10 @@ export function SettingsProvider({
         if (cancelled || !row || saved.current) return
         apply(row)
       })
+      // `ready` even when the read failed: a network error must not leave the planner waiting
+      // forever. It means "we tried", and the value on screen is the best one available.
       .catch(() => {})
+      .finally(() => { if (!cancelled) setReady(true) })
     return () => { cancelled = true }
   }, [apply])
 
@@ -94,7 +106,7 @@ export function SettingsProvider({
   }, [apply])
 
   return (
-    <SettingsCtx.Provider value={{ settings, update, error }}>{children}</SettingsCtx.Provider>
+    <SettingsCtx.Provider value={{ settings, update, error, ready }}>{children}</SettingsCtx.Provider>
   )
 }
 
@@ -102,6 +114,8 @@ export function useSettings(): Ctx {
   const ctx = useContext(SettingsCtx)
   // Defaults rather than a throw: a client component rendered outside the provider (a portal
   // in a test, a stray island) should still paint sane numbers instead of crashing the page.
-  if (!ctx) return { settings: DEFAULTS, update: async () => false, error: null }
+  // ready: true outside a provider — there is nothing coming to confirm these, so a consumer
+  // that waits for it would wait forever.
+  if (!ctx) return { settings: DEFAULTS, update: async () => false, error: null, ready: true }
   return ctx
 }

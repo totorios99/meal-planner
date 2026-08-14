@@ -134,12 +134,15 @@ export default function HomePage() {
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
   const [showNewMeal, setShowNewMeal] = useState(false)
   // Read-only: targets are edited in /settings. Still needed here to draw the rings against.
-  const { settings: targets } = useSettings()
+  const { settings: targets, ready } = useSettings()
   const weekStartsOn = targets.weekStartsOn
   const todayIdx = todayIndex(weekStartsOn)
   const weekDaysRef = useRef<HTMLDivElement>(null)
 
   const fetchAll = useCallback(async () => {
+    // Same reason as the planner: the week asked for is the week created, so a preference that
+    // hasn't been confirmed yet would mint an empty plan for the wrong Monday.
+    if (!ready) return
     try {
       const [planRes, mealsRes, foodsRes] = await Promise.all([
         fetch(`/api/plans/active?weekStart=${toDateParam(startOfWeek(weekStartsOn))}`),
@@ -150,7 +153,7 @@ export default function HomePage() {
       if (mealsRes.ok) setMeals(await mealsRes.json())
       if (foodsRes.ok) setFoods(await foodsRes.json())
     } catch { /* silently degrade */ }
-  }, [weekStartsOn])
+  }, [weekStartsOn, ready])
 
   useEffect(() => { fetchAll() }, [fetchAll])
 

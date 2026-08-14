@@ -28,7 +28,7 @@ export default function PlannerPage() {
   // Direction of the last week move, so the board can arrive from the side it came from.
   const [dir, setDir] = useState<'prev' | 'next' | null>(null)
   // Read-only here: preferences are edited in /settings, not from the planner header.
-  const { settings } = useSettings()
+  const { settings, ready } = useSettings()
   const targets = settings
   const fullTitles = settings.plannerFullTitles
   const weekStartsOn = settings.weekStartsOn
@@ -38,6 +38,11 @@ export default function PlannerPage() {
   }, [])
 
   const fetchPlan = useCallback(async () => {
+    // Wait for the confirmed preference. weekStartsOn decides which week is asked for, and the
+    // API creates the week it is asked for — so guessing here doesn't just show the wrong days,
+    // it writes an empty plan for a week the user never looks at. That is how prod collected
+    // junk plans, and how an iPad landed on an empty planner while the real week sat beside it.
+    if (!ready) return
     setLoading(true)
     const { weekParam } = getWeekBounds(weekOffset, weekStartsOn)
     const ctrl = new AbortController()
@@ -50,7 +55,7 @@ export default function PlannerPage() {
       clearTimeout(timer)
       setLoading(false)
     }
-  }, [weekOffset, weekStartsOn])
+  }, [weekOffset, weekStartsOn, ready])
 
   useEffect(() => { fetchPlan() }, [fetchPlan])
 

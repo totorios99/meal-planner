@@ -3251,16 +3251,19 @@ input, textarea { font-family: inherit; color: inherit; }
    `interpolate-size` is what lets height: auto animate; without it (Safari, Firefox today) the
    row still sizes correctly and simply snaps. The cap keeps a very long detail bounded. */
 .cook-vessel {
-  interpolate-size: allow-keywords;
+  /* Height comes from JS (CookMode measures .cook-vessel-inner) so the transition works in every
+     browser, not only where `interpolate-size` lets height:auto animate. These are the bounds and
+     the pre-hydration size. */
   height: auto;
   min-height: 52px;
   max-height: 220px;
   overflow-y: auto;
-  padding: 14px 16px;
   border-bottom: 1px solid var(--hair);
   background: var(--well);
   transition: height .26s cubic-bezier(.16, 1, .3, 1);
 }
+/* Padding lives on the inner box so the measured height includes it. */
+.cook-vessel-inner { padding: 14px 16px; }
 .cook-vessel-label {
   display: flex;
   flex-wrap: wrap;
