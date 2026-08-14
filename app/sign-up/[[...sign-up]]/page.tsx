@@ -13,7 +13,7 @@ export default function SignUpPage() {
       <h1 className="page-title">
         Join <em>Mise</em>
       </h1>
-      <div style={{ marginTop: 24 }}>
+      <div className="auth-widget" style={{ marginTop: 24 }}>
         <SignUp appearance={authAppearance} />
       </div>
     </main>

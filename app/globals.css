@@ -614,7 +614,8 @@ input, textarea { font-family: inherit; color: inherit; }
   .meal-grid > *, .food-list > .food-row, .fav-btn.is-fav svg, .shimmer { animation: none; }
   /* Every page's arrival wave is entrance only — drop it and the page is simply there. */
   .page > .page-header, .page > .toolbar, .page > .quick-fill, .page > .empty,
-  .planner-grid, .planner-grid[data-dir], .auth-arrive > * { animation: none; }
+  .planner-grid, .planner-grid[data-dir], .auth-arrive > *,
+  .auth-arrive .cl-cardBox { animation: none; }
   /* The stale week still dims — that's state, not decoration; it just lands instantly. */
   .planner-grid.is-stale { transition-duration: .01ms; }
   /* The recipe page's arrival waves and its hero overscale are pure entrance — drop them and the
@@ -2572,11 +2573,19 @@ input, textarea { font-family: inherit; color: inherit; }
   .today-meal-thumb { width: 48px; height: 48px; }
 }
 
-/* Sign-in / sign-up: the same wave, one beat quicker — there is nothing to read here, and the
-   Clerk card mounts last anyway. */
+/* Sign-in / sign-up: the same wave, one beat quicker — there is nothing to read here. */
 .auth-arrive > * { animation: page-in .45s cubic-bezier(.16,1,.3,1) backwards; }
 .auth-arrive > :nth-child(2) { animation-delay: .06s; }
-.auth-arrive > :nth-child(3) { animation-delay: .12s; }
+
+/* The Clerk widget is client-rendered, so the slot is empty for as long as clerk.js takes to
+   load — running the wave on the slot animated nothing, then the card appeared later, unwaved,
+   shoving the page down. So: reserve the card's height up front (no reflow when it lands) and
+   hang the entrance on `.cl-cardBox`, which only exists once Clerk has mounted. */
+.auth-widget { min-height: 340px; animation: none; }
+.auth-arrive .cl-cardBox { animation: auth-card-in .4s cubic-bezier(.16,1,.3,1) backwards; }
+/* Opacity + a short lift only. The card is a backdrop-filter glass panel — animating anything
+   that forces it to re-blur per frame is what made this feel laggy on the iPad. */
+@keyframes auth-card-in { from { opacity: 0; transform: translateY(8px); } }
 
 /* ── Page arrival ──
    The home page's wave, extended to the working pages so moving between tabs doesn't feel like
