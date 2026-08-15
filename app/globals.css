@@ -613,8 +613,9 @@ input, textarea { font-family: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .meal-grid > *, .food-list > .food-row, .fav-btn.is-fav svg, .shimmer { animation: none; }
   /* Every page's arrival wave is entrance only — drop it and the page is simply there. */
-  .page > .page-header, .page > .toolbar, .page > .quick-fill, .page > .empty,
+  .page > .page-header, .page > .toolbar, .page > .empty,
   .planner-grid, .planner-grid[data-dir], .auth-arrive > *,
+  .planner-grid.is-revealing .plan-meal,
   .auth-arrive .cl-cardBox, .auth-skeleton { animation: none; }
   /* The stale week still dims — that's state, not decoration; it just lands instantly. */
   .planner-grid.is-stale { transition-duration: .01ms; }
@@ -1595,33 +1596,50 @@ input, textarea { font-family: inherit; color: inherit; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.quick-fill {
-  background: var(--glass-fill);
-  border: 1px solid var(--stroke);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  border-radius: var(--r-lg);
-  padding: 12px 16px;
+/* The header's right-hand controls: quick-fill, then the week nav, then Targets. */
+.planner-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  font-size: 13.5px;
+  gap: 8px;
+  flex-shrink: 0;
   flex-wrap: wrap;
-  box-shadow: var(--inset-hi);
 }
-.quick-fill-label { color: var(--ink); font-weight: 600; display: flex; align-items: center; }
-.quick-fill .ui-select-trigger {
-  flex: 1;
-  min-width: 200px;
-  height: 34px;
-  border-radius: var(--r-pill);
+/* Quick-fill used to be a full-width glass card of its own under the header, which gave a
+   two-control row the presence of a section. It's a control — so it's built like the week nav
+   beside it and sits in the same row. */
+.quick-fill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  background: var(--glass-fill);
   border: 1px solid var(--stroke);
-  background: var(--well);
-  padding: 0 30px 0 14px;
-  font-size: 13px;
-  background-position: right 14px center;
+  border-radius: var(--r-pill);
+  padding: 3px 3px 3px 12px;
+  box-shadow: var(--inset-hi);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
+.quick-fill-label {
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 12.5px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+.quick-fill .ui-select-trigger {
+  min-width: 168px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0 28px 0 10px;
+  font-size: 13px;
+  background-position: right 10px center;
+}
+.quick-fill .ui-select-trigger:hover:not(:disabled) { background-color: var(--glass-fill-2); }
+.quick-fill .btn { border-radius: var(--r-pill); height: 32px; }
 .planner-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -1644,6 +1662,29 @@ input, textarea { font-family: inherit; color: inherit; }
   pointer-events: none;
   transition: opacity .18s ease;
 }
+/* ── Quick-fill reveal ──
+   A week arriving from a copy used to simply be there: twenty-odd meals materialising in one
+   frame, indistinguishable from a page that had loaded that way. Deal them out instead, column
+   by column and top to bottom within each, so the fill reads as something that happened.
+   The columns themselves don't move — each .day-col is a backdrop-filter panel, and the week-nav
+   comment above is about exactly that. Only the meals inside them animate. */
+.planner-grid.is-revealing { animation: none; }
+.planner-grid.is-revealing .day-col:nth-child(1) { --reveal-d: 0ms; }
+.planner-grid.is-revealing .day-col:nth-child(2) { --reveal-d: 55ms; }
+.planner-grid.is-revealing .day-col:nth-child(3) { --reveal-d: 110ms; }
+.planner-grid.is-revealing .day-col:nth-child(4) { --reveal-d: 165ms; }
+.planner-grid.is-revealing .day-col:nth-child(5) { --reveal-d: 220ms; }
+.planner-grid.is-revealing .day-col:nth-child(6) { --reveal-d: 275ms; }
+.planner-grid.is-revealing .day-col:nth-child(7) { --reveal-d: 330ms; }
+.planner-grid.is-revealing .plan-meal {
+  animation: meal-reveal .38s cubic-bezier(.16,1,.3,1) backwards;
+  animation-delay: calc(var(--reveal-d, 0ms) + (var(--slot, 0) * 45ms));
+}
+.planner-grid.is-revealing .plan-meal:nth-child(2) { --slot: 1; }
+.planner-grid.is-revealing .plan-meal:nth-child(3) { --slot: 2; }
+.planner-grid.is-revealing .plan-meal:nth-child(4) { --slot: 3; }
+.planner-grid.is-revealing .plan-meal:nth-child(n+5) { --slot: 4; }
+@keyframes meal-reveal { from { opacity: 0; transform: translateY(6px) scale(.98); } }
 .day-col {
   background: var(--panel);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
@@ -2512,8 +2553,11 @@ input, textarea { font-family: inherit; color: inherit; }
 
   .planner-grid { grid-template-columns: 1fr; gap: 12px; }
   .day-col { min-height: 0; }
-  .quick-fill { flex-direction: column; align-items: stretch; }
-  .quick-fill .ui-select-trigger { min-width: 0; width: 100%; }
+  /* On a phone the header's controls stack, and quick-fill takes the full width rather than
+     being squeezed next to the week nav — the week labels in it are the longest text here. */
+  .planner-controls { width: 100%; }
+  .quick-fill { flex: 1; min-width: 0; }
+  .quick-fill .ui-select-trigger { flex: 1; min-width: 0; }
 
   /* Narrower columns so the ingredient row fits the sheet width instead of forcing a
      horizontal scroll to reach the delete button. */
@@ -2625,8 +2669,7 @@ input, textarea { font-family: inherit; color: inherit; }
    everything move twice, so the container stays still and the cards start after the toolbar.
    `backwards` keeps every section in its final state if the animation never runs. */
 .page > .page-header { animation: page-in .5s cubic-bezier(.16,1,.3,1) backwards; }
-.page > .toolbar,
-.page > .quick-fill { animation: page-in .5s cubic-bezier(.16,1,.3,1) .06s backwards; }
+.page > .toolbar { animation: page-in .5s cubic-bezier(.16,1,.3,1) .06s backwards; }
 .page > .empty { animation: page-in .5s cubic-bezier(.16,1,.3,1) .12s backwards; }
 
 /* ── Entrance + favorite animations ── */

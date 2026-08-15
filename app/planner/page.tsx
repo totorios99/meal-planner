@@ -27,6 +27,15 @@ export default function PlannerPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   // Direction of the last week move, so the board can arrive from the side it came from.
   const [dir, setDir] = useState<'prev' | 'next' | null>(null)
+  // Bumped when a quick-fill lands, so the board can reveal the meals it just received instead
+  // of having them appear all at once. Reset by the week nav: arriving at a different week is a
+  // different kind of change and gets the slide, not the reveal.
+  const [reveal, setReveal] = useState(0)
+  const goToWeek = (delta: -1 | 1) => {
+    setDir(delta < 0 ? 'prev' : 'next')
+    setReveal(0)
+    setWeekOffset(o => o + delta)
+  }
   // Read-only here: preferences are edited in /settings, not from the planner header.
   const { settings, ready } = useSettings()
   const targets = settings
@@ -58,6 +67,14 @@ export default function PlannerPage() {
   }, [weekOffset, weekStartsOn, ready])
 
   useEffect(() => { fetchPlan() }, [fetchPlan])
+
+  // The refetch has to finish before the reveal is bumped, or the board replays its entrance on
+  // the *old* meals and then swaps them out underneath.
+  const handleCloned = useCallback(async () => {
+    await fetchPlan()
+    setDir(null)
+    setReveal(r => r + 1)
+  }, [fetchPlan])
 
   const { weekStart, weekEnd } = getWeekBounds(weekOffset, weekStartsOn)
 
@@ -97,13 +114,17 @@ export default function PlannerPage() {
             )}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        {/* Quick-fill sits in this row rather than in a panel of its own below. It's a control,
+            the same size of decision as changing the week, and a full-width glass card gave it
+            the weight of a section heading. */}
+        <div className="planner-controls">
+          <QuickFill plan={plan} onCloned={handleCloned} />
           <div className="week-nav">
-            <button onClick={() => { setDir('prev'); setWeekOffset(o => o - 1) }} title="Previous week">
+            <button onClick={() => goToWeek(-1)} title="Previous week">
               <Icon name="chev-left" size={14} />
             </button>
             <span className="label">{fmt(weekStart)} – {fmt(weekEnd)}</span>
-            <button onClick={() => { setDir('next'); setWeekOffset(o => o + 1) }} title="Next week">
+            <button onClick={() => goToWeek(1)} title="Next week">
               <Icon name="chev-right" size={14} />
             </button>
           </div>
@@ -115,8 +136,7 @@ export default function PlannerPage() {
         </div>
       </div>
 
-      <QuickFill plan={plan} onCloned={fetchPlan} />
-      <WeekBoard plan={plan} targets={targets} foods={foods} fullTitles={fullTitles} onPlanUpdate={setPlan} dir={dir} stale={loading} />
+      <WeekBoard plan={plan} targets={targets} foods={foods} fullTitles={fullTitles} onPlanUpdate={setPlan} dir={dir} stale={loading} revealKey={reveal} />
     </main>
   )
 }

@@ -15,9 +15,12 @@ interface Props {
   dir: 'prev' | 'next' | null
   /* True while a different week is in flight: what's on screen is the old one. */
   stale: boolean
+  /* Bumped by a quick-fill. Non-zero means the meals below arrived just now and should be
+     revealed rather than simply be there; the changing value is what replays it a second time. */
+  revealKey: number
 }
 
-export function WeekBoard({ plan, targets, foods, fullTitles, onPlanUpdate, dir, stale }: Props) {
+export function WeekBoard({ plan, targets, foods, fullTitles, onPlanUpdate, dir, stale, revealKey }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
   const landedOnToday = useRef(false)
 
@@ -51,8 +54,8 @@ export function WeekBoard({ plan, targets, foods, fullTitles, onPlanUpdate, dir,
        the grid and not on WeekBoard itself: remounting the component would reset
        `landedOnToday` and yank a phone back to today on every week flip. */
     <div
-      key={plan.id}
-      className={`planner-grid${fullTitles ? ' full-titles' : ''}${stale ? ' is-stale' : ''}`}
+      key={`${plan.id}:${revealKey}`}
+      className={`planner-grid${fullTitles ? ' full-titles' : ''}${stale ? ' is-stale' : ''}${revealKey > 0 ? ' is-revealing' : ''}`}
       data-dir={dir ?? undefined}
       aria-busy={stale || undefined}
       ref={gridRef}

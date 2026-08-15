@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react'
 import { WeeklyPlan } from '@/types'
 import { Select } from '@/components/ui/Select'
-import { localDate, toDateParam } from '@/lib/date'
+import { localDate, toDateParam, weekLabel } from '@/lib/date'
+import { useSettings } from '@/lib/SettingsContext'
 
 interface Props {
   // The week currently on screen: both the cutoff for "past" and the destination of the copy.
@@ -14,7 +15,9 @@ export function QuickFill({ plan, onCloned }: Props) {
   const [history, setHistory] = useState<WeeklyPlan[]>([])
   const [selected, setSelected] = useState('')
   const [cloning, setCloning] = useState(false)
-  const weekStart = toDateParam(localDate(plan.weekStart))
+  const { settings } = useSettings()
+  const viewing = localDate(plan.weekStart)
+  const weekStart = toDateParam(viewing)
 
   useEffect(() => {
     // An unchecked .json() used to land {error} in `history`, and .map threw on it.
@@ -25,6 +28,15 @@ export function QuickFill({ plan, onCloned }: Props) {
     // Weeks earlier than the one on screen — so the list changes as you page through weeks.
     setSelected('')
   }, [weekStart])
+
+  // Empty weeks are not offered. Applying one is purely destructive — the copy clears each day
+  // before refilling it, so picking a week with nothing in it wipes the week you're looking at.
+  const sources = history
+    .map(p => ({
+      plan: p,
+      meals: p.days.reduce((n, d) => n + d.meals.length, 0),
+    }))
+    .filter(s => s.meals > 0)
 
   async function handleClone() {
     if (!selected) return
@@ -47,22 +59,22 @@ export function QuickFill({ plan, onCloned }: Props) {
 
   return (
     <div className="quick-fill">
-      <span className="quick-fill-label">Quick-fill from past week</span>
+      <span className="quick-fill-label">Quick-fill</span>
       <Select
         value={selected}
         onChange={setSelected}
-        disabled={history.length === 0}
-        options={history.length === 0
+        disabled={sources.length === 0}
+        options={sources.length === 0
           ? [{ value: '', label: '— no past weeks yet —' }]
           : [
               { value: '', label: '— pick a week —' },
-              ...history.map(plan => {
-                const d = localDate(plan.weekStart)
-                return {
-                  value: String(plan.id),
-                  label: `Week of ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`,
-                }
-              }),
+              // Two plans can land on the same week — the ones straddling a change of week start
+              // do. The meal count is what tells them apart, and it's worth seeing anyway when
+              // you're choosing a week to copy.
+              ...sources.map(({ plan: p, meals }) => ({
+                value: String(p.id),
+                label: `${weekLabel(p.weekStart, viewing, settings.weekStartsOn)} · ${meals} meal${meals !== 1 ? 's' : ''}`,
+              })),
             ]
         }
       />
