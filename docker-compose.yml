@@ -1,70 +1,117 @@
+# CasaOS manages this app from this very file (see `docker inspect mise`), and rewrites it in
+# place whenever the app is touched from its UI — expanding the structure below and, critically,
+# inlining the real values of the secrets. Check `git diff` before every commit: the interpolation
+# refs must survive. Values live in the gitignored .env next to this file.
+name: meal-planner
 services:
-  mise:
-    # Built and pushed to GHCR by .github/workflows/deploy.yml on every push to main.
-    # The global watchtower (labelled containers, 300s poll) pulls new :latest and recreates.
-    image: ghcr.io/totorios99/meal-planner:latest
-    container_name: mise
-    ports:
-      - "3000:3000"
-    volumes:
-      - /DATA/AppData/mise:/app/data
-    environment:
-      - DATABASE_URL=file:/app/data/meal-planner.db
-      - NODE_ENV=production
-      - NEXT_TELEMETRY_DISABLED=1
-      # Clerk — publishable key is client-visible by design; the secret key never is.
-      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:?set in .env}
-      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY:?set in .env}
-      - NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-      - NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-      - NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
-      - NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
-      # Server-only. Agent/MCP access, sent as the x-mise-admin-secret header. Never
-      # NEXT_PUBLIC_-prefixed, never in a URL.
-      - MISE_ADMIN_SECRET=${MISE_ADMIN_SECRET:-}
-      - MISE_OWNER_USER_ID=${MISE_OWNER_USER_ID:-}
-    restart: unless-stopped
-    healthcheck:
-      # /sign-in is the one route Clerk always lets through — everything else redirects or 401s.
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/sign-in"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    labels:
-      com.centurylinklabs.watchtower.enable: "true"
-
-  # Owns the name mise.neurotrichini-darter.ts.net so Let's Encrypt will issue a cert for it —
-  # Clerk's session cookie is Secure, so the app has to be served over HTTPS. Routes no traffic:
-  # AdGuard rewrites that name to the LAN IP and nginx-proxy-manager terminates TLS with the cert
-  # this node fetches. Userspace mode, so no TUN device and no host networking.
-  # State (the node's identity) lives in the bind mount — recreating this container is safe and
-  # does not need a re-auth. scripts/renew-mise-cert.sh execs into it by name.
-  tailscale:
-    image: tailscale/tailscale:latest
-    container_name: tailscale-mise
-    volumes:
-      - /DATA/AppData/tailscale-mise:/var/lib/tailscale
-    environment:
-      - TS_HOSTNAME=mise
-      - TS_STATE_DIR=/var/lib/tailscale
-      - TS_USERSPACE=true
-    restart: unless-stopped
-
+    mise:
+        # Built and pushed to GHCR by .github/workflows/deploy.yml on every push to main.
+        # The global watchtower (labelled containers, 300s poll) pulls new :latest and recreates.
+        image: ghcr.io/totorios99/meal-planner:latest
+        container_name: mise
+        hostname: mise
+        cpu_shares: 90
+        command: []
+        deploy:
+            resources:
+                limits:
+                    memory: "16457400320"
+        environment:
+            DATABASE_URL: file:/app/data/meal-planner.db
+            NODE_ENV: production
+            NEXT_TELEMETRY_DISABLED: "1"
+            # Clerk — publishable key is client-visible by design; the secret key never is.
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:?set in .env}
+            CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?set in .env}
+            NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+            NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-up
+            NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: /
+            NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: /
+            # Server-only. Agent/MCP access, sent as the x-mise-admin-secret header. Never
+            # NEXT_PUBLIC_-prefixed, never in a URL.
+            MISE_ADMIN_SECRET: ${MISE_ADMIN_SECRET:-}
+            MISE_OWNER_USER_ID: ${MISE_OWNER_USER_ID:-}
+        healthcheck:
+            # /sign-in is the one route Clerk always lets through — everything else redirects or 401s.
+            test:
+                - CMD
+                - wget
+                - -qO-
+                - http://127.0.0.1:3000/sign-in
+            timeout: 10s
+            interval: 30s
+            retries: 3
+            start_period: 20s
+        labels:
+            com.centurylinklabs.watchtower.enable: "true"
+            icon: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjQzg2MDJBIi8+PHRleHQgeD0iMjU2IiB5PSIzNzAiIGZvbnQtZmFtaWx5PSJHZW9yZ2lhLHNlcmlmIiBmb250LXNpemU9IjMwMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0ZGRjhGMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TTwvdGV4dD48L3N2Zz4=
+        networks:
+            default: null
+        ports:
+            - mode: ingress
+              target: 3000
+              published: "3000"
+              protocol: tcp
+        restart: unless-stopped
+        volumes:
+            - type: bind
+              source: /DATA/AppData/mise
+              target: /app/data
+              bind:
+                create_host_path: true
+    # Owns the name mise.neurotrichini-darter.ts.net so Let's Encrypt will issue a cert for it —
+    # Clerk's session cookie is Secure, so the app has to be served over HTTPS. Routes no traffic:
+    # AdGuard rewrites that name to the LAN IP and nginx-proxy-manager terminates TLS with the cert
+    # this node fetches. Userspace mode, so no TUN device and no host networking.
+    # State (the node's identity) lives in the bind mount — recreating this container is safe and
+    # does not need a re-auth. scripts/renew-mise-cert.sh execs into it by name.
+    tailscale:
+        image: tailscale/tailscale:latest
+        container_name: tailscale-mise
+        hostname: tailscale-mise
+        cpu_shares: 90
+        command: []
+        deploy:
+            resources:
+                limits:
+                    memory: "16457400320"
+        environment:
+            TS_HOSTNAME: mise
+            TS_STATE_DIR: /var/lib/tailscale
+            TS_USERSPACE: "true"
+        labels:
+            icon: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjQzg2MDJBIi8+PHRleHQgeD0iMjU2IiB5PSIzNzAiIGZvbnQtZmFtaWx5PSJHZW9yZ2lhLHNlcmlmIiBmb250LXNpemU9IjMwMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0ZGRjhGMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TTwvdGV4dD48L3N2Zz4=
+        networks:
+            default: null
+        restart: unless-stopped
+        volumes:
+            - type: bind
+              source: /DATA/AppData/tailscale-mise
+              target: /var/lib/tailscale
+              bind:
+                create_host_path: true
+networks:
+    default:
+        name: meal-planner_default
 x-casaos:
-  architectures:
-    - amd64
-    - arm64
-    - arm
-  main: mise
-  title:
-    en_us: Mise
-  description:
-    en_us: Personal meal planner with weekly planning, macro tracking, and print-ready meal references.
-  tagline:
-    en_us: Meal planning, simplified.
-  developer: Antonio Rios
-  author: Antonio Rios
-  category: Utilities
-  port_map: "3000"
-  icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjQzg2MDJBIi8+PHRleHQgeD0iMjU2IiB5PSIzNzAiIGZvbnQtZmFtaWx5PSJHZW9yZ2lhLHNlcmlmIiBmb250LXNpemU9IjMwMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0ZGRjhGMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TTwvdGV4dD48L3N2Zz4="
+    architectures:
+        - amd64
+        - arm64
+        - arm
+    author: Antonio Rios
+    category: Utilities
+    description:
+        en_us: Personal meal planner with weekly planning, macro tracking, and print-ready meal references.
+    developer: Antonio Rios
+    hostname: mise.neurotrichini-darter.ts.net
+    icon: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjQzg2MDJBIi8+PHRleHQgeD0iMjU2IiB5PSIzNzAiIGZvbnQtZmFtaWx5PSJHZW9yZ2lhLHNlcmlmIiBmb250LXNpemU9IjMwMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0ZGRjhGMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TTwvdGV4dD48L3N2Zz4=
+    index: /
+    is_uncontrolled: false
+    main: mise
+    port_map: ""
+    scheme: https
+    tagline:
+        en_us: Meal planning, simplified.
+    title:
+        custom: ""
+        en_us: Mise
