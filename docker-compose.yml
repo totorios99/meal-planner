@@ -34,6 +34,23 @@ services:
     labels:
       com.centurylinklabs.watchtower.enable: "true"
 
+  # Owns the name mise.neurotrichini-darter.ts.net so Let's Encrypt will issue a cert for it —
+  # Clerk's session cookie is Secure, so the app has to be served over HTTPS. Routes no traffic:
+  # AdGuard rewrites that name to the LAN IP and nginx-proxy-manager terminates TLS with the cert
+  # this node fetches. Userspace mode, so no TUN device and no host networking.
+  # State (the node's identity) lives in the bind mount — recreating this container is safe and
+  # does not need a re-auth. scripts/renew-mise-cert.sh execs into it by name.
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: tailscale-mise
+    volumes:
+      - /DATA/AppData/tailscale-mise:/var/lib/tailscale
+    environment:
+      - TS_HOSTNAME=mise
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=true
+    restart: unless-stopped
+
 x-casaos:
   architectures:
     - amd64
