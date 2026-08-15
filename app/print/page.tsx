@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { PrintButton } from '@/components/print/PrintButton'
 import { parseRefs, sumRefs, foodsMap, hasUnfilledIngredient, formatQuantityWithUnit } from '@/lib/recipe'
 import { requireUserIdForPage } from '@/lib/auth'
+import { localDate } from '@/lib/date'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,10 +17,25 @@ function dayDate(weekStart: Date, dayIndex: number) {
   return d
 }
 
-export default async function PrintPage() {
+// Which week to print comes from the caller, never from the server's clock: the container runs
+// in UTC, so deriving it here prints next week from Saturday evening onwards. The links into this
+// page (Nav, the home page action) all compute it in browser-local time. This used to look up
+// `isActive: true`, which several plans carried at once — it printed an arbitrary one, sometimes
+// an empty one.
+export default async function PrintPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ weekStart?: string }>
+}) {
   const userId = await requireUserIdForPage()
-  const plan = await prisma.weeklyPlan.findFirst({
-    where: { userId, isActive: true },
+  const { weekStart: weekParam } = await searchParams
+  const queryStart = weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam) ? localDate(weekParam) : null
+  // Half-open day range rather than an equality match: the older rows were stored at T06:00
+  // rather than local midnight, and `equals` misses those.
+  const queryEnd = queryStart && new Date(queryStart.getTime() + 24 * 60 * 60 * 1000)
+
+  const plan = queryStart && queryEnd && await prisma.weeklyPlan.findFirst({
+    where: { userId, weekStart: { gte: queryStart, lt: queryEnd } },
     include: {
       days: {
         orderBy: { dayIndex: 'asc' },
@@ -37,7 +53,7 @@ export default async function PrintPage() {
     return (
       <main className="print-shell">
         <div className="print-paper" style={{ padding: '48px', textAlign: 'center', color: 'var(--ink-3)' }}>
-          No active plan. <Link href="/planner" style={{ color: 'var(--accent-ink)' }}>Go to planner →</Link>
+          Nothing planned for this week. <Link href="/planner" style={{ color: 'var(--accent-ink)' }}>Go to planner →</Link>
         </div>
       </main>
     )

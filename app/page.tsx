@@ -352,7 +352,7 @@ export default function HomePage() {
         {[
           { icon: 'calendar', title: 'Plan the weekend', sub: 'Fill in Saturday & Sunday', href: '/planner' },
           { icon: 'plus',     title: 'Add a new meal',   sub: 'Expand your cookbook',      action: () => setShowNewMeal(true) },
-          { icon: 'printer',  title: 'Print this week',  sub: 'Fridge-ready reference',    href: '/print' },
+          { icon: 'printer',  title: 'Print this week',  sub: 'Fridge-ready reference',    href: `/print?weekStart=${toDateParam(startOfWeek(weekStartsOn))}` },
         ].map(qa => (
           qa.href ? (
             <Link key={qa.title} href={qa.href} className="qa-card" style={{ textDecoration: 'none' }}>

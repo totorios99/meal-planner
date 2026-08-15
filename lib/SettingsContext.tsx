@@ -68,18 +68,35 @@ export function SettingsProvider({
   const [ready, setReady] = useState(false)
   useEffect(() => {
     let cancelled = false
-    fetch('/api/settings')
-      .then(res => (res.ok ? res.json() : null))
-      .then((row: Settings | null) => {
-        // A save that landed first is newer than this read — don't undo it. Signed-out
-        // visitors get a 401 (null) and keep the defaults the layout already gave them.
-        if (cancelled || !row || saved.current) return
-        apply(row)
-      })
-      // `ready` even when the read failed: a network error must not leave the planner waiting
-      // forever. It means "we tried", and the value on screen is the best one available.
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setReady(true) })
+
+    // Retried, because the failure mode is transient and expensive. A container that has just
+    // been recreated — which happens on every deploy — answers for a moment before Clerk is
+    // ready, and one 401 there was enough to leave the app running on DEFAULTS. A Monday start
+    // where the user keeps Sunday then made the planner ask for a week that doesn't exist, and
+    // GET /api/plans/active creates the week it is asked for: an empty plan, from thin air.
+    // Signed-out visitors do pay three quick requests before settling on the defaults, which is
+    // the cheaper side of the trade.
+    async function load(attempt = 0): Promise<void> {
+      try {
+        const res = await fetch('/api/settings')
+        if (!res.ok) throw new Error(String(res.status))
+        const row: Settings = await res.json()
+        // A save that landed first is newer than this read — don't undo it.
+        if (!cancelled && !saved.current) apply(row)
+      } catch {
+        if (cancelled) return
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 400 * (attempt + 1)))
+          return load(attempt + 1)
+        }
+        // `ready` even when every read failed: a signed-out visitor, or a network that is simply
+        // down, must not leave the planner waiting forever. It means "we tried", and the value on
+        // screen is the best one available.
+      }
+      if (!cancelled) setReady(true)
+    }
+    load()
+
     return () => { cancelled = true }
   }, [apply])
 

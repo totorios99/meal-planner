@@ -46,8 +46,12 @@ export async function GET(request: NextRequest) {
   // (userId, weekStart) is what makes it safe to leave here — see below.
   if (!plan) {
     try {
+      // No isActive. It used to be set here and never cleared, so every week the user so much as
+      // looked at became "active" — the flag accumulated instead of moving, and the readers that
+      // trusted it picked an arbitrary one. "Current" is a fact about the clock, not something a
+      // row can remember; every reader now derives it from weekStart. The column stays, unread.
       const newPlan = await prisma.weeklyPlan.create({
-        data: { userId, weekStart, isActive: true }
+        data: { userId, weekStart }
       })
       await prisma.weeklyPlanDay.createMany({
         data: Array.from({ length: 7 }, (_, dayIndex) => ({ weeklyPlanId: newPlan.id, dayIndex }))

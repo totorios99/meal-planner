@@ -6,6 +6,7 @@ import { UserButton } from '@clerk/nextjs'
 import { Icon } from '@/components/Icon'
 import { authAppearance } from '@/lib/clerkAppearance'
 import { useSettings } from '@/lib/SettingsContext'
+import { startOfWeek, toDateParam } from '@/lib/date'
 import type { ThemePref } from '@/lib/settings'
 
 const LINKS = [
@@ -40,6 +41,10 @@ const systemDarkStore = {
 export function Nav() {
   const pathname = usePathname()
   const { settings, update } = useSettings()
+  // /print takes the week as a param — the server is UTC and can't work out which week the
+  // reader means. Every link that goes there carries the browser's answer.
+  const printHref = `/print?weekStart=${toDateParam(startOfWeek(settings.weekStartsOn))}`
+  const hrefFor = (href: string) => (href === '/print' ? printHref : href)
   const themePref = settings.theme
   const systemDark = useSyncExternalStore(
     systemDarkStore.subscribe,
@@ -84,7 +89,7 @@ export function Nav() {
             {LINKS.map(l => (
               <Link
                 key={l.href}
-                href={l.href}
+                href={hrefFor(l.href)}
                 className={`nav-link ${pathname === l.href ? 'active' : ''}`}
               >
                 <Icon name={l.icon} size={15} />
@@ -123,7 +128,7 @@ export function Nav() {
         {LINKS.map(l => (
           <Link
             key={l.href}
-            href={l.href}
+            href={hrefFor(l.href)}
             className={`tab ${pathname === l.href ? 'active' : ''}`}
           >
             <Icon name={l.icon} size={20} />

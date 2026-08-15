@@ -23,14 +23,18 @@ export async function POST(
   })
   if (!source) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // The destination is the week the planner is *showing*, which is not necessarily the active
+  // The destination is the week the planner is *showing*, which is not necessarily the current
   // one: quick-filling while looking at next week used to copy into the current week instead,
-  // so the grid you were staring at never changed and the feature read as dead. The client
-  // sends the plan it has open; fall back to the active plan for a caller that sends nothing.
+  // so the grid you were staring at never changed and the feature read as dead. The client sends
+  // the plan it has open, and it is required — this endpoint overwrites a week, and the old
+  // fallback (the active plan) is what aimed it at the wrong one.
   const body = await request.json().catch(() => ({}))
   const targetId = Number(body?.targetPlanId)
+  if (!Number.isInteger(targetId)) {
+    return NextResponse.json({ error: 'targetPlanId required' }, { status: 400 })
+  }
   const target = await prisma.weeklyPlan.findFirst({
-    where: Number.isInteger(targetId) ? { id: targetId, userId } : { userId, isActive: true },
+    where: { id: targetId, userId },
     include: { days: true }
   })
   if (!target) return NextResponse.json({ error: 'Not found' }, { status: 404 })
