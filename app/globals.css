@@ -615,7 +615,7 @@ input, textarea { font-family: inherit; color: inherit; }
   /* Every page's arrival wave is entrance only — drop it and the page is simply there. */
   .page > .page-header, .page > .toolbar, .page > .quick-fill, .page > .empty,
   .planner-grid, .planner-grid[data-dir], .auth-arrive > *,
-  .auth-arrive .cl-cardBox { animation: none; }
+  .auth-arrive .cl-cardBox, .auth-skeleton { animation: none; }
   /* The stale week still dims — that's state, not decoration; it just lands instantly. */
   .planner-grid.is-stale { transition-duration: .01ms; }
   /* The recipe page's arrival waves and its hero overscale are pure entrance — drop them and the
@@ -2586,6 +2586,37 @@ input, textarea { font-family: inherit; color: inherit; }
 /* Opacity + a short lift only. The card is a backdrop-filter glass panel — animating anything
    that forces it to re-blur per frame is what made this feel laggy on the iPad. */
 @keyframes auth-card-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* The placeholder Clerk's card replaces — same glass panel, same silhouette, so the swap reads
+   as the form filling in rather than one box being exchanged for another. */
+.auth-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 26px 26px 30px;
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(170%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(170%);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  box-shadow: var(--inset-hi), var(--shadow-glass);
+  animation: auth-card-in .4s cubic-bezier(.16,1,.3,1) backwards;
+}
+.auth-skeleton-btn { height: 40px; border-radius: 12px; }
+.auth-skeleton-field { height: 44px; border-radius: 12px; }
+/* A hairline with a short bar centred on it, standing in for Clerk's "or" rule. */
+.auth-skeleton-divider {
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid var(--hair);
+  margin: 4px 0;
+}
+.auth-skeleton-divider span {
+  height: 10px;
+  width: 34px;
+  border-radius: 5px;
+  transform: translateY(-5px);
+}
 
 /* ── Page arrival ──
    The home page's wave, extended to the working pages so moving between tabs doesn't feel like

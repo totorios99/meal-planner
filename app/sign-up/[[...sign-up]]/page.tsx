@@ -1,22 +1,20 @@
-import { SignUp } from '@clerk/nextjs'
-import { RedirectIfSignedIn } from '@/components/RedirectIfSignedIn'
+import { SignUp, ClerkLoaded, ClerkLoading } from '@clerk/nextjs'
 import { authAppearance } from '@/lib/clerkAppearance'
+import { AuthSkeleton } from '@/components/AuthSkeleton'
 
 export const dynamic = 'force-dynamic'
 
 export default function SignUpPage() {
   return (
-    <>
-    <RedirectIfSignedIn />
     <main className="auth-arrive" style={{ maxWidth: 420, margin: "12vh auto", padding: "0 20px" }}>
       <p className="page-eyebrow">Mise</p>
       <h1 className="page-title">
         Join <em>Mise</em>
       </h1>
       <div className="auth-widget" style={{ marginTop: 24 }}>
-        <SignUp appearance={authAppearance} />
+        <ClerkLoading><AuthSkeleton /></ClerkLoading>
+        <ClerkLoaded><SignUp appearance={authAppearance} /></ClerkLoaded>
       </div>
     </main>
-    </>
   )
 }
