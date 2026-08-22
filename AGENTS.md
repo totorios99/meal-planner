@@ -71,7 +71,11 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 
 - CasaOS runs on the same machine as dev
 - Container name: `mise`, port `3000`, data at `/DATA/AppData/mise/`
-- **Push-to-deploy**: pushing to `main` triggers `.github/workflows/deploy.yml`, which builds and pushes `ghcr.io/totorios99/meal-planner:latest`; the global `watchtower` (polls every 300s, `--label-enable`) pulls the new image and recreates the container. `migrate.js` runs at container start, so DB migrations apply automatically.
+- **Push-to-deploy, gated**: pushing to `main` triggers `.github/workflows/deploy.yml`. The
+  `test` job (lint + typecheck + `npm test`) runs first and `build` declares `needs: test`, so a
+  red suite means no image, which means watchtower has nothing to pull, which means
+  `scripts/migrate.js` never runs against production. PRs run `test` only — `build` is skipped
+  by its `if:`. On green it builds and pushes `ghcr.io/totorios99/meal-planner:latest`; the global `watchtower` (polls every 300s, `--label-enable`) pulls the new image and recreates the container. `migrate.js` runs at container start, so DB migrations apply automatically.
 - Manual deploy: `sudo ./deploy.sh` — pulls the GHCR image and recreates (no local build)
 - The container is labelled `com.centurylinklabs.watchtower.enable=true` in `docker-compose.yml`
 - GHCR package must be pullable by the host (public, or `docker login ghcr.io` on the host)
@@ -206,6 +210,31 @@ JSON-only, not a form target. There is no CSRF token of our own.
 
 - Any implementation plan must include a **security requirements** section naming which of the
   rules above the work touches and how it satisfies them.
+
+## Testing policy
+
+A test is **required** for three kinds of change, and optional everywhere else. Keeping the bar
+here is what keeps the suite small enough to stay green:
+
+1. **Security boundaries** — anything touching `lib/auth.ts`, `lib/adminSecret.ts`, userId
+   scoping, or a route's ownership check. `tests/api/` is where these live.
+2. **Date and timezone math** — the source of the worst bugs in this project's history
+   (the week-boundary shift, the UTC "this week", the plan stranded in an invisible week).
+3. **Macro arithmetic** — a wrong number here is silently wrong on every meal that references
+   the food, forever.
+
+Notes that are easy to get wrong:
+
+- The `api` project needs `DATABASE_URL` pointing inside `.test-db`. Both setup files throw
+  otherwise, because the per-test reset truncates six tables and the repo's `.env` points at
+  the real dev database.
+- `scripts/migrate.js` builds the test schema, not `prisma migrate deploy` — 8 of the 20
+  migrations are JS-only data steps the Prisma CLI skips entirely.
+- `weekStart` is stored at **local** midnight, not UTC. Fixtures must match or every plan
+  lookup misses and silently creates a second plan.
+- The React Compiler lint rules are downgraded to warnings for a named list of pre-existing
+  files in `eslint.config.mjs`. That list is a todo list — delete entries as they are fixed,
+  and do not add to it without a reason worth writing down. New files still fail CI.
 
 ## Design system
 
