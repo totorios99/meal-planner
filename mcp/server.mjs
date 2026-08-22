@@ -304,7 +304,7 @@ const importShape = {
   name: z.string().min(1).describe('Recipe title'),
   description: z.string().optional().describe('One-line summary'),
   image: z.union([z.url(), z.string().regex(/^\/api\/images\//)])
-    .describe('Image URL (required) — a stable /api/images/… path from upload_frame, or an og:image URL. Avoid signed/expiring CDN URLs.'),
+    .describe('Image URL (required) — a stable /api/images/… path from upload_frame, or an http(s) og:image URL. Other schemes are rejected. Avoid signed/expiring CDN URLs.'),
   servings: z.number().int().min(1).optional().describe('Servings the recipe yields (default 1)'),
   prepMinutes: z.number().int().min(0).optional(),
   cookMinutes: z.number().int().min(0).optional(),
