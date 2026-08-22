@@ -121,7 +121,7 @@ export default function FoodsPage() {
       )}
 
       {showModal && (
-        <FoodModal food={editing} onClose={() => setShowModal(false)} onSaved={fetchFoods} />
+        <FoodModal key={editing?.id ?? 'new'} food={editing} onClose={() => setShowModal(false)} onSaved={fetchFoods} />
       )}
     </main>
   )

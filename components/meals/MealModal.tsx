@@ -32,9 +32,28 @@ function toLines(v: string) {
   return v.split('\n').map(s => s.trim()).filter(Boolean)
 }
 
+// Seeded once, from the meal the modal opened on. Callers pass a `key` derived from the meal
+// id, so switching which meal is being edited remounts this component rather than syncing prop
+// into state through an effect — the effect version rendered every open twice, once empty and
+// once filled (react.dev/learn/you-might-not-need-an-effect).
+function seedForm(meal: Meal | null | undefined) {
+  if (!meal) return EMPTY
+  return {
+    title: meal.title,
+    description: meal.description,
+    tag: meal.tag,
+    imageUrl: meal.imageUrl,
+    steps: parseList(meal.steps).join('\n'),
+    stages: stageLines(parseStages(meal.stages)),
+    prepMinutes: meal.prepMinutes ? String(meal.prepMinutes) : '',
+    cookMinutes: meal.cookMinutes ? String(meal.cookMinutes) : '',
+    servings: String(meal.servings),
+  }
+}
+
 export function MealModal({ meal, onClose, onSaved }: Props) {
   const [sheetState, close] = useSheetTransition(onClose)
-  const [form, setForm] = useState(EMPTY)
+  const [form, setForm] = useState(() => seedForm(meal))
   // Seed synchronously: FoodPicker reads its value once on mount, before effects run.
   const [ingredients, setIngredients] = useState<IngredientRef[]>(() => meal ? parseRefs(meal.ingredients) : [])
   const [foods, setFoods] = useState<FoodRow[]>([])
@@ -45,26 +64,6 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
   useEffect(() => {
     fetch('/api/foods').then(r => r.json()).then(setFoods).catch(() => {}).finally(() => setFoodsLoaded(true))
   }, [])
-
-  useEffect(() => {
-    if (meal) {
-      setForm({
-        title: meal.title,
-        description: meal.description,
-        tag: meal.tag,
-        imageUrl: meal.imageUrl,
-        steps: parseList(meal.steps).join('\n'),
-        stages: stageLines(parseStages(meal.stages)),
-        prepMinutes: meal.prepMinutes ? String(meal.prepMinutes) : '',
-        cookMinutes: meal.cookMinutes ? String(meal.cookMinutes) : '',
-        servings: String(meal.servings),
-      })
-      setIngredients(parseRefs(meal.ingredients))
-    } else {
-      setForm(EMPTY)
-      setIngredients([])
-    }
-  }, [meal])
 
   const macros = sumRefs(ingredients, foodsMap(foods))
 
