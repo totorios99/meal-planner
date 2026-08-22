@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireUserId, findOwnedDay } from '@/lib/auth'
+import { requireUserId, findOwnedDay, guarded } from '@/lib/auth'
 
-export async function PATCH(
+export const PATCH = guarded(async (
   request: NextRequest,
   { params }: { params: Promise<{ planId: string; dayId: string }> }
-) {
+) => {
   const userId = await requireUserId(request)
   const { dayId } = await params
   // WeeklyPlanDay has no userId of its own — ownership comes from the plan it cascades from,
@@ -28,4 +28,4 @@ export async function PATCH(
     }
   })
   return NextResponse.json(day)
-}
+})

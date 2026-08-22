@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { mealInput, toMealData, stageRangeIssues } from '@/lib/mealSchema'
 import { macrosForRefs } from '@/lib/foods'
-import { requireUserId } from '@/lib/auth'
+import { requireUserId, guarded } from '@/lib/auth'
 
-export async function GET(request: NextRequest) {
+export const GET = guarded(async (request: NextRequest) => {
   const userId = await requireUserId(request)
   const meals = await prisma.meal.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } })
   return NextResponse.json(meals)
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = guarded(async (request: NextRequest) => {
   const userId = await requireUserId(request)
   const parsed = mealInput.safeParse(await request.json())
   if (!parsed.success) {
@@ -24,4 +24,4 @@ export async function POST(request: NextRequest) {
   const macros = await macrosForRefs(userId, data.ingredients) // cached totals from foods
   const meal = await prisma.meal.create({ data: { userId, ...data, ...macros } })
   return NextResponse.json(meal, { status: 201 })
-}
+})
