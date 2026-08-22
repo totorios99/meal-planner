@@ -12,6 +12,12 @@
 
 # testing
 /coverage
+# throwaway databases the suites build with scripts/migrate.js — never the dev db
+.test-db/
+.e2e-db/
+.e2e/
+test-results/
+playwright-report/
 
 # next.js
 /.next/
