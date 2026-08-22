@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireUserId } from '@/lib/auth'
+import { requireUserId, guarded } from '@/lib/auth'
 import { localDate } from '@/lib/date'
 
-export async function GET(request: NextRequest) {
+export const GET = guarded(async (request: NextRequest) => {
   const userId = await requireUserId(request)
 
   // "Past" used to mean isActive: false, which is only the same thing while the current week is
@@ -36,4 +36,4 @@ export async function GET(request: NextRequest) {
     }
   })
   return NextResponse.json(plans)
-}
+})

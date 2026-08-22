@@ -4,9 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { foodInput, foodToJson, canonicalWarnings } from '@/lib/foodSchema'
 import { recomputeMealCache, findFoodByName } from '@/lib/foods'
 import { parseRefs } from '@/lib/recipe'
-import { requireUserId } from '@/lib/auth'
+import { requireUserId, guarded } from '@/lib/auth'
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = guarded(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const userId = await requireUserId(request)
   const { id } = await params
   const existing = await prisma.food.findFirst({ where: { id: Number(id), userId } })
@@ -53,9 +53,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
     throw e
   }
-}
+})
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = guarded(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const userId = await requireUserId(request)
   const { id } = await params
   const foodId = Number(id)
@@ -80,4 +80,4 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   } catch {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
-}
+})

@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { refSchema } from '@/lib/mealSchema'
-import { requireUserId, findOwnedPlanMeal } from '@/lib/auth'
+import { requireUserId, findOwnedPlanMeal, guarded } from '@/lib/auth'
 
 const putSchema = z.object({ ingredients: z.array(refSchema) })
 const notFound = () => NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-export async function PUT(
+export const PUT = guarded(async (
   request: NextRequest,
   { params }: { params: Promise<{ mealEntryId: string }> }
-) {
+) => {
   const userId = await requireUserId(request)
   const { mealEntryId } = await params
   const owned = await findOwnedPlanMeal(Number(mealEntryId), userId)
@@ -26,16 +26,16 @@ export async function PUT(
     include: { meal: true }
   })
   return NextResponse.json(entry)
-}
+})
 
-export async function DELETE(
+export const DELETE = guarded(async (
   request: NextRequest,
   { params }: { params: Promise<{ mealEntryId: string }> }
-) {
+) => {
   const userId = await requireUserId(request)
   const { mealEntryId } = await params
   const owned = await findOwnedPlanMeal(Number(mealEntryId), userId)
   if (!owned) return notFound()
   await prisma.weeklyPlanMeal.delete({ where: { id: owned.id } })
   return NextResponse.json({ deleted: true })
-}
+})

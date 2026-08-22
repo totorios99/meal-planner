@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { stageLabel } from '@/lib/recipe'
 import { importSchema } from '@/lib/mealSchema'
 import { importIngredientsToRefs } from '@/lib/foods'
-import { requireAdmin, adminOwnerId, unauthorizedResponse } from '@/lib/auth'
+import { requireAdmin, adminOwnerId, unauthorizedResponse, guarded } from '@/lib/auth'
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit'
 
 // One stage per step, no timer, no ingredient span: the chart degrades to a plain ladder, which
@@ -22,7 +22,7 @@ function ladderFromSteps(steps: string[]) {
 
 const IMPORTS_PER_MINUTE = 10
 
-export async function POST(request: NextRequest) {
+export const POST = guarded(async (request: NextRequest) => {
   // Agents have no Clerk session; this route authenticates on the x-mise-admin-secret header
   // alone (never a query param, never a browser cookie) and imports on the owner's behalf.
   // Unset secret = import disabled, never open.
@@ -99,4 +99,4 @@ export async function POST(request: NextRequest) {
 
   // Warnings, not errors: the meal is saved, but the agent needs to know a unit was reinterpreted.
   return NextResponse.json(all.length > 0 ? { ...meal, warnings: all } : meal, { status: 201 })
-}
+})

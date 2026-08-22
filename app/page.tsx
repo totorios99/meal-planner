@@ -415,6 +415,7 @@ export default function HomePage() {
       {/* Modals */}
       {(showNewMeal || editingMeal) && (
         <MealModal
+          key={editingMeal?.id ?? 'new'}
           meal={editingMeal}
           onClose={() => { setShowNewMeal(false); setEditingMeal(null) }}
           onSaved={fetchAll}

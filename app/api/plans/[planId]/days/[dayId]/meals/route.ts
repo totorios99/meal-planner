@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { parseRefs, foodsMap, resolvePlaceholders } from '@/lib/recipe'
-import { requireUserId, findOwnedDay } from '@/lib/auth'
+import { requireUserId, findOwnedDay, guarded } from '@/lib/auth'
 
-export async function POST(
+export const POST = guarded(async (
   request: NextRequest,
   { params }: { params: Promise<{ planId: string; dayId: string }> }
-) {
+) => {
   const userId = await requireUserId(request)
   const { dayId } = await params
   const day = await findOwnedDay(Number(dayId), userId)
@@ -37,4 +37,4 @@ export async function POST(
     name => `This meal uses a placeholder for "${name}" — an empty ingredient slot was added at the end for you to fill in`
   )
   return NextResponse.json({ ...entry, ...(warnings.length ? { warnings } : {}) }, { status: 201 })
-}
+})

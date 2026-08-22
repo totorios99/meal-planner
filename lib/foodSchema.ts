@@ -36,8 +36,9 @@ export const foodInput = z.object({
   nutrients: z.array(nutrientEntryInput).default([]).superRefine((arr, ctx) => {
     const seen = new Set<string>()
     for (const n of arr) {
-      // A label made entirely of non-alphanumeric characters (e.g. "%DV") slugifies to '' —
-      // reject it here rather than saving a key that parseNutrients would silently drop later.
+      // A label made entirely of non-alphanumeric characters (e.g. "%", "---") slugifies to
+      // '' — reject it here rather than saving a key that parseNutrients would silently drop
+      // later. Note "%DV" is NOT such a label: it keys as `dv`, since D and V survive.
       if (!n.key) {
         ctx.addIssue({ code: 'custom', message: `"${n.label}" needs at least one letter or number` })
       } else if (seen.has(n.key)) {

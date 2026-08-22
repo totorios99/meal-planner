@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireUserId } from '@/lib/auth'
+import { requireUserId, guarded } from '@/lib/auth'
 
-export async function POST(request: NextRequest) {
+export const POST = guarded(async (request: NextRequest) => {
   const userId = await requireUserId(request)
   const entries: { id: number; slotIndex: number }[] = await request.json()
   // updateMany rather than update: the ownership filter rides along in the same statement, so
@@ -17,4 +17,4 @@ export async function POST(request: NextRequest) {
     )
   )
   return NextResponse.json({ ok: true })
-}
+})

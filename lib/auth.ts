@@ -95,6 +95,34 @@ export async function findOwnedPlanMeal(mealEntryId: number, userId: string) {
   return entry ?? null
 }
 
+/**
+ * Wraps a route handler so an `Unauthorized` thrown anywhere inside it becomes a 401 instead
+ * of an uncaught throw, which Next renders as a 500.
+ *
+ * Every handler calls `requireUserId` and only two used to catch what it throws, so a
+ * signed-out request answered 500 on most of the API. `proxy.ts` masks that in production by
+ * rejecting `/api/*` first — but it is optimistic by design, and its own comment records that
+ * Clerk's middleware detection fails intermittently, which is exactly when a handler runs
+ * without a session. A 500 there also leaks a stack trace on a path an unauthenticated caller
+ * controls, and tells the client nothing about signing in again.
+ *
+ * Applied at the export so the handler body stays a plain function:
+ *   export const GET = guarded(async (request: NextRequest) => { … })
+ */
+export function guarded<A extends unknown[]>(
+  handler: (...args: A) => Promise<Response>
+): (...args: A) => Promise<Response> {
+  return async (...args: A) => {
+    try {
+      return await handler(...args)
+    } catch (err) {
+      const res = unauthorizedResponse(err)
+      if (res) return res
+      throw err
+    }
+  }
+}
+
 /** Turn an Unauthorized into a 401 JSON response; rethrow anything else. */
 export function unauthorizedResponse(err: unknown): Response | null {
   if (err instanceof Unauthorized) {
