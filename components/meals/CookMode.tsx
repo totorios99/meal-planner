@@ -496,8 +496,9 @@ export function CookMode({ stages, ingredients, servings: baseServings, hero, he
                     <button
                       key={i}
                       type="button"
-                      className={`cook-band-stage${st.meanwhile ? ' is-side' : ''}${open ? ' is-open' : ''}${companion ? ' is-toggle' : ''}`}
+                      className={`cook-band-stage${st.meanwhile ? ' is-side' : ''}${open ? ' is-open' : ''}${companion ? ' is-toggle t-acc' : ''}`}
                       aria-expanded={companion ? openCard === i : undefined}
+                      data-open={companion ? String(openCard === i) : undefined}
                       // Tapping the stage already on the heat must not re-arm its timer.
                       onClick={() => {
                         if (companion) setOpenCard(c => (c === i ? -1 : i))
@@ -507,14 +508,34 @@ export function CookMode({ stages, ingredients, servings: baseServings, hero, he
                       {st.meanwhile && <span className="cook-stage-kicker">Meanwhile</span>}
                       <span className="cook-band-name">{st.name}</span>
                       {st.timing && <span className="cook-band-timing">{st.timing}</span>}
-                      {mine.length > 0 && (
-                        <ul className="cook-tl-chips">
-                          {mine.map((r, j) => (
-                            <li key={j}><b>{r.qty}</b> {r.name}</li>
-                          ))}
-                        </ul>
+                      {/* A companion's body grows and shrinks instead of being
+                          display:none'd out of existence — HOW opened a block of
+                          text in one frame and the step jumped under the thumb. */}
+                      {companion ? (
+                        <div className="t-acc-panel">
+                          <div className="t-acc-panel-inner">
+                            {mine.length > 0 && (
+                              <ul className="cook-tl-chips">
+                                {mine.map((r, j) => (
+                                  <li key={j}><b>{r.qty}</b> {r.name}</li>
+                                ))}
+                              </ul>
+                            )}
+                            {st.detail && <p className="cook-band-detail">{st.detail}</p>}
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {mine.length > 0 && (
+                            <ul className="cook-tl-chips">
+                              {mine.map((r, j) => (
+                                <li key={j}><b>{r.qty}</b> {r.name}</li>
+                              ))}
+                            </ul>
+                          )}
+                          {st.detail && <p className="cook-band-detail">{st.detail}</p>}
+                        </>
                       )}
-                      {st.detail && <p className="cook-band-detail">{st.detail}</p>}
                       {companion && (
                         <span className="cook-band-more">{openCard === i ? 'Less' : 'How'}</span>
                       )}

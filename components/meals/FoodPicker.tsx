@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { Icon } from '@/components/Icon'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { Select } from '@/components/ui/Select'
 import { foodsMap, refMacros, sumRefs, type IngredientRef, type Macros } from '@/lib/recipe'
 import type { FoodRow } from '@/types'
@@ -112,14 +113,18 @@ export function FoodPicker({ value, foods, onChange, onValidChange }: Props) {
               disabled={!r.foodId}
               options={opts.length === 0 ? [{ value: '', label: '—' }] : opts.map(u => ({ value: u, label: u }))}
             />
-            <span className="fp-macros" title={duplicate ? 'Already in this list' : unmatched ? 'No such food — add it in the Foods section first' : 'Derived from the food — edit in Foods'}>
-              {r.foodId
-                ? `${Math.round(m.calories)} kcal · ${Math.round(m.protein)}P ${Math.round(m.carbs)}C ${Math.round(m.fats)}F`
-                : duplicate ? 'already added' : unmatched ? 'not in Foods' : 'pick a food'}
-            </span>
-            <button type="button" className="ing-del" title="Remove" onClick={() => commit(rows.filter((_, i) => i !== idx))}>
-              <Icon name="x" size={11} />
-            </button>
+            <Tooltip label={duplicate ? 'Already in this list' : unmatched ? 'No such food — add it in the Foods section first' : 'Derived from the food — edit in Foods'}>
+              <span className="fp-macros">
+                {r.foodId
+                  ? `${Math.round(m.calories)} kcal · ${Math.round(m.protein)}P ${Math.round(m.carbs)}C ${Math.round(m.fats)}F`
+                  : duplicate ? 'already added' : unmatched ? 'not in Foods' : 'pick a food'}
+              </span>
+            </Tooltip>
+            <Tooltip label="Remove">
+              <button type="button" className="ing-del" aria-label="Remove" onClick={() => commit(rows.filter((_, i) => i !== idx))}>
+                <Icon name="x" size={11} />
+              </button>
+            </Tooltip>
           </div>
         )
       })}

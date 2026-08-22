@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { FoodRow } from '@/types'
 import { FoodModal } from '@/components/foods/FoodModal'
 import { Icon } from '@/components/Icon'
+import { Tooltip } from '@/components/ui/Tooltip'
+import { SearchField } from '@/components/ui/SearchField'
 import { coreMacros, pieceMeasure } from '@/lib/recipe'
 
 export default function FoodsPage() {
@@ -55,11 +57,7 @@ export default function FoodsPage() {
       </div>
 
       <div className="toolbar">
-        <div className="search">
-          <Icon name="search" size={16} className="search-icon" />
-          <input type="search" aria-label="Search foods" value={q}
-            onChange={e => setQ(e.target.value)} placeholder="Search foods…" />
-        </div>
+        <SearchField value={q} onChange={setQ} label="Search foods" placeholder="Search foods…" />
       </div>
 
       {foods === null ? (
@@ -97,7 +95,9 @@ export default function FoodsPage() {
                 {(f.isPlaceholder || extraCount > 0 || f.measures.length > 0) && (
                   <div className="food-row-badges">
                     {f.isPlaceholder && (
-                      <span className="food-row-measures" title="Contributes 0 to macros — a stand-in the user fills in when planning">placeholder</span>
+                      <Tooltip label="Contributes 0 to macros — a stand-in you fill in when planning">
+                        <span className="food-row-measures">placeholder</span>
+                      </Tooltip>
                     )}
                     {extraCount > 0 && (
                       <span className="food-row-measures">+{extraCount} more nutrient{extraCount === 1 ? '' : 's'}</span>
@@ -108,10 +108,12 @@ export default function FoodsPage() {
                   </div>
                 )}
               </div>
-              <span className="food-row-del" role="button" title="Delete"
-                onClick={e => { e.stopPropagation(); handleDelete(f) }}>
-                <Icon name="trash" size={14} />
-              </span>
+              <Tooltip label="Delete">
+                <span className="food-row-del" role="button" aria-label="Delete"
+                  onClick={e => { e.stopPropagation(); handleDelete(f) }}>
+                  <Icon name="trash" size={14} />
+                </span>
+              </Tooltip>
             </button>
             )
           })}

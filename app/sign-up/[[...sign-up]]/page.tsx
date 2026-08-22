@@ -1,6 +1,6 @@
-import { SignUp, ClerkLoaded, ClerkLoading } from '@clerk/nextjs'
+import { SignUp, ClerkLoaded } from '@clerk/nextjs'
 import { authAppearance } from '@/lib/clerkAppearance'
-import { AuthSkeleton } from '@/components/AuthSkeleton'
+import { AuthReveal } from '@/components/AuthSkeleton'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,10 +11,9 @@ export default function SignUpPage() {
       <h1 className="page-title">
         Join <em>Mise</em>
       </h1>
-      <div className="auth-widget" style={{ marginTop: 24 }}>
-        <ClerkLoading><AuthSkeleton /></ClerkLoading>
+      <AuthReveal>
         <ClerkLoaded><SignUp appearance={authAppearance} /></ClerkLoaded>
-      </div>
+      </AuthReveal>
     </main>
   )
 }

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { LearnArrow } from '@/components/LearnArrow'
 import { prisma } from '@/lib/prisma'
 import { PrintButton } from '@/components/print/PrintButton'
 import { parseRefs, sumRefs, foodsMap, hasUnfilledIngredient, formatQuantityWithUnit } from '@/lib/recipe'
@@ -53,7 +54,9 @@ export default async function PrintPage({
     return (
       <main className="print-shell">
         <div className="print-paper" style={{ padding: '48px', textAlign: 'center', color: 'var(--ink-3)' }}>
-          Nothing planned for this week. <Link href="/planner" style={{ color: 'var(--accent-ink)' }}>Go to planner →</Link>
+          Nothing planned for this week. <Link href="/planner" className="t-learn" style={{ color: 'var(--accent-ink)', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+            Go to planner <LearnArrow size={13} />
+          </Link>
         </div>
       </main>
     )

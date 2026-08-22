@@ -5,6 +5,7 @@ import { Meal } from '@/types'
 import { MealGrid, MealGridSkeleton } from '@/components/meals/MealGrid'
 import { MealModal } from '@/components/meals/MealModal'
 import { Icon } from '@/components/Icon'
+import { SearchField } from '@/components/ui/SearchField'
 
 // Module-level cache: back-navigation renders the grid synchronously so the
 // browser can restore the scroll position (an empty page has no height to
@@ -148,16 +149,12 @@ function Cookbook() {
 
       {/* Search + filter toolbar */}
       <div className="toolbar">
-        <div className="search">
-          <Icon name="search" size={16} className="search-icon" />
-          <input
-            type="search"
-            aria-label="Search meals, ingredients, tags"
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            placeholder="Search meals, ingredients, tags…"
-          />
-        </div>
+        <SearchField
+          value={q}
+          onChange={setQ}
+          label="Search meals, ingredients, tags"
+          placeholder="Search meals, ingredients, tags…"
+        />
         <div className="chips">
           {['All', ...CATEGORIES].map(c => (
             <button

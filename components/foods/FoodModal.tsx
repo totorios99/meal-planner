@@ -1,6 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useSheetTransition } from '@/lib/useExitTransition'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { Icon } from '@/components/Icon'
 import { CANONICAL_NUTRIENTS, pieceMeasure } from '@/lib/recipe'
 import type { FoodRow } from '@/types'
@@ -46,13 +48,29 @@ function seedRows(food?: FoodRow | null): NutrientRow[] {
 const EMPTY = { name: '', baseUnit: '', isPlaceholder: false }
 
 export function FoodModal({ food, onClose, onSaved }: Props) {
+  const [sheetState, close] = useSheetTransition(onClose)
   const [form, setForm] = useState(EMPTY)
   const [nutrients, setNutrients] = useState<NutrientRow[]>(() => seedRows(food))
   const [measures, setMeasures] = useState<MeasureRow[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The only error this endpoint returns is a name clash, so the name field is
+  // what should say so. The nonce replays the shake on a repeat attempt.
+  const [shake, setShake] = useState(0)
+  const nameRef = useRef<HTMLInputElement>(null)
   const [warnings, setWarnings] = useState<string[]>([])
   const scale = scaleFor(food)
+
+  // Remove → reflow → re-add, so a second failed save shakes again.
+  useEffect(() => {
+    const el = nameRef.current
+    if (!shake || !el) return
+    el.classList.remove('is-shaking')
+    void el.offsetWidth
+    el.classList.add('is-shaking')
+    const t = setTimeout(() => el.classList.remove('is-shaking'), 400)
+    return () => clearTimeout(t)
+  }, [shake])
 
   useEffect(() => {
     setForm(food ? { name: food.name, baseUnit: food.baseUnit, isPlaceholder: food.isPlaceholder } : EMPTY)
@@ -62,10 +80,10 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
   }, [food])
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') close() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [close])
 
   function set(field: 'name' | 'baseUnit', value: string) {
     setForm(f => ({ ...f, [field]: value }))
@@ -91,10 +109,12 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
           <input placeholder={locked ? r.unit : 'mg'} value={r.unit}
             onChange={e => setRow(idx, { unit: e.target.value })} />
           {!locked && (
-            <button type="button" className="ing-del" title="Remove"
-              onClick={() => setNutrients(rows => rows.filter((_, i) => i !== idx))}>
-              <Icon name="x" size={11} />
-            </button>
+            <Tooltip label="Remove">
+              <button type="button" className="ing-del" aria-label="Remove"
+                onClick={() => setNutrients(rows => rows.filter((_, i) => i !== idx))}>
+                <Icon name="x" size={11} />
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -129,6 +149,7 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
     if (!res.ok) {
       const b = await res.json().catch(() => null)
       setError(typeof b?.error === 'string' ? b.error : 'Could not save food')
+      setShake(n => n + 1)
       return
     }
     const saved = await res.json().catch(() => null)
@@ -140,23 +161,26 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
       setWarnings(saved.warnings)
       return
     }
-    onClose()
+    close()
   }
 
   return createPortal(
-    <div className="sheet-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="sheet">
+    <div className={`sheet-backdrop ${sheetState}`} onClick={e => { if (e.target === e.currentTarget) close() }}>
+      <div className={`sheet t-modal ${sheetState}`}>
         <div className="sheet-head">
           <h2 className="sheet-title">{food ? 'Edit food' : 'New food'}</h2>
-          <button className="icon-btn" onClick={onClose} title="Close"><Icon name="x" size={16} /></button>
+          <Tooltip label="Close">
+            <button className="icon-btn" onClick={close} aria-label="Close"><Icon name="x" size={16} /></button>
+          </Tooltip>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="sheet-body">
             <div className="field-grid-2">
-              <div className="field" style={{ marginBottom: 0 }}>
+              <div className={`field t-input-wrap${error ? ' is-error' : ''}`} style={{ marginBottom: 0 }}>
                 <label htmlFor="food-name">Name</label>
                 <input id="food-name" required placeholder="e.g. Brown rice"
-                  value={form.name} onChange={e => set('name', e.target.value)} />
+                  ref={nameRef} className={`t-input${error ? ' is-error' : ''}`}
+                  value={form.name} onChange={e => { set('name', e.target.value); setError(null) }} />
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
                 <label htmlFor="food-base">Base unit</label>
@@ -195,10 +219,12 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
                   <input type="number" min="0" step="any" placeholder="185" value={m.perBase}
                     onChange={e => setMeasures(ms => ms.map((x, j) => j === i ? { ...x, perBase: e.target.value } : x))} />
                   <span className="measure-unit">{form.baseUnit || 'unit'}</span>
-                  <button type="button" className="ing-del" title="Remove"
-                    onClick={() => setMeasures(ms => ms.filter((_, j) => j !== i))}>
-                    <Icon name="x" size={11} />
-                  </button>
+                  <Tooltip label="Remove">
+                    <button type="button" className="ing-del" aria-label="Remove"
+                      onClick={() => setMeasures(ms => ms.filter((_, j) => j !== i))}>
+                      <Icon name="x" size={11} />
+                    </button>
+                  </Tooltip>
                 </div>
               ))}
               <button type="button" className="ing-add" style={{ marginTop: 6 }}
@@ -210,13 +236,13 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
             {warnings.length > 0 && (
               <p style={{ color: 'var(--warning, #b8860b)', fontSize: 13, marginTop: 12 }}>
                 Saved, but: {warnings.join('; ')}. <button type="button" className="btn btn-ghost btn-sm"
-                  onClick={onClose}>Dismiss</button>
+                  onClick={close}>Dismiss</button>
               </p>
             )}
             {error && <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 12 }}>{error}</p>}
           </div>
           <div className="sheet-foot">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-ghost" onClick={close}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving…' : food ? 'Save changes' : 'Add food'}
             </button>
