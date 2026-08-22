@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { imageDir } from '@/lib/images'
-import { requireUserId, unauthorizedResponse } from '@/lib/auth'
+import { requireUserId, unauthorizedResponse, guarded } from '@/lib/auth'
 
 // ponytail: images are stored flat under one random filename, not per user, so any signed-in
 // user who knows a name can fetch it. Names are unguessable in practice (4 random bytes).
 // Give the file an owner if images ever become sensitive.
-export async function GET(request: NextRequest, { params }: { params: Promise<{ name: string }> }) {
+export const GET = guarded(async (request: NextRequest, { params }: { params: Promise<{ name: string }> }) => {
   // Authorization happens next to the data, not in proxy.ts. This route used to be the one
   // exception in the app — its only gate was the optimistic proxy check, which the Next docs
   // (and AGENTS.md rule 6) say is not a security boundary.
@@ -38,4 +38,4 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   } catch {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
-}
+})

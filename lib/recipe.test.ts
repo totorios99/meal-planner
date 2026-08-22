@@ -2,11 +2,12 @@
 import { it } from 'vitest'
 import assert from 'node:assert'
 import {
+  formatQuantity, pieceMeasure, parseMeasures, resolvePlaceholders, hasUnfilledIngredient,
   parseRefs, parseNutrients, refMacros, refNutrients, measureFactor, sumRefs, sumNutrients,
   nutrientsForRefs, coreMacros, foodsMap, formatIngredientLine, sumEntries,
   parseStages, parseStageLines, stageLines, convertUnit, slotCount, slotSeconds, slotOfIngredient,
   stageLabel,
-  type Food, type NutrientEntry,
+  type Food, type NutrientEntry, type IngredientRef,
 } from './recipe.ts'
 import { localDate, toDateParam } from './date.ts'
 import { stageRangeIssues } from './mealSchema.ts'
@@ -282,4 +283,118 @@ it('Stage ranges index the ingredient list they were authored against, so an age
   assert.strictEqual(stageRangeIssues([{ name: 'Bad', from: 0, to: 5 }], 2).length, 1)
   assert.match(stageRangeIssues([{ name: 'Bad', from: 0, to: 5 }], 2)[0], /claims ingredient 5 but only 2/)
   assert.strictEqual(stageRangeIssues([{ name: 'A', from: 0, to: 9 }, { name: 'B', from: 0, to: 1 }], 3).length, 1)
+})
+
+// ── Quantity display: the fraction snapping ──────────────────────────────────
+// Display only — macro math always uses the raw stored number. The risk here is a quantity
+// that reads plausibly but wrong (a "1/3 cup" that is really 0.4).
+
+it('renders precision units as plain decimals, never fractions', () => {
+  // Nobody measures "1/3 g", so the metric/imperial units opt out of snapping entirely.
+  assert.strictEqual(formatQuantity(150, 'g'), '150')
+  assert.strictEqual(formatQuantity(0.5, 'g'), '0.5', 'a half gram is 0.5, not 1/2')
+  assert.strictEqual(formatQuantity(1.333, 'ml'), '1.33', 'rounded to two places')
+  assert.strictEqual(formatQuantity(2.5, 'OZ'), '2.5', 'unit match is case-insensitive')
+  assert.strictEqual(formatQuantity(2.5, ' lb '), '2.5', 'and whitespace-insensitive')
+})
+
+it('snaps a cooking quantity to the nearest common fraction', () => {
+  assert.strictEqual(formatQuantity(0.5, 'cup'), '1/2')
+  assert.strictEqual(formatQuantity(0.25, 'cup'), '1/4')
+  assert.strictEqual(formatQuantity(1 / 3, 'cup'), '1/3')
+  assert.strictEqual(formatQuantity(1.5, 'cup'), '1 1/2', 'whole and fraction together')
+  assert.strictEqual(formatQuantity(2.75, 'tbsp'), '2 3/4')
+})
+
+it('only snaps within tolerance, and falls back to a decimal outside it', () => {
+  // The tolerance is 0.02. Just inside it a quantity reads as the tidy fraction; just outside
+  // it must NOT, or 0.4 of a cup would be served to the user as "1/3".
+  assert.strictEqual(formatQuantity(0.34, 'cup'), '1/3', 'within tolerance of 0.333…')
+  assert.strictEqual(formatQuantity(0.4, 'cup'), '0.4', 'outside tolerance — stays a decimal')
+  assert.strictEqual(formatQuantity(0.45, 'cup'), '0.45')
+  assert.strictEqual(formatQuantity(1.01, 'cup'), '1', 'a hair over a whole number is that whole number')
+})
+
+it('never renders a zero or negative quantity as a fraction', () => {
+  assert.strictEqual(formatQuantity(0, 'cup'), '0')
+  assert.strictEqual(formatQuantity(-1, 'cup'), '0', 'a negative quantity is not a portion')
+  assert.strictEqual(formatQuantity(NaN, 'cup'), '0', 'NaN must not reach the page as "NaN"')
+})
+
+// ── pieceMeasure: which unit a food is counted in ────────────────────────────
+
+it('counts a food in its own unit when that unit is not a weight', () => {
+  // "egg" is already a countable thing — it needs no conversion and no "100g" fallback.
+  assert.deepStrictEqual(pieceMeasure('egg', []), { factor: 1, label: 'egg', display: 'egg' })
+})
+
+it('prefers a named piece measure over the 100g fallback, and spells out its size', () => {
+  // A named piece ("cookie") doesn't state its own weight the way "100g" does, so the display
+  // has to — otherwise the card says "cookie" and the user cannot tell how big one is.
+  const p = pieceMeasure('g', [{ unit: 'cookie', perBase: 12 }])
+  assert.strictEqual(p.factor, 12)
+  assert.strictEqual(p.label, 'cookie')
+  assert.strictEqual(p.display, '12 g cookie')
+})
+
+it('skips weight/volume measures when hunting for a piece', () => {
+  // A cup is not a piece — it is another way of measuring the same weight.
+  const p = pieceMeasure('g', [{ unit: 'cup', perBase: 185 }])
+  assert.strictEqual(p.factor, 100, 'no piece found, so the 100g fallback')
+  assert.strictEqual(p.label, '100g')
+
+  const mixed = pieceMeasure('g', [{ unit: 'cup', perBase: 185 }, { unit: 'slice', perBase: 30 }])
+  assert.strictEqual(mixed.label, 'slice', 'the piece wins over the cup')
+})
+
+it('falls back to 100 of the base unit, naming the unit it actually has', () => {
+  assert.strictEqual(pieceMeasure('g', []).label, '100g')
+  assert.strictEqual(pieceMeasure('ml', []).label, '100ml')
+  assert.strictEqual(pieceMeasure('', []).label, '100g', 'an unset base unit is assumed to be grams')
+})
+
+// ── Placeholders: the "you still have to decide" ingredients ─────────────────
+
+it('turns a placeholder food into a blank slot the planner can fill', () => {
+  // A placeholder ("vegetables") is a stand-in the user resolves when planning. It must not
+  // contribute macros, and it must leave a row behind — dropping it silently would lose the
+  // reminder that something still has to be chosen.
+  const veg: Food = { id: 9, name: 'Vegetables', baseUnit: 'g', nutrients: [], measures: [], isPlaceholder: true }
+  const foods = new Map<number, Food>([[1, rice], [9, veg]])
+  const refs: IngredientRef[] = [
+    { foodId: 1, quantity: 100, measure: 'g' },
+    { foodId: 9, quantity: 200, measure: 'g' },
+  ]
+
+  const { refs: out, placeholderNames } = resolvePlaceholders(refs, foods)
+  assert.deepStrictEqual(placeholderNames, ['Vegetables'])
+  assert.strictEqual(out.length, 2, 'one real ref plus one blank — the row survives')
+  assert.strictEqual(out[0].foodId, 1, 'real ingredients keep their place, first')
+  assert.deepStrictEqual(out[1], { foodId: 0, quantity: 0, measure: '' }, 'the placeholder becomes an empty slot')
+})
+
+it('reports a meal as unfilled while any ref is blank or a placeholder', () => {
+  // This drives the warning badge on a planned meal.
+  const veg: Food = { id: 9, name: 'Vegetables', baseUnit: 'g', nutrients: [], measures: [], isPlaceholder: true }
+  const foods = new Map<number, Food>([[1, rice], [9, veg]])
+
+  assert.strictEqual(hasUnfilledIngredient([{ foodId: 1, quantity: 100, measure: 'g' }], foods), false)
+  assert.strictEqual(hasUnfilledIngredient([{ foodId: 9, quantity: 1, measure: 'g' }], foods), true,
+    'a placeholder is unfilled')
+  assert.strictEqual(hasUnfilledIngredient([{ foodId: 0, quantity: 0, measure: '' }], foods), true,
+    'a blank slot is unfilled')
+  assert.strictEqual(hasUnfilledIngredient([{ foodId: 404, quantity: 1, measure: 'g' }], foods), true,
+    'a ref to a deleted food is unfilled, not silently zero')
+  assert.strictEqual(hasUnfilledIngredient([], foods), false, 'a meal with no ingredients is not "unfilled"')
+})
+
+// ── parseMeasures: the JSON column guard ─────────────────────────────────────
+
+it('drops measures that could not be selected or converted', () => {
+  assert.deepStrictEqual(parseMeasures('[{"unit":"cup","perBase":185}]'), [{ unit: 'cup', perBase: 185 }])
+  assert.deepStrictEqual(parseMeasures('[{"unit":"","perBase":185}]'), [], 'a measure with no unit is unusable')
+  assert.deepStrictEqual(parseMeasures('[{"unit":"cup","perBase":0}]'), [], 'perBase 0 would divide by zero')
+  assert.deepStrictEqual(parseMeasures('[{"unit":"cup","perBase":-1}]'), [])
+  assert.deepStrictEqual(parseMeasures('not json'), [], 'a corrupt column reads as no measures')
+  assert.deepStrictEqual(parseMeasures('{}'), [], 'an object where an array belongs reads as none')
 })

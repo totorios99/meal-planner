@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireUserId } from '@/lib/auth'
+import { requireUserId, guarded } from '@/lib/auth'
 
-export async function POST(
+export const POST = guarded(async (
   request: NextRequest,
   { params }: { params: Promise<{ planId: string }> }
-) {
+) => {
   const userId = await requireUserId(request)
   const { planId } = await params
 
@@ -63,4 +63,4 @@ export async function POST(
   })
 
   return NextResponse.json({ cloned: true })
-}
+})

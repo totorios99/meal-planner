@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { settingsPatch } from '@/lib/settings'
 import { getSettings, saveSettings } from '@/lib/settings.server'
-import { optionalUserId } from '@/lib/auth'
+import { guarded, optionalUserId } from '@/lib/auth'
 
 // `request` is threaded into getSettings/saveSettings so a caller holding the admin secret rather
 // than a Clerk session resolves to the owner. Without it, GET quietly answered with DEFAULTS
@@ -13,16 +13,18 @@ import { optionalUserId } from '@/lib/auth'
 // Answering 200 with defaults told the client those defaults WERE the user's preferences, and it
 // applied them: a Sunday-start week became Monday, and the planner created the wrong week. An
 // error the client can see leaves the last known values alone.
-export async function GET(request: NextRequest) {
+export const GET = guarded(async (request: NextRequest) => {
   const userId = await optionalUserId(request)
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   return NextResponse.json(await getSettings(request))
-}
+})
 
-export async function PATCH(request: NextRequest) {
+// saveSettings calls requireUserId internally, so the Unauthorized surfaces here rather than
+// from a call in this file — guarded() catches it either way.
+export const PATCH = guarded(async (request: NextRequest) => {
   const parsed = settingsPatch.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues }, { status: 400 })
   }
   return NextResponse.json(await saveSettings(parsed.data, request))
-}
+})

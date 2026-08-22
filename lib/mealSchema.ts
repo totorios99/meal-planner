@@ -87,8 +87,13 @@ export const importIngredient = z.object({
 export const importSchema = z.object({
   name: z.string().trim().min(1),
   description: z.string().default(''),
-  image: z.union([z.url(), z.string().regex(/^\/api\/images\//)], {
-    error: 'image is required — a valid URL or /api/images/… path to the recipe photo',
+  // `protocol` matters: a bare z.url() accepts ANY scheme, so `javascript:alert(1)`,
+  // `data:text/html,…` and `file:///etc/passwd` all validated as "a valid URL" and were
+  // written straight into the meal's imageUrl. None of them execute in an <img src>, but
+  // none of them are a photo either, and the next place this string gets rendered might
+  // not be an <img>. An image lives at http(s) or under /api/images/.
+  image: z.union([z.url({ protocol: /^https?$/ }), z.string().regex(/^\/api\/images\//)], {
+    error: 'image is required — an http(s) URL or /api/images/… path to the recipe photo',
   }),
   servings: z.number().int().min(1).default(1),
   prepMinutes: z.number().int().min(0).default(0),

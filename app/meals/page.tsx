@@ -206,6 +206,7 @@ function Cookbook() {
       {/* Modal */}
       {showModal && (
         <MealModal
+          key={editingMeal?.id ?? 'new'}
           meal={editingMeal}
           onClose={closeModal}
           onSaved={fetchMeals}

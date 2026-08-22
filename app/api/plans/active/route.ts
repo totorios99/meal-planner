@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireUserId } from '@/lib/auth'
+import { requireUserId, guarded } from '@/lib/auth'
+import { getSettings } from '@/lib/settings.server'
 
-function getThisMonday(): Date {
+/**
+ * Fallback for a caller that sent no `?weekStart`.
+ *
+ * Two things were wrong with the Monday-hardcoded version this replaces. It ignored
+ * `weekStartsOn` entirely, so a Sunday-start user did not merely *see* the wrong week — this
+ * route creates the week it decides on, so it persisted one. And it still reads the server
+ * clock, which in the container is UTC.
+ *
+ * The timezone half cannot be fixed here: only the browser knows the user's local date, which
+ * is why AGENTS.md says to always pass `weekStart` as a query param and treat this as a
+ * fallback to avoid triggering. The preference half is fixable, and is.
+ */
+function weekStartFromServerClock(weekStartsOn: 0 | 1): Date {
   const d = new Date()
   const day = d.getDay()
-  const diff = day === 0 ? -6 : 1 - day
+  const diff = day < weekStartsOn ? -7 + weekStartsOn - day : weekStartsOn - day
   d.setDate(d.getDate() + diff)
   d.setHours(0, 0, 0, 0)
   return d
@@ -28,10 +41,12 @@ const planInclude = {
   }
 }
 
-export async function GET(request: NextRequest) {
+export const GET = guarded(async (request: NextRequest) => {
   const userId = await requireUserId(request)
   const weekParam = request.nextUrl.searchParams.get('weekStart')
-  const weekStart = weekParam ? parseLocalDate(weekParam) : getThisMonday()
+  const weekStart = weekParam
+    ? parseLocalDate(weekParam)
+    : weekStartFromServerClock((await getSettings(request)).weekStartsOn)
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekEnd.getDate() + 1)
 
@@ -69,4 +84,4 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json(plan)
-}
+})

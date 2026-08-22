@@ -3,10 +3,10 @@ import { Prisma } from '@/app/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { foodInput, toFoodData, foodToJson, canonicalWarnings } from '@/lib/foodSchema'
 import { findFoodByName } from '@/lib/foods'
-import { requireUserId } from '@/lib/auth'
+import { requireUserId, guarded } from '@/lib/auth'
 
 // Foods source of truth — the only place nutrients are authored.
-export async function GET(request: NextRequest) {
+export const GET = guarded(async (request: NextRequest) => {
   const userId = await requireUserId(request)
   const search = request.nextUrl.searchParams.get('search')?.trim()
   const foods = await prisma.food.findMany({
@@ -14,9 +14,9 @@ export async function GET(request: NextRequest) {
     orderBy: { name: 'asc' },
   })
   return NextResponse.json(foods.map(foodToJson))
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = guarded(async (request: NextRequest) => {
   const userId = await requireUserId(request)
   const parsed = foodInput.safeParse(await request.json())
   if (!parsed.success) {
@@ -35,4 +35,4 @@ export async function POST(request: NextRequest) {
     }
     throw e
   }
-}
+})

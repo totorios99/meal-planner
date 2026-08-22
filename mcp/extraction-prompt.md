@@ -33,6 +33,8 @@ PHOTO CAROUSEL LINKS (TikTok URLs containing `/photo/`, not `/video/`):
 IMAGE:
 - Mandatory. Use the recipe's main photo: og:image / recipe schema image /
   oEmbed thumbnail / the best food shot available
+- Must be an `http(s)://` URL or an `/api/images/…` path — any other scheme
+  is rejected by the import schema
 - No image obtainable → treat as unextractable and return {}
 - Prefer stable URLs. Signed CDN URLs (e.g. TikTok thumbnails) expire — for
   videos always use `upload_frame` instead
