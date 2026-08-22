@@ -8,6 +8,8 @@ import { useSettings } from '@/lib/SettingsContext'
 import { MealCard } from '@/components/meals/MealCard'
 import { MealModal } from '@/components/meals/MealModal'
 import { Icon } from '@/components/Icon'
+import { LearnArrow } from '@/components/LearnArrow'
+import { SpinningCounter } from '@/components/ui/SpinningCounter'
 
 
 function greeting() {
@@ -217,10 +219,20 @@ export default function HomePage() {
           <div className="today-head">
             <h2>Today&apos;s meals</h2>
             <span className="today-date">
-              {todayMeals.length} meal{todayMeals.length !== 1 ? 's' : ''} · {Math.round(todayTotals.calories)} kcal
+              {plan && `${todayMeals.length} meal${todayMeals.length !== 1 ? 's' : ''} · ${Math.round(todayTotals.calories)} kcal`}
             </span>
           </div>
 
+          {/* `plan === null` means "still fetching", not "empty" — rendering the empty
+              state before the fetch lands flashed "No meals planned yet" on every
+              load. The skeleton holds that second and cross-fades into the real rows. */}
+          <div className={`today-skel t-skel${plan ? ' is-revealed' : ''}`}>
+            <div className="t-skel-skeleton" aria-hidden>
+              <div className="today-skel-row shimmer" />
+              <div className="today-skel-row shimmer" />
+              <div className="today-skel-row shimmer" />
+            </div>
+            <div className="t-skel-content">
           {today?.isDismissed ? (
             <div style={{ color: 'var(--off)', fontStyle: 'italic', fontSize: 14, textAlign: 'center', padding: '24px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               <Icon name="trip" size={24} />
@@ -229,7 +241,9 @@ export default function HomePage() {
           ) : todayMeals.length === 0 ? (
             <div style={{ color: 'var(--ink-3)', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>
               No meals planned yet.{' '}
-              <Link href="/planner" style={{ color: 'var(--accent-ink)' }}>Open planner →</Link>
+              <Link href="/planner" className="t-learn" style={{ color: 'var(--accent-ink)', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                Open planner <LearnArrow size={13} />
+              </Link>
             </div>
           ) : (
             <div className="today-meals">
@@ -263,6 +277,8 @@ export default function HomePage() {
               })}
             </div>
           )}
+            </div>
+          </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 4 }}>
             <Link href="/planner" className="btn btn-ghost btn-sm">
@@ -307,10 +323,10 @@ export default function HomePage() {
             <h2>This week</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span className="week-strip-sub">
-                {weekRange} · {daysOn} day{daysOn !== 1 ? 's' : ''} on · {Math.round(weekKcal).toLocaleString()} kcal
+                {weekRange} · {daysOn} day{daysOn !== 1 ? 's' : ''} on · <SpinningCounter value={weekKcal} /> kcal
               </span>
-              <Link href="/planner" className="section-link">
-                Open planner <Icon name="arrow-right" size={13} />
+              <Link href="/planner" className="section-link t-learn">
+                Open planner <LearnArrow size={13} />
               </Link>
             </div>
           </div>
@@ -379,8 +395,8 @@ export default function HomePage() {
         <div>
           <div className="section-head">
             <h2 className="section-title">Recently added</h2>
-            <Link href="/meals" className="section-link">
-              View cookbook <Icon name="arrow-right" size={13} />
+            <Link href="/meals" className="section-link t-learn">
+              View cookbook <LearnArrow size={13} />
             </Link>
           </div>
           <div className="meal-grid">

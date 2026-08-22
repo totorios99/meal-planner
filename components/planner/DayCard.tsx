@@ -9,6 +9,9 @@ import { parseRefs, sumRefs, sumEntries, foodsMap, hasUnfilledIngredient, type I
 import { localDate, dayName } from '@/lib/date'
 import type { MacroTargets } from '@/lib/settings'
 import { Icon } from '@/components/Icon'
+import { Toast } from '@/components/ui/Toast'
+import { Tooltip } from '@/components/ui/Tooltip'
+import { useExitTransition, motionMs } from '@/lib/useExitTransition'
 
 interface Props {
   day: WeeklyPlanDay
@@ -187,6 +190,12 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
 
   const hasNote = noteDraft.trim().length > 0
   const expandedEntry = expanded !== null ? day.meals.find(m => m.id === expanded) : undefined
+  // The sheet outlives `expanded` by the length of its close transition, so the
+  // entry it is showing has to be held past the click that dismissed it.
+  const [sheetMounted, sheetState] = useExitTransition(expanded !== null, motionMs('--modal-close-dur', 150))
+  const [heldEntry, setHeldEntry] = useState<WeeklyPlanMeal | undefined>(undefined)
+  if (expandedEntry && expandedEntry !== heldEntry) setHeldEntry(expandedEntry)
+  const sheetEntry = expandedEntry ?? heldEntry
 
   // Auto-dismiss the one-time banner once its meal no longer has an unfilled ingredient —
   // no need to wait for a manual dismiss if the user already fixed it.
@@ -200,13 +209,19 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
           <div className="day-name">{dayName(date)}</div>
           <div className="day-date">{date.getDate()}</div>
         </div>
-        <button
-          className="off-toggle"
-          onClick={toggleOff}
-          title={day.isDismissed ? 'Restore day' : 'Mark as off day'}
-        >
-          <Icon name={day.isDismissed ? 'trip' : 'plus'} size={13} />
-        </button>
+        <Tooltip label={day.isDismissed ? 'Restore day' : 'Mark as off day'}>
+          <button
+            className="off-toggle"
+            onClick={toggleOff}
+            aria-label={day.isDismissed ? 'Restore day' : 'Mark as off day'}
+          >
+            {/* Both glyphs stay mounted so restoring a day is a cross-fade, not a cut. */}
+            <span className="t-icon-swap" data-state={day.isDismissed ? 'a' : 'b'}>
+              <span className="t-icon" data-icon="a"><Icon name="trip" size={13} /></span>
+              <span className="t-icon" data-icon="b"><Icon name="plus" size={13} /></span>
+            </span>
+          </button>
+        </Tooltip>
       </div>
 
       {day.isDismissed ? (
@@ -242,6 +257,9 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
                 <div className="plan-meal-thumb">
                   {entry.meal.imageUrl && <img src={entry.meal.imageUrl} alt="" />}
                 </div>
+                {/* Native title, not <Tooltip>: this button is absolutely positioned
+                    inside the tile, and a wrapper span would become its containing
+                    block and move it. */}
                 <button
                   className="plan-meal-remove"
                   onClick={() => handleRemove(entry.id)}
@@ -257,23 +275,24 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
                 >
                   {entry.meal.title}
                   {needsInput && (
-                    <span
-                      className="plan-meal-veg-warning"
-                      title="This meal has an unfilled ingredient — tap the meal to add it"
-                    >
-                      <Icon name="warning" size={12} />
-                    </span>
+                    <Tooltip label="This meal has an unfilled ingredient — tap the meal to add it">
+                      <span className="plan-meal-veg-warning">
+                        <Icon name="warning" size={12} />
+                      </span>
+                    </Tooltip>
                   )}
                 </button>
                 <div className="plan-meal-row">
                   <span className="plan-meal-kcal">{kcal} kcal</span>
-                  <button
-                    className="plan-meal-edit"
-                    onClick={() => setPicking(entry.id)}
-                    title="Swap meal"
-                  >
-                    <Icon name="swap" size={11} /> swap
-                  </button>
+                  <Tooltip label="Swap meal">
+                    <button
+                      className="plan-meal-edit"
+                      onClick={() => setPicking(entry.id)}
+                      aria-label="Swap meal"
+                    >
+                      <Icon name="swap" size={11} /> swap
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
             )
@@ -315,24 +334,26 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
         <MealPicker onSelect={handlePick} onClose={() => setPicking(null)} />
       )}
 
-      {expandedEntry && createPortal(
-        <div className="sheet-backdrop" onClick={e => { if (e.target === e.currentTarget) setExpanded(null) }}>
-          <div className="sheet">
+      {sheetMounted && sheetEntry && createPortal(
+        <div className={`sheet-backdrop ${sheetState}`} onClick={e => { if (e.target === e.currentTarget) setExpanded(null) }}>
+          <div className={`sheet t-modal ${sheetState}`}>
             <div className="sheet-head">
-              <h2 className="sheet-title">{expandedEntry.meal.title} — {dayName(date)}</h2>
-              <button className="icon-btn" onClick={() => setExpanded(null)} title="Close">
-                <Icon name="x" size={16} />
-              </button>
+              <h2 className="sheet-title">{sheetEntry.meal.title} — {dayName(date)}</h2>
+              <Tooltip label="Close">
+                <button className="icon-btn" onClick={() => setExpanded(null)} aria-label="Close">
+                  <Icon name="x" size={16} />
+                </button>
+              </Tooltip>
             </div>
             <div className="sheet-body">
               <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>
                 Edits apply to this day only — the recipe and other days are untouched.
               </p>
               <FoodPicker
-                key={`${expandedEntry.id}-${foods.length > 0}`}
-                value={parseRefs(expandedEntry.ingredients)}
+                key={`${sheetEntry.id}-${foods.length > 0}`}
+                value={parseRefs(sheetEntry.ingredients)}
                 foods={foods}
-                onChange={next => handleIngredientsChange(expandedEntry.id, next)}
+                onChange={next => handleIngredientsChange(sheetEntry.id, next)}
                 onValidChange={setIngredientsValid}
               />
             </div>
@@ -348,29 +369,9 @@ export function DayCard({ day, planId, targets, foods, weekStart, onDayUpdate }:
         document.body
       )}
 
-      {error && createPortal(
-        <div className="fixed-alert" role="alert">
-          <Icon name="warning" size={16} />
-          <div className="fixed-alert-body"><p>{error}</p></div>
-          <button className="icon-btn" onClick={() => setError(null)} title="Dismiss">
-            <Icon name="x" size={14} />
-          </button>
-        </div>,
-        document.body
-      )}
+      <Toast open={!!error} onDismiss={() => setError(null)} message={error} role="alert" />
 
-      {showBanner && banner && createPortal(
-        <div className="fixed-alert">
-          <Icon name="warning" size={16} />
-          <div className="fixed-alert-body">
-            {banner.warnings.map((w, i) => <p key={i}>{w}</p>)}
-          </div>
-          <button className="icon-btn" onClick={() => setBanner(null)} title="Dismiss">
-            <Icon name="x" size={14} />
-          </button>
-        </div>,
-        document.body
-      )}
+      <Toast open={showBanner} onDismiss={() => setBanner(null)} message={banner?.warnings ?? null} />
     </div>
   )
 }

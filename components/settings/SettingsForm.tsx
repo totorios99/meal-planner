@@ -32,6 +32,11 @@ export function SettingsForm() {
   const [reverted, setReverted] = useState<string | null>(null)
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Which field was reset, and a nonce so resetting the SAME field twice replays
+  // the shake instead of doing nothing because the state didn't change.
+  const [errKey, setErrKey] = useState<keyof MacroTargets | null>(null)
+  const [shake, setShake] = useState(0)
+  const inputs = useRef<Record<string, HTMLInputElement | null>>({})
 
   // Number inputs are edited as text so a half-typed "16" on the way to "160" isn't committed
   // and isn't fought by a re-render. They commit on blur / Enter; everything else on change.
@@ -42,11 +47,25 @@ export function SettingsForm() {
     if (revertTimer.current) clearTimeout(revertTimer.current)
   }, [])
 
+  // The message below the header says what happened; this says *where*. Remove →
+  // reflow → re-add is what makes the animation replay on a repeat offence.
+  useEffect(() => {
+    if (!shake || !errKey) return
+    const el = inputs.current[errKey]
+    if (!el) return
+    el.classList.remove('is-shaking')
+    void el.offsetWidth
+    el.classList.add('is-shaking')
+    const t = setTimeout(() => el.classList.remove('is-shaking'), 400)
+    return () => clearTimeout(t)
+  }, [shake, errKey])
+
   // `update` never rejects — it reports failure through the context's `error`, so the only
   // thing to do here is flash "Saved" when it actually landed.
   function commit(patch: SettingsPatch) {
     setSaved(false)
     setReverted(null)
+    setErrKey(null)
     void update(patch).then(ok => {
       if (!ok) return
       setSaved(true)
@@ -68,8 +87,10 @@ export function SettingsForm() {
     if (!ok) {
       const macro = MACROS.find(m => m.key === key)!
       setReverted(`${macro.label} can't be empty — reset to ${DEFAULTS[key].toLocaleString()} ${macro.unit}.`)
+      setErrKey(key)
+      setShake(n => n + 1)
       if (revertTimer.current) clearTimeout(revertTimer.current)
-      revertTimer.current = setTimeout(() => setReverted(null), 6000)
+      revertTimer.current = setTimeout(() => { setReverted(null); setErrKey(null) }, 6000)
     }
   }
 
@@ -89,12 +110,14 @@ export function SettingsForm() {
         <h2 className="settings-card-title">Daily targets</h2>
         <div className="field-grid-2">
           {MACROS.map(m => (
-            <div key={m.key} className="field">
+            <div key={m.key} className={`field t-input-wrap${errKey === m.key ? ' is-error' : ''}`}>
               <label htmlFor={`t-${m.key}`}>
                 {m.label} <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>({m.unit})</span>
               </label>
               <input
                 id={`t-${m.key}`}
+                ref={el => { inputs.current[m.key] = el }}
+                className={`t-input${errKey === m.key ? ' is-error' : ''}`}
                 type="number"
                 min="1"
                 inputMode="numeric"

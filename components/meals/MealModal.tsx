@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useSheetTransition } from '@/lib/useExitTransition'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { Meal } from '@/types'
 import { Icon } from '@/components/Icon'
 import { parseList, parseRefs, parseStages, parseStageLines, stageLines, sumRefs, foodsMap, type IngredientRef } from '@/lib/recipe'
@@ -31,6 +33,7 @@ function toLines(v: string) {
 }
 
 export function MealModal({ meal, onClose, onSaved }: Props) {
+  const [sheetState, close] = useSheetTransition(onClose)
   const [form, setForm] = useState(EMPTY)
   // Seed synchronously: FoodPicker reads its value once on mount, before effects run.
   const [ingredients, setIngredients] = useState<IngredientRef[]>(() => meal ? parseRefs(meal.ingredients) : [])
@@ -67,11 +70,11 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') close()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [close])
 
   function set(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }))
@@ -98,17 +101,19 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
     })
     setSaving(false)
     onSaved()
-    onClose()
+    close()
   }
 
   return createPortal(
-    <div className="sheet-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="sheet">
+    <div className={`sheet-backdrop ${sheetState}`} onClick={e => { if (e.target === e.currentTarget) close() }}>
+      <div className={`sheet t-modal ${sheetState}`}>
         <div className="sheet-head">
           <h2 className="sheet-title">{meal ? 'Edit meal' : 'New meal'}</h2>
-          <button className="icon-btn" onClick={onClose} title="Close">
-            <Icon name="x" size={16} />
-          </button>
+          <Tooltip label="Close">
+            <button className="icon-btn" onClick={close} aria-label="Close">
+              <Icon name="x" size={16} />
+            </button>
+          </Tooltip>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -239,7 +244,7 @@ export function MealModal({ meal, onClose, onSaved }: Props) {
           </div>
 
           <div className="sheet-foot">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
+            <button type="button" className="btn btn-ghost" onClick={close}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving || !ingredientsValid}

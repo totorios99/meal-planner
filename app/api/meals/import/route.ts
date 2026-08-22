@@ -4,6 +4,7 @@ import { stageLabel } from '@/lib/recipe'
 import { importSchema } from '@/lib/mealSchema'
 import { importIngredientsToRefs } from '@/lib/foods'
 import { requireAdmin, adminOwnerId, unauthorizedResponse } from '@/lib/auth'
+import { rateLimit, tooManyRequests } from '@/lib/rateLimit'
 
 // One stage per step, no timer, no ingredient span: the chart degrades to a plain ladder, which
 // is the honest fallback when nobody has said which step consumes what.
@@ -19,6 +20,8 @@ function ladderFromSteps(steps: string[]) {
   }))
 }
 
+const IMPORTS_PER_MINUTE = 10
+
 export async function POST(request: NextRequest) {
   // Agents have no Clerk session; this route authenticates on the x-mise-admin-secret header
   // alone (never a query param, never a browser cookie) and imports on the owner's behalf.
@@ -32,6 +35,12 @@ export async function POST(request: NextRequest) {
     if (res) return res
     throw e
   }
+
+  // Every caller here is the one owner acting through an agent, so one window covers
+  // the route. An import is a human-paced action — read a recipe, import it — and a
+  // run of them faster than this is a loop, not a cook.
+  const limit = rateLimit(`import:${userId}`, IMPORTS_PER_MINUTE, 60_000)
+  if (!limit.ok) return tooManyRequests(limit)
 
   let body: unknown
   try {

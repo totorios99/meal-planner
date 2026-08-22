@@ -3,8 +3,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Meal } from '@/types'
 import { Icon } from '@/components/Icon'
+import { Tooltip } from '@/components/ui/Tooltip'
+import { Tilt } from '@/components/ui/Tilt'
 import { MacroRow } from '@/components/meals/MacroRow'
 import { FavoriteButton } from '@/components/meals/FavoriteButton'
+import { useExitTransition, motionMs } from '@/lib/useExitTransition'
 
 interface Props {
   meal: Meal
@@ -16,6 +19,9 @@ interface Props {
 
 export function MealCard({ meal, onEdit, onDelete, onFavToggled, style }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
+  // The menu used to disappear the instant `menuOpen` flipped; this holds it
+  // for the closing scale-down.
+  const [menuMounted, menuState] = useExitTransition(menuOpen, motionMs('--dropdown-close-dur', 150))
 
   function toggleMenu(e: React.MouseEvent) {
     e.preventDefault()
@@ -42,12 +48,12 @@ export function MealCard({ meal, onEdit, onDelete, onFavToggled, style }: Props)
   const shownTags = tags.slice(0, 3)
 
   return (
-    <Link
-      href={`/meals/${meal.id}`}
-      className="meal-card meal-card-link"
-      style={style}
-      onMouseLeave={() => setMenuOpen(false)}
-    >
+    <Tilt style={style}>
+      <Link
+        href={`/meals/${meal.id}`}
+        className="meal-card meal-card-link t-tilt-card"
+        onMouseLeave={() => setMenuOpen(false)}
+      >
       <div className="meal-card-img">
         {meal.imageUrl ? (
           <img src={meal.imageUrl} alt={meal.title} loading="lazy" decoding="async" />
@@ -65,19 +71,21 @@ export function MealCard({ meal, onEdit, onDelete, onFavToggled, style }: Props)
           </div>
         )}
         <div className="meal-menu-wrap">
-          <button
-            className={`meal-menu-btn${menuOpen ? ' open' : ''}`}
-            title="Meal actions"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            onClick={toggleMenu}
-          >
-            <Icon name="dots" size={16} />
-          </button>
-          {menuOpen && (
+          <Tooltip label="Meal actions">
+            <button
+              className={`meal-menu-btn${menuOpen ? ' open' : ''}`}
+              aria-label="Meal actions"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={toggleMenu}
+            >
+              <Icon name="dots" size={16} />
+            </button>
+          </Tooltip>
+          {menuMounted && (
             <>
               <div className="meal-menu-backdrop" onClick={toggleMenu} />
-              <div className="meal-menu" role="menu">
+              <div className={`meal-menu t-dropdown ${menuState}`} data-origin="bottom-right" role="menu">
                 <button role="menuitem" onClick={handleEdit}>
                   <Icon name="edit" size={14} /> Edit
                 </button>
@@ -99,6 +107,8 @@ export function MealCard({ meal, onEdit, onDelete, onFavToggled, style }: Props)
 
         <MacroRow calories={meal.calories} protein={meal.protein} carbs={meal.carbs} fats={meal.fats} />
       </div>
-    </Link>
+      <div className="t-tilt-glare" aria-hidden />
+      </Link>
+    </Tilt>
   )
 }

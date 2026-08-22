@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Meal } from '@/types'
 import { Icon } from '@/components/Icon'
+import { SearchField } from '@/components/ui/SearchField'
 
 interface Props {
   onSelect: (meal: Meal) => void
@@ -36,17 +37,14 @@ export function MealPicker({ onSelect, onClose }: Props) {
           <button className="icon-btn" onClick={onClose}><Icon name="x" size={16} /></button>
         </div>
         <div style={{ padding: '0 16px 10px' }}>
-          <div className="search" style={{ maxWidth: '100%' }}>
-            <Icon name="search" size={15} className="search-icon" />
-            <input
-              autoFocus
-              type="search"
-              aria-label="Search meals"
-              placeholder="Search meals…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
+          <SearchField
+            className="mp-search"
+            autoFocus
+            label="Search meals"
+            placeholder="Search meals…"
+            value={search}
+            onChange={setSearch}
+          />
         </div>
         <div className="sheet-body" style={{ padding: '0 8px 12px' }}>
           {filtered.length === 0 ? (

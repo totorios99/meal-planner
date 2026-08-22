@@ -7,6 +7,7 @@ import { QuickFill } from '@/components/planner/QuickFill'
 import Link from 'next/link'
 import { useSettings } from '@/lib/SettingsContext'
 import { Icon } from '@/components/Icon'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { startOfWeek, toDateParam } from '@/lib/date'
 
 function fmt(d: Date) {
@@ -120,13 +121,17 @@ export default function PlannerPage() {
         <div className="planner-controls">
           <QuickFill plan={plan} onCloned={handleCloned} />
           <div className="week-nav">
-            <button onClick={() => goToWeek(-1)} title="Previous week">
-              <Icon name="chev-left" size={14} />
-            </button>
+            <Tooltip label="Previous week">
+              <button onClick={() => goToWeek(-1)} aria-label="Previous week">
+                <Icon name="chev-left" size={14} />
+              </button>
+            </Tooltip>
             <span className="label">{fmt(weekStart)} – {fmt(weekEnd)}</span>
-            <button onClick={() => goToWeek(1)} title="Next week">
-              <Icon name="chev-right" size={14} />
-            </button>
+            <Tooltip label="Next week">
+              <button onClick={() => goToWeek(1)} aria-label="Next week">
+                <Icon name="chev-right" size={14} />
+              </button>
+            </Tooltip>
           </div>
           {/* Both the title-length toggle and the targets modal used to live here. They are
               preferences, and preferences are edited in one place now. */}

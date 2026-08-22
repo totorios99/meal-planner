@@ -4,18 +4,30 @@ import { randomBytes } from 'crypto'
 import { join } from 'path'
 import { imageDir } from '@/lib/images'
 import { isAdmin, optionalUserId } from '@/lib/auth'
+import { rateLimit, tooManyRequests } from '@/lib/rateLimit'
 
 const MAX_BYTES = 5 * 1024 * 1024
+// Every accepted upload is a 5MB disk write with no storage quota behind it, so
+// the limit is what stops an authenticated client filling /DATA in a loop. A
+// human adding photos to recipes never approaches 20 in a minute.
+const UPLOADS_PER_MINUTE = 20
 
 export async function POST(request: NextRequest) {
   // Two legitimate callers with different credentials: the in-app uploader (a signed-in Clerk
   // user) and the MCP server (the admin secret header). proxy.ts admits both — it lets a valid
   // admin secret through without a session — so this is where the two are actually told apart.
   // Accept either, reject everything else.
-  const signedIn = (await optionalUserId()) !== null
-  if (!signedIn && !isAdmin(request)) {
+  const userId = await optionalUserId()
+  const admin = isAdmin(request)
+  if (!userId && !admin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  // Keyed on the caller, not the IP: behind Tailscale and the reverse proxy every
+  // request arrives from the same handful of addresses, so an IP key would either
+  // limit everyone at once or nobody.
+  const limit = rateLimit(`upload:${userId ?? 'agent'}`, UPLOADS_PER_MINUTE, 60_000)
+  if (!limit.ok) return tooManyRequests(limit)
 
   const form = await request.formData()
   const file = form.get('file')

@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useSyncExternalStore } from 'react'
 import { UserButton } from '@clerk/nextjs'
 import { Icon } from '@/components/Icon'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { authAppearance } from '@/lib/clerkAppearance'
 import { useSettings } from '@/lib/SettingsContext'
 import { startOfWeek, toDateParam } from '@/lib/date'
@@ -103,10 +104,17 @@ export function Nav() {
           <div className="nav-actions">
             {/* No gear here: preferences live inside the profile now, so the avatar is the one
                 way in. Two entries to the same screen is what this merge was meant to remove. */}
-            <button className="icon-btn" title={themeTitle} onClick={toggleTheme}>
-              <Icon name={resolvedDark ? 'sun' : 'moon'} size={17} />
-              {themePref === 'system' && <span className="auto-dot" />}
-            </button>
+            <Tooltip label={themeTitle} place="below">
+              <button className="icon-btn" aria-label={themeTitle} onClick={toggleTheme}>
+                {/* Both glyphs stay mounted and cross-fade; swapping the `name`
+                    prop cut from one to the other with nothing in between. */}
+                <span className="t-icon-swap" data-state={resolvedDark ? 'a' : 'b'}>
+                  <span className="t-icon" data-icon="a"><Icon name="sun" size={17} /></span>
+                  <span className="t-icon" data-icon="b"><Icon name="moon" size={17} /></span>
+                </span>
+                {themePref === 'system' && <span className="auto-dot" />}
+              </button>
+            </Tooltip>
             {/* Sized to match .icon-btn so the row doesn't jump when Clerk hydrates. */}
             {/* "Manage account" navigates to /settings rather than opening a modal: preferences
                 and account management are one screen now, and a modal copy would be a second

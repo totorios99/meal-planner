@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useExitTransition, motionMs } from '@/lib/useExitTransition'
 
 export interface SelectOption { value: string; label: string }
 
@@ -20,6 +21,7 @@ export function Select({ value, options, onChange, disabled, className }: Props)
   const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const [mounted, menuState] = useExitTransition(open, motionMs('--dropdown-close-dur', 150))
 
   function reposition() {
     const r = triggerRef.current?.getBoundingClientRect()
@@ -72,8 +74,9 @@ export function Select({ value, options, onChange, disabled, className }: Props)
       >
         <span className="ui-select-value">{current?.label ?? ''}</span>
       </button>
-      {open && rect && createPortal(
-        <div ref={menuRef} className="ui-select-menu" style={{ top: rect.top, left: rect.left, width: rect.width }}>
+      {mounted && rect && createPortal(
+        <div ref={menuRef} className={`ui-select-menu t-dropdown ${menuState}`} data-origin="top-left"
+          style={{ top: rect.top, left: rect.left, width: rect.width }}>
           {options.map(o => (
             <div
               key={o.value}
