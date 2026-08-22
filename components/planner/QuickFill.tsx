@@ -19,14 +19,22 @@ export function QuickFill({ plan, onCloned }: Props) {
   const viewing = localDate(plan.weekStart)
   const weekStart = toDateParam(viewing)
 
+  // Paging to another week clears the selection: the offered list is "weeks earlier than the
+  // one on screen", so a selection made against the previous list may not even be in this one.
+  // Adjusted during render rather than in an effect — an effect would paint one frame with the
+  // stale selection still showing (react.dev/learn/you-might-not-need-an-effect).
+  const [selectedFor, setSelectedFor] = useState(weekStart)
+  if (selectedFor !== weekStart) {
+    setSelectedFor(weekStart)
+    setSelected('')
+  }
+
   useEffect(() => {
     // An unchecked .json() used to land {error} in `history`, and .map threw on it.
     fetch(`/api/plans/history?before=${weekStart}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(String(r.status))))
       .then(data => setHistory(Array.isArray(data) ? data : []))
       .catch(() => setHistory([]))
-    // Weeks earlier than the one on screen — so the list changes as you page through weeks.
-    setSelected('')
   }, [weekStart])
 
   // Empty weeks are not offered. Applying one is purely destructive — the copy clears each day

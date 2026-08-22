@@ -29,33 +29,41 @@ const eslintConfig = defineConfig([
   },
 
   {
-    // ── Known backlog, not a blanket exemption ──
+    // ── Client data fetching on mount ──
     //
-    // These files predate the React Compiler lint rules and trip them. The rules stay at
-    // `error` everywhere else, so anything NEW of this shape still fails CI; here they are
-    // warnings so the gate can be switched on today rather than after a refactor.
+    // `useEffect(() => { fetchX() }, [fetchX])`. The rule is conservative: it flags any call
+    // to a function that transitively setStates, whether or not the call is synchronous.
     //
-    // This list is the todo list. Delete an entry when its file is fixed — do not add to it
-    // without a reason worth writing down.
-    //
-    //   set-state-in-effect  — a setState called synchronously in an effect body, which
-    //                          cascades renders. Usually fixable by deriving during render
-    //                          or moving the call into the callback that caused it.
-    //   refs                 — a ref read during render rather than in an effect/handler.
+    // React's own guidance is that fetching in an effect is the correct pattern when you have
+    // no framework data-fetching mechanism, which is the case for these pages — they are
+    // client components that refetch after their own mutations. "Fixing" this means moving the
+    // data layer into server components or a query library, which is an architectural change,
+    // not a lint cleanup. Left deliberately, not deferred.
     files: [
       "app/foods/page.tsx",
       "app/meals/page.tsx",
       "app/page.tsx",
       "app/planner/page.tsx",
-      "components/foods/FoodModal.tsx",
-      "components/meals/CookMode.tsx",
-      "components/meals/MealModal.tsx",
-      "components/meals/PhotoInput.tsx",
-      "components/planner/QuickFill.tsx",
     ],
     rules: {
       "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/refs": "warn",
+    },
+  },
+
+  {
+    // ── CookMode's timer arming ──
+    //
+    // The effect arms a wall-clock deadline when the slot, run or cooking state changes —
+    // genuinely "synchronize with an external system" (the clock), which is what effects are
+    // for, but the values it writes are React state, so the rule fires.
+    //
+    // Deliberately NOT refactored yet: this is the most intricate file in the repo (a deadline
+    // timer with pause-banking and re-arm counters) and it currently has no test coverage.
+    // Phase 4 of the test plan puts that timer under test; restructuring it first would be
+    // doing the risky change in the order that makes it dangerous. Revisit once it is covered.
+    files: ["components/meals/CookMode.tsx"],
+    rules: {
+      "react-hooks/set-state-in-effect": "warn",
     },
   },
 ]);

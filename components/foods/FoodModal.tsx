@@ -49,9 +49,14 @@ const EMPTY = { name: '', baseUnit: '', isPlaceholder: false }
 
 export function FoodModal({ food, onClose, onSaved }: Props) {
   const [sheetState, close] = useSheetTransition(onClose)
-  const [form, setForm] = useState(EMPTY)
+  // Seeded once from the food this modal opened on. The caller passes a `key` derived from the
+  // food id, so editing a different food remounts rather than syncing prop into state through
+  // an effect — which rendered every open twice, once empty and once filled.
+  const [form, setForm] = useState(() =>
+    food ? { name: food.name, baseUnit: food.baseUnit, isPlaceholder: food.isPlaceholder } : EMPTY)
   const [nutrients, setNutrients] = useState<NutrientRow[]>(() => seedRows(food))
-  const [measures, setMeasures] = useState<MeasureRow[]>([])
+  const [measures, setMeasures] = useState<MeasureRow[]>(() =>
+    food ? food.measures.map(m => ({ unit: m.unit, perBase: String(m.perBase) })) : [])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // The only error this endpoint returns is a name clash, so the name field is
@@ -71,13 +76,6 @@ export function FoodModal({ food, onClose, onSaved }: Props) {
     const t = setTimeout(() => el.classList.remove('is-shaking'), 400)
     return () => clearTimeout(t)
   }, [shake])
-
-  useEffect(() => {
-    setForm(food ? { name: food.name, baseUnit: food.baseUnit, isPlaceholder: food.isPlaceholder } : EMPTY)
-    setNutrients(seedRows(food))
-    setMeasures(food ? food.measures.map(m => ({ unit: m.unit, perBase: String(m.perBase) })) : [])
-    setWarnings([])
-  }, [food])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') close() }
