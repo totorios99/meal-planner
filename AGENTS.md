@@ -4,6 +4,23 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Engineering rules
+
+- Do not preserve backward compatibility. Remove obsolete paths instead of adding compatibility
+  layers, fallbacks, or migrations.
+- Choose the simplest implementation that fully meets the current requirements. Avoid speculative
+  abstractions, configuration, and indirection.
+- Grow the system in layers. Start from the smallest version that works end to end, and add each
+  new capability on top of a product that already works. Never trade a working product for
+  unfinished complexity.
+- Keep components modular and concerns clearly separated.
+- Prefer established, well-maintained libraries when they reduce overall complexity or improve
+  reliability. Do not reimplement common functionality without a clear reason.
+- Lean on the dependencies already in the project before writing your own implementation or adding
+  packages. Do not assume a library lacks a capability without checking its documentation and types.
+- Make architectural decisions for the long term. Do not accept a stopgap that only works for now
+  and is meant to be replaced later.
+
 # Project: Mise — Meal Planner
 
 Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQLite, TypeScript.
@@ -11,6 +28,13 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 ## Dev workflow
 
 - `npm run dev -- --port 3020` — local development, HMR, no Docker needed (always use port 3020)
+- `npm test` — Vitest, three projects (`unit`, `api`, `components`) from `vitest.config.mts`.
+  `npm run test:watch` for one, `npx vitest --project api` for a single layer.
+- `npm run typecheck` — `tsc --noEmit`, and it now includes the test files. It used to skip
+  them (`exclude: **/*.test.ts`), which let fixtures rot against the types they claimed.
+- Assertions use `node:assert/strict` inside Vitest's `it()` blocks rather than `expect()`:
+  the assertion messages explain which regression each line guards, and `expect()` discards them.
+- Local imports in tests carry the `.ts` extension (`from './date.ts'`).
 - Dev server runs on `localhost:3020`; LAN access requires `allowedDevOrigins` (already in `next.config.ts`)
 - Never run Docker during dev iteration — slow, no HMR
 
@@ -68,7 +92,7 @@ Personal meal planner. Solo developer. Next.js 16, Prisma 7 + libSQL adapter, SQ
 - `app/api/meals/import/route.ts` — agent import endpoint, requires `x-mise-admin-secret` = `MISE_ADMIN_SECRET` env (unset = disabled); local dev secret in gitignored `.env`
 - `mcp/server.mjs` — stdio MCP server proxying the HTTP API (run `npm run mcp` with `MISE_URL`/`MISE_ADMIN_SECRET`); extraction rules + import JSON shape in `mcp/extraction-prompt.md`
 - Favorites: `PATCH /api/meals/[id]` with `{isFavorite}`, max 5 enforced **per user** server-side (409)
-- `proxy.ts` — Clerk gate (Next 16 renamed `middleware.ts` → `proxy.ts`); `lib/auth.ts` — the actual security boundary; `lib/adminSecret.ts` — shared header check
+- `proxy.ts` — Clerk gate (Next 16 renamed `middleware.ts` → `proxy.ts`); `lib/auth.ts` — the actual security boundary; `lib/adminSecret.ts` — shared header check; `lib/rateLimit.ts` — per-caller request windows
 
 ## Security requirements
 
@@ -111,6 +135,72 @@ relevant ones — see *Planning and documentation* below.
 
 Never give an admin secret, DB credential or API key a `NEXT_PUBLIC_` prefix. `MISE_API_KEY` is
 retired — it no longer exists anywhere in the codebase.
+
+### Data classification and retention
+
+Written down so the answer is a decision rather than a shrug. Everything Mise stores is
+**internal** — meaningful only to its owner, harmful to nobody if lost.
+
+| Data | Level | Where | Retention |
+|---|---|---|---|
+| Clerk user id (an opaque `user_…`) | internal | every table's `userId` | life of the account |
+| Recipes, plans, foods, settings | internal | `/DATA/AppData/mise/meal-planner.db` | until the user deletes them |
+| Uploaded photos | internal | `/DATA/AppData/mise/images/` | until the meal is deleted (the file is not) |
+| Credentials (passwords, tokens, payment) | — | **none exist** | Clerk holds all of it |
+
+No **restricted** or **confidential** data exists, which is why there is no tiered encryption or
+retention schedule: one level needs one rule. The database is plaintext on disk, protected by
+host access rather than at-rest encryption — acceptable while the host is a personal machine on
+a private network and the contents are recipes.
+
+**What changes the answer:** a second human user whose data the owner shouldn't read, anything
+health- or body-related (weight, blood glucose — plausible if Forma ever merges in), or exposure
+to the public internet. Any one of those makes at least one row *confidential* and this table
+has to be rewritten before that ships, not after.
+
+Orphaned image files are a known gap — deleting a meal leaves its photo on disk. Harmless today;
+it becomes a retention problem the moment images are classified above internal.
+
+### Uploads
+
+`POST /api/images` validates **format, not content**: magic bytes are sniffed (PNG signature,
+JPEG `FF D8 FF`) rather than trusting `Content-Type`, capped at 5MB, and the filename is
+generated server-side so it is never attacker-controlled. `/api/images/[name]` regex-validates
+the name, pins `Content-Type` from the extension, and sends `Cache-Control: private` because the
+response is authenticated.
+
+**There is no malware scan.** A polyglot with a valid PNG header would be stored and served back
+as `image/png`. That is accepted because the file is only ever returned to a browser as an image
+with `X-Content-Type-Options: nosniff`, never executed, never handed to a shell, and never served
+to anyone but the signed-in owner. Add a scanner (ClamAV in the compose stack) if uploads ever
+become multi-user, or if a file is ever passed to anything that interprets it.
+
+### Anti-automation
+
+`lib/rateLimit.ts` — fixed window, in process memory, keyed on the caller (`userId`, or `agent`
+for secret-authenticated requests). Not IP: behind Tailscale and the reverse proxy nearly every
+request shares an address, so an IP key would gate everyone or no one.
+
+| Route | Limit | Why |
+|---|---|---|
+| `POST /api/images` | 20/min | each accepted upload is a 5MB disk write with no storage quota behind it |
+| `POST /api/meals/import` | 10/min | a human-paced action; a faster run is a loop, not a cook |
+
+Process memory is the right store *because* the app is one container with one Node process — a
+shared store would coordinate a single writer with itself. **A second replica is the trigger to
+move the counter out**, and nothing short of it is. A restart forgives every counter; that trade
+is deliberate.
+
+### Sessions
+
+Mise sets **no cookies of its own**. Session state is entirely Clerk's (`__session`,
+`__client_uat`, `__clerk_handshake`), so cookie flags are Clerk's to set and ours to verify —
+check `__session` in DevTools rather than asserting a value from memory. `Secure` is definitely
+set: sign-in loops forever over plain HTTP because the cookie is dropped, which is why the LAN
+setup goes through HTTPS.
+
+CSRF is mitigated by `SameSite` on those cookies plus the fact that every mutating route is
+JSON-only, not a form target. There is no CSRF token of our own.
 
 ## Planning and documentation
 
