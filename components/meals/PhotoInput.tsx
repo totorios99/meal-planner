@@ -24,6 +24,11 @@ export function PhotoInput({ value, onChange }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
+  // The frame's width, measured rather than read from the ref during render. Reading
+  // frameRef.current mid-render meant the FIRST render always used the 400 fallback — the ref
+  // is null until after commit — and nothing re-measured when the sheet or window resized, so
+  // a crop framed at one width stayed scaled for it.
+  const [frameW, setFrameW] = useState(400)
 
   function loadImage(src: string, crossOrigin: boolean) {
     const img = new Image()
@@ -36,8 +41,11 @@ export function PhotoInput({ value, onChange }: Props) {
     img.src = src
   }
 
+  // Called from handlers and image-load callbacks, never during render, so it can read the
+  // live element — that is the most accurate width available at the moment it is needed.
+  // `frameW` is only the fallback for the window before the first measurement lands.
   function frameSize() {
-    const w = frameRef.current?.clientWidth ?? 400
+    const w = frameRef.current?.clientWidth || frameW
     return { W: w, H: (w * OUT_H) / OUT_W }
   }
 
@@ -120,11 +128,30 @@ export function PhotoInput({ value, onChange }: Props) {
     loadImage(value, external)
   }
 
+  // Measure after commit, and keep measuring: the modal animates open, so the width at mount
+  // is not the width a moment later.
+  useEffect(() => {
+    const el = frameRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => {
+      const w = Math.round(entry.contentRect.width)
+      if (w > 0) setFrameW(prev => (prev === w ? prev : w))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   useEffect(() => {
     return () => { if (crop?.img.src.startsWith('blob:')) URL.revokeObjectURL(crop.img.src) }
   }, [crop])
 
-  const s = crop ? coverScale(crop.img) * crop.zoom : 1
+  // Render must not read the ref: it is null on the first render, and a ref read does not
+  // re-render when the element resizes. This mirrors coverScale() against measured state.
+  const renderW = frameW
+  const renderH = (renderW * OUT_H) / OUT_W
+  const s = crop
+    ? Math.max(renderW / crop.img.naturalWidth, renderH / crop.img.naturalHeight) * crop.zoom
+    : 1
 
   return (
     <div className="field">

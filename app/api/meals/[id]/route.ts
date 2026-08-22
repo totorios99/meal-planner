@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { mealInput, stageRangeIssues } from '@/lib/mealSchema'
 import { macrosForRefs } from '@/lib/foods'
 import { parseRefs, parseStages } from '@/lib/recipe'
-import { requireUserId } from '@/lib/auth'
+import { requireUserId, guarded } from '@/lib/auth'
 
 const notFound = () => NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -16,15 +16,15 @@ async function ownedMeal(id: string, userId: string) {
   return prisma.meal.findFirst({ where: { id: Number(id), userId } })
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = guarded(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const userId = await requireUserId(request)
   const { id } = await params
   const meal = await ownedMeal(id, userId)
   if (!meal) return notFound()
   return NextResponse.json(meal)
-}
+})
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = guarded(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const userId = await requireUserId(request)
   const { id } = await params
   const existing = await ownedMeal(id, userId)
@@ -82,9 +82,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     )
   }
   return NextResponse.json(warnings.length > 0 ? { ...meal, warnings } : meal)
-}
+})
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = guarded(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const userId = await requireUserId(request)
   const { id } = await params
   const existing = await ownedMeal(id, userId)
@@ -111,9 +111,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     data: { isFavorite: parsed.data.isFavorite },
   })
   return NextResponse.json(meal)
-}
+})
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = guarded(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const userId = await requireUserId(request)
   const { id } = await params
   const existing = await ownedMeal(id, userId)
@@ -133,4 +133,4 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   }
   await prisma.meal.delete({ where: { id: existing.id } })
   return NextResponse.json({ deleted: true })
-}
+})
